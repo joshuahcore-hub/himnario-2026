@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowDown, ArrowUp, Check, Link2, Plus, Search, Unlink, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Link2, Loader2, Plus, Search, Unlink, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { MinutaData, ParsedSong } from '@/lib/types';
@@ -270,7 +270,7 @@ export default function EditorMinuta() {
 
       <div className="px-5 py-3 border-t border-border bg-background">
         <Button onClick={guardar} disabled={guardando || cantos.length === 0} className="w-full h-12 text-base gap-2">
-          <Check size={18} />
+          {guardando ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
           {guardando ? t.create_saving : t.minutas_save}
         </Button>
       </div>

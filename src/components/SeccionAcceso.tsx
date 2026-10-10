@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Clock, KeyRound, PenLine, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
+import { Clock, KeyRound, Loader2, PenLine, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -62,7 +62,10 @@ function FormNombreColor({ nombreInicial = '', colorInicial = COLORES[7], textoB
       <Input value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t.setup_name_placeholder} maxLength={40} className="h-10 text-sm" />
       <p className="text-[11px] text-muted-foreground text-center">{t.setup_color}</p>
       <SelectorColor valor={color} onChange={setColor} />
-      <Button onClick={enviar} disabled={enviando} className="w-full">{enviando ? t.auth_loading : textoBoton}</Button>
+      <Button onClick={enviar} disabled={enviando} className="w-full gap-2">
+        {enviando && <Loader2 size={16} className="animate-spin" />}
+        {textoBoton}
+      </Button>
     </div>
   );
 }
