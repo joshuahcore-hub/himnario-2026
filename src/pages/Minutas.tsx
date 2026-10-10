@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Trash2, Pin, WifiOff, RefreshCw, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Trash2, Pin, WifiOff, RefreshCw, Pencil } from 'lucide-react';
 import Portada from '@/components/Portada';
 import type { MinutaData } from '@/lib/types';
 import { useMinutas, quitarMinutaLocal, guardarMinutaLocal } from '@/lib/minutaCache';
@@ -70,23 +69,11 @@ export default function Minutas() {
     <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }} onClick={() => { if (selectMode) salirSeleccion(); }}>
       <div className="flex items-center justify-between px-5 pt-4 gap-2">
         <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
-        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-          {selectMode ? (
-            <>
-              {selected.size > 0 && (
-                <Button size="sm" variant="destructive" onClick={borrar}>
-                  <Trash2 size={14} className="mr-1" />
-                  {t.minutas_delete} ({selected.size})
-                </Button>
-              )}
-              <Button size="sm" variant="outline" onClick={salirSeleccion}><X size={14} /></Button>
-            </>
-          ) : (
-            <button onClick={refrescar} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_refresh}>
-              <RefreshCw size={16} className={cargando ? 'animate-spin' : ''} />
-            </button>
-          )}
-        </div>
+        {!selectMode && (
+          <button onClick={refrescar} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_refresh}>
+            <RefreshCw size={16} className={cargando ? 'animate-spin' : ''} />
+          </button>
+        )}
       </div>
 
       {sinConexion && (
@@ -160,6 +147,33 @@ export default function Minutas() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Acciones de la selección: abajo, al alcance del pulgar. Lápiz = editar (con una sola minuta),
+          basurero = borrar las seleccionadas. Solo íconos. */}
+      {selectMode && (
+        <div
+          className="fixed left-0 right-0 z-40 flex justify-center gap-12 animate-in fade-in slide-in-from-bottom-4 duration-200"
+          style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { const [id] = [...selected]; salirSeleccion(); navigate(`/editar/${id}`); }}
+            disabled={selected.size !== 1}
+            className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
+            aria-label={t.create_edit}
+          >
+            <Pencil size={22} />
+          </button>
+          <button
+            onClick={borrar}
+            disabled={selected.size === 0}
+            className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-destructive disabled:opacity-30 transition-opacity"
+            aria-label={t.minutas_delete}
+          >
+            <Trash2 size={22} />
+          </button>
         </div>
       )}
     </div>

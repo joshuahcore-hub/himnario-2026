@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Share2 } from 'lucide-react';
+import { ArrowLeft, Share2 } from 'lucide-react';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
 import ZoomableImage from '@/components/ZoomableImage';
@@ -10,7 +10,6 @@ import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar, textoParaCompartir, compartirPorWhatsApp, tituloVisible } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
-import { useAcceso } from '@/hooks/useAcceso';
 
 function SongPage({ song }: { song: ParsedSong }) {
   const [imgError, setImgError] = useState(false);
@@ -66,7 +65,6 @@ export default function MinutaReader() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { puedeEditar } = useAcceso();
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -191,11 +189,7 @@ export default function MinutaReader() {
         <button onClick={compartir} className="tap-btn p-1.5 rounded-lg text-muted-foreground" aria-label={t.minuta_share}>
           <Share2 size={16} />
         </button>
-        {puedeEditar && (
-          <button onClick={() => navigate(`/editar/${minuta.id}`)} className="tap-btn p-1.5 rounded-lg text-muted-foreground" aria-label={t.create_edit}>
-            <Pencil size={16} />
-          </button>
-        )}
+        {/* Editar se hace desde la lista de minutas (mantener presionada → lápiz), no desde aquí. */}
       </div>
 
       <div
