@@ -20,6 +20,8 @@ export default function Minutas() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const longPress = useRef<ReturnType<typeof setTimeout>>();
+  // El toque que termina un "mantener presionado" no debe desmarcar la minuta recién seleccionada.
+  const ignorarSiguienteToque = useRef(false);
 
   // Fijadas primero; el resto por fecha. Se abre mostrando la más reciente (a la derecha).
   const ordenadas = useMemo(
@@ -64,10 +66,11 @@ export default function Minutas() {
   };
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
+    // Tocar en cualquier parte fuera de una minuta sale del modo selección (igual que la X).
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }} onClick={() => { if (selectMode) salirSeleccion(); }}>
       <div className="flex items-center justify-between px-5 pt-4 gap-2">
         <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
           {selectMode ? (
             <>
               {selected.size > 0 && (
@@ -110,7 +113,7 @@ export default function Minutas() {
             style={{ paddingLeft: 'calc(50% - 140px)', paddingRight: 'calc(50% - 140px)' }}
           >
             {ordenadas.map(m => (
-              <div key={m.id} className="snap-center shrink-0 w-[280px]" onContextMenu={e => e.preventDefault()}>
+              <div key={m.id} className="snap-center shrink-0 w-[280px]" onContextMenu={e => e.preventDefault()} onClick={e => e.stopPropagation()}>
                 <div className="mb-2 flex items-center justify-center gap-1 h-6">
                   {m.fijada && <Pin size={10} className="text-primary rotate-45" />}
                   <p className="text-xs font-semibold text-foreground/80 text-center truncate">{tituloVisible(m)}</p>
@@ -119,11 +122,18 @@ export default function Minutas() {
                   className={`relative cursor-pointer ${m.fijada ? 'ring-2 ring-primary/40 rounded-xl' : ''}`}
                   onTouchStart={() => {
                     if (!puedeEditar) return;
-                    longPress.current = setTimeout(() => { setSelectMode(true); toggleSelect(m.id); }, 500);
+                    longPress.current = setTimeout(() => {
+                      ignorarSiguienteToque.current = true;
+                      setSelectMode(true);
+                      toggleSelect(m.id);
+                    }, 500);
                   }}
                   onTouchEnd={() => clearTimeout(longPress.current)}
                   onTouchMove={() => clearTimeout(longPress.current)}
-                  onClick={() => (selectMode ? toggleSelect(m.id) : navigate(`/minuta/${m.id}`))}
+                  onClick={() => {
+                    if (ignorarSiguienteToque.current) { ignorarSiguienteToque.current = false; return; }
+                    if (selectMode) toggleSelect(m.id); else navigate(`/minuta/${m.id}`);
+                  }}
                 >
                   {selectMode && (
                     <>

@@ -1,5 +1,6 @@
 // Tarjeta de Ajustes para pedir permiso de creador, ver el estado y (solo el admin) entrar a Administración.
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Clock, KeyRound, Loader2, PenLine, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
@@ -77,6 +78,8 @@ export default function SeccionAcceso() {
   const [editandoPerfil, setEditandoPerfil] = useState(false);
   const [dialogoAdmin, setDialogoAdmin] = useState(false);
   const [clave, setClave] = useState('');
+  const tarjetaRef = useRef<HTMLDivElement>(null);
+  useAlTocarFuera(tarjetaRef, editandoPerfil, useCallback(() => setEditandoPerfil(false), []));
 
   const autor = acceso.nombre && acceso.color ? { nombre: acceso.nombre, color: acceso.color } : null;
 
@@ -138,7 +141,7 @@ export default function SeccionAcceso() {
 
   return (
     <>
-      <div className="bg-card rounded-xl border border-border p-4">
+      <div ref={tarjetaRef} className="bg-card rounded-xl border border-border p-4">
         <div className="flex items-center gap-2 mb-3">
           <PenLine size={14} className="text-muted-foreground" />
           <span className="text-xs font-medium text-foreground">{t.access_title}</span>
