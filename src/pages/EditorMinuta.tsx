@@ -25,16 +25,18 @@ export interface BorradorMinuta {
   textoOriginal?: string;
 }
 
-function BuscadorCantos({ onAdd, onClose, yaAgregados }: {
+/** Buscador para añadir cantos: tocar uno lo marca (queda en verde); tocarlo de nuevo lo desmarca y lo quita. */
+function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
   onAdd: (c: ParsedSong) => void;
+  onRemove: (hymnNumber: number) => void;
   onClose: () => void;
-  yaAgregados: number;
+  seleccionados: number[];
 }) {
   const { t } = useI18n();
   const { hymns } = getHymns();
   const [q, setQ] = useState('');
-  const [recien, setRecien] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const marcados = new Set(seleccionados);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -62,33 +64,35 @@ function BuscadorCantos({ onAdd, onClose, yaAgregados }: {
           />
         </div>
         <Button size="sm" onClick={onClose} className="h-10">
-          {t.editor_done}{yaAgregados > 0 ? ` (${yaAgregados})` : ''}
+          {t.editor_done}{seleccionados.length > 0 ? ` (${seleccionados.length})` : ''}
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto px-3 py-2">
-        {resultados.map(h => (
-          <button
-            key={h.id}
-            onClick={() => {
-              onAdd(cantoDesdeHimno(h));
-              setRecien(h.hymn_number);
-              setTimeout(() => setRecien(r => (r === h.hymn_number ? null : r)), 900);
-            }}
-            className="tap-btn flex items-center gap-2 py-2.5 px-2 rounded-lg w-full text-left active:bg-accent"
-          >
-            <span className="text-hymn-number font-semibold text-xs w-7 shrink-0 text-center">{h.hymn_number}</span>
-            <div className="flex-1 min-w-0">
-              <span className="text-foreground text-sm font-medium">{h.title}</span>
-              {h.first_line && <p className="text-muted-foreground text-[11px] truncate italic">{h.first_line}</p>}
-            </div>
-            {h.key && <span translate="no" className="text-hymn-key font-semibold text-xs w-7 text-center">{h.key}</span>}
-            <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-              recien === h.hymn_number ? 'bg-green-600 text-white' : 'bg-primary/10 text-primary'
-            }`}>
-              {recien === h.hymn_number ? <Check size={14} /> : <Plus size={14} />}
-            </span>
-          </button>
-        ))}
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
+        {resultados.map(h => {
+          const marcado = marcados.has(h.hymn_number);
+          return (
+            <button
+              key={h.id}
+              onClick={() => (marcado ? onRemove(h.hymn_number) : onAdd(cantoDesdeHimno(h)))}
+              aria-pressed={marcado}
+              className={`tap-btn flex items-center gap-2 py-2.5 px-2 rounded-lg w-full text-left transition-colors ${
+                marcado ? 'bg-green-600/15 ring-1 ring-green-600/40' : 'active:bg-accent'
+              }`}
+            >
+              <span className="text-hymn-number font-semibold text-xs w-7 shrink-0 text-center">{h.hymn_number}</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-foreground text-sm font-medium">{h.title}</span>
+                {h.first_line && <p className="text-muted-foreground text-[11px] truncate italic">{h.first_line}</p>}
+              </div>
+              {h.key && <span translate="no" className="text-hymn-key font-semibold text-xs w-7 text-center">{h.key}</span>}
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                marcado ? 'bg-green-600 text-white' : 'bg-primary/10 text-primary'
+              }`}>
+                {marcado ? <Check size={14} /> : <Plus size={14} />}
+              </span>
+            </button>
+          );
+        })}
         {resultados.length === 0 && <p className="text-muted-foreground text-xs text-center py-8">{t.hymnal_no_results}</p>}
       </div>
     </div>
@@ -108,7 +112,8 @@ export default function EditorMinuta() {
   const [fecha, setFecha] = useState(existente?.fecha ?? borrador?.fecha ?? hoy());
   const [cantos, setCantos] = useState<ParsedSong[]>(existente?.cantos ?? borrador?.cantos ?? []);
   const [buscando, setBuscando] = useState(false);
-  const [agregadosEnBusqueda, setAgregadosEnBusqueda] = useState(0);
+  // Posición de la lista desde donde empiezan los cantos añadidos en la búsqueda abierta (se pueden desmarcar ahí mismo).
+  const [inicioBusqueda, setInicioBusqueda] = useState(0);
   const [guardando, setGuardando] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
 
@@ -144,6 +149,15 @@ export default function EditorMinuta() {
   });
 
   const quitar = (i: number) => setCantos(prev => prev.filter((_, k) => k !== i));
+
+  const seleccionadosEnBusqueda = cantos.slice(inicioBusqueda).flatMap(c => (c.hymnNumber ? [c.hymnNumber] : []));
+
+  const desmarcar = (hymnNumber: number) => setCantos(prev => {
+    for (let k = prev.length - 1; k >= inicioBusqueda; k--) {
+      if (prev[k].hymnNumber === hymnNumber) return prev.filter((_, j) => j !== k);
+    }
+    return prev;
+  });
 
   const puedeAgrupar = (i: number) =>
     !esMarcador(cantos[i]) && !cantos[i].groupedWith && i + 1 < cantos.length &&
@@ -245,7 +259,7 @@ export default function EditorMinuta() {
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <Button onClick={() => { setAgregadosEnBusqueda(0); setBuscando(true); }} className="gap-1 text-xs h-10">
+          <Button onClick={() => { setInicioBusqueda(cantos.length); setBuscando(true); }} className="gap-1 text-xs h-10">
             <Plus size={14} />{t.editor_add_song}
           </Button>
           <Button variant="outline" onClick={() => agregar({ ...PALABRA })} className="text-xs h-10 text-palabra">{t.portada_palabra}</Button>
@@ -263,8 +277,9 @@ export default function EditorMinuta() {
 
       {buscando && (
         <BuscadorCantos
-          yaAgregados={agregadosEnBusqueda}
-          onAdd={c => { agregar(c); setAgregadosEnBusqueda(n => n + 1); }}
+          seleccionados={seleccionadosEnBusqueda}
+          onAdd={agregar}
+          onRemove={desmarcar}
           onClose={() => setBuscando(false)}
         />
       )}
