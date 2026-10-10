@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { ArrowDown, ArrowUp, Check, Link2, Loader2, Plus, Search, Unlink, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import SelectorFecha from '@/components/SelectorFecha';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import { getHymns, normalizar } from '@/lib/hymnCache';
 import { cantoDesdeHimno, esMarcador, ORACION, PALABRA, renumerar } from '@/lib/minutaUtils';
@@ -230,10 +231,11 @@ export default function EditorMinuta() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-4">
+      {/* pt-1: deja aire arriba para que el borde de los campos no quede cortado contra la lista. */}
+      <div className="flex-1 overflow-y-auto px-5 pt-1 pb-4 space-y-4">
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder={t.editor_title_placeholder} className="h-10 text-sm" maxLength={80} />
-          <Input type="date" value={fecha} onChange={e => e.target.value && setFecha(e.target.value)} className="h-10 text-sm w-[150px]" />
+          <SelectorFecha valor={fecha} onChange={setFecha} />
         </div>
 
         <div className="space-y-1.5">
