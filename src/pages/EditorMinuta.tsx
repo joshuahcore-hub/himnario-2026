@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Check, Link2, Loader2, Plus, Search, Unlink, X } fr
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
+import FilaDeslizable from '@/components/FilaDeslizable';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import { getHymns, normalizar } from '@/lib/hymnCache';
 import { cantoDesdeHimno, esMarcador, ORACION, PALABRA, renumerar } from '@/lib/minutaUtils';
@@ -16,6 +17,14 @@ import { useAcceso } from '@/hooks/useAcceso';
 function hoy(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Canto en el editor, con una clave propia (solo en pantalla, no se guarda) para animar cada fila. */
+type Fila = ParsedSong & { _k?: number };
+let ultimaClave = 0;
+const conClave = (c: ParsedSong): Fila => ({ ...c, _k: ++ultimaClave });
+function sinClave({ _k, ...c }: Fila): ParsedSong {
+  return c.groupedWith ? { ...c, groupedWith: sinClave(c.groupedWith as Fila) } : c;
 }
 
 /** Datos con los que se puede abrir el editor desde otra pantalla (p. ej. la minuta generada por IA). */
@@ -120,14 +129,14 @@ export default function EditorMinuta() {
 
   const [titulo, setTitulo] = useState(existente?.titulo ?? borrador?.titulo ?? '');
   const [fecha, setFecha] = useState(existente?.fecha ?? borrador?.fecha ?? hoy());
-  const [cantos, setCantos] = useState<ParsedSong[]>(existente?.cantos ?? borrador?.cantos ?? []);
+  const [cantos, setCantos] = useState<Fila[]>(() => (existente?.cantos ?? borrador?.cantos ?? []).map(conClave));
   const [buscando, setBuscando] = useState(false);
   // Posición de la lista desde donde empiezan los cantos añadidos en la búsqueda abierta (se pueden desmarcar ahí mismo).
   const [inicioBusqueda, setInicioBusqueda] = useState(0);
   const [guardando, setGuardando] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
 
-  const numerados = renumerar(cantos);
+  const numerados = renumerar(cantos) as Fila[]; // renumerar copia cada canto, conserva _k
 
   if (!puedeEditar) {
     return (
@@ -146,8 +155,8 @@ export default function EditorMinuta() {
   }
 
   const agregar = (c: ParsedSong) => {
-    setCantos(prev => [...prev, c]);
-    setTimeout(() => finRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    setCantos(prev => [...prev, conClave(c)]);
+    setTimeout(() => finRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
   };
 
   const mover = (i: number, d: -1 | 1) => setCantos(prev => {
@@ -158,7 +167,8 @@ export default function EditorMinuta() {
     return next;
   });
 
-  const quitar = (i: number) => setCantos(prev => prev.filter((_, k) => k !== i));
+  // Por clave (no por posición): la fila puede borrarse al terminar su animación, cuando la lista ya cambió.
+  const quitar = (clave: number) => setCantos(prev => prev.filter(c => c._k !== clave));
 
   const seleccionadosEnBusqueda = cantos.slice(inicioBusqueda).flatMap(c => (c.hymnNumber ? [c.hymnNumber] : []));
 
@@ -183,7 +193,7 @@ export default function EditorMinuta() {
   const separar = (i: number) => setCantos(prev => {
     const next = [...prev];
     const { groupedWith, ...principal } = next[i];
-    next.splice(i, 1, { ...principal, groupedWith: null }, { ...groupedWith!, groupedWith: null });
+    next.splice(i, 1, { ...principal, groupedWith: null }, conClave({ ...groupedWith!, groupedWith: null }));
     return next;
   });
 
@@ -193,7 +203,7 @@ export default function EditorMinuta() {
     const datos = {
       titulo: titulo.trim() || 'Minuta',
       fecha,
-      cantos: renumerar(cantos),
+      cantos: renumerar(cantos).map(sinClave),
       ...(borrador?.textoOriginal && !id ? { texto_original: borrador.textoOriginal } : {}),
     };
     try {
@@ -238,43 +248,46 @@ export default function EditorMinuta() {
           <SelectorFecha valor={fecha} onChange={setFecha} />
         </div>
 
-        <div className="space-y-1.5">
-          {numerados.map((c, i) => (
-            <div key={i} className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 ${
-              c.found === false ? 'border-destructive/50 bg-destructive/5' : 'border-border bg-card'
-            }`}>
-              <div className="flex-1 min-w-0">
-                {c.isPalabra ? (
-                  <span className="text-palabra text-sm font-semibold pl-6">{t.portada_palabra}</span>
-                ) : c.isOracion ? (
-                  <span className="text-oracion text-sm font-semibold pl-6">{t.portada_oracion}</span>
-                ) : (
-                  <>
-                    {filaCanto(c, c.position)}
-                    {c.groupedWith && <div className="border-l-2 border-border ml-2 pl-1">{filaCanto(c.groupedWith, c.position + 1)}</div>}
-                  </>
-                )}
-              </div>
-              {c.groupedWith ? (
-                <button onClick={() => separar(i)} className="tap-btn p-1.5 text-muted-foreground" aria-label={t.editor_ungroup}><Unlink size={14} /></button>
-              ) : puedeAgrupar(i) ? (
-                <button onClick={() => agrupar(i)} className="tap-btn p-1.5 text-muted-foreground" aria-label={t.editor_group}><Link2 size={14} /></button>
-              ) : null}
-              <button onClick={() => mover(i, -1)} disabled={i === 0} className="tap-btn p-1.5 text-muted-foreground disabled:opacity-20" aria-label={t.editor_up}><ArrowUp size={14} /></button>
-              <button onClick={() => mover(i, 1)} disabled={i === cantos.length - 1} className="tap-btn p-1.5 text-muted-foreground disabled:opacity-20" aria-label={t.editor_down}><ArrowDown size={14} /></button>
-              <button onClick={() => quitar(i)} className="tap-btn p-1.5 text-muted-foreground hover:text-destructive" aria-label={t.minutas_delete}><X size={14} /></button>
-            </div>
-          ))}
-          {cantos.length === 0 && <p className="text-muted-foreground text-xs text-center py-6">{t.editor_empty_hint}</p>}
-          <div ref={finRef} />
-        </div>
-
+        {/* Botones fijos arriba; lo que se agrega va apareciendo debajo, así los botones no se mueven. */}
         <div className="grid grid-cols-3 gap-2">
           <Button onClick={() => { setInicioBusqueda(cantos.length); setBuscando(true); }} className="gap-1 text-xs h-10">
             <Plus size={14} />{t.editor_add_song}
           </Button>
           <Button variant="outline" onClick={() => agregar({ ...PALABRA })} className="text-xs h-10 text-palabra">{t.portada_palabra}</Button>
           <Button variant="outline" onClick={() => agregar({ ...ORACION })} className="text-xs h-10 text-oracion">{t.portada_oracion}</Button>
+        </div>
+
+        <div>
+          {numerados.map((c, i) => (
+            <FilaDeslizable key={c._k} onBorrar={() => quitar(c._k!)}>
+              <div className={`flex items-center gap-0.5 rounded-lg border pl-2 pr-1 py-2.5 animate-in fade-in slide-in-from-bottom-1 duration-200 ${
+                c.found === false ? 'border-destructive/50 bg-destructive/5' : 'border-border bg-card'
+              }`}>
+                <div className="flex-1 min-w-0">
+                  {c.isPalabra ? (
+                    <span className="text-palabra text-sm font-semibold pl-6">{t.portada_palabra}</span>
+                  ) : c.isOracion ? (
+                    <span className="text-oracion text-sm font-semibold pl-6">{t.portada_oracion}</span>
+                  ) : (
+                    <>
+                      {filaCanto(c, c.position)}
+                      {c.groupedWith && <div className="border-l-2 border-border ml-2 pl-1 mt-1">{filaCanto(c.groupedWith, c.position + 1)}</div>}
+                    </>
+                  )}
+                </div>
+                {c.groupedWith ? (
+                  <button onClick={() => separar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_ungroup}><Unlink size={16} /></button>
+                ) : puedeAgrupar(i) ? (
+                  <button onClick={() => agrupar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_group}><Link2 size={16} /></button>
+                ) : null}
+                <button onClick={() => mover(i, -1)} disabled={i === 0} className="tap-btn p-2 text-muted-foreground disabled:opacity-20" aria-label={t.editor_up}><ArrowUp size={16} /></button>
+                <button onClick={() => mover(i, 1)} disabled={i === cantos.length - 1} className="tap-btn p-2 text-muted-foreground disabled:opacity-20" aria-label={t.editor_down}><ArrowDown size={16} /></button>
+                <button onClick={() => quitar(c._k!)} className="tap-btn p-2 text-muted-foreground hover:text-destructive" aria-label={t.minutas_delete}><X size={16} /></button>
+              </div>
+            </FilaDeslizable>
+          ))}
+          {cantos.length === 0 && <p className="text-muted-foreground text-xs text-center py-6">{t.editor_empty_hint}</p>}
+          <div ref={finRef} />
         </div>
         {cantos.length > 1 && <p className="text-[10px] text-muted-foreground/70 text-center">{t.editor_group_hint}</p>}
       </div>

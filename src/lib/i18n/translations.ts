@@ -295,7 +295,7 @@ export const es: Translations = {
   editor_needs_internet: 'Se necesita internet para guardar.',
   editor_group: 'Agrupar con el siguiente',
   editor_ungroup: 'Separar',
-  editor_group_hint: 'El ícono de cadena agrupa un canto con el siguiente (se cantan juntos).',
+  editor_group_hint: 'La cadena agrupa un canto con el siguiente. Desliza una fila hacia el lado para borrarla.',
   editor_up: 'Subir',
   editor_down: 'Bajar',
 
@@ -474,7 +474,7 @@ export const en: Translations = {
   editor_needs_internet: 'An internet connection is needed to save.',
   editor_group: 'Group with next',
   editor_ungroup: 'Ungroup',
-  editor_group_hint: 'The chain icon groups a song with the next one (sung together).',
+  editor_group_hint: 'The chain groups a song with the next one. Swipe a row sideways to delete it.',
   editor_up: 'Move up',
   editor_down: 'Move down',
 
