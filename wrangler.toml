@@ -1,0 +1,12 @@
+# Configuración de Cloudflare Pages (sitio + funciones /api + base de datos D1).
+# Las claves (ADMIN_KEY, GEMINI_API_KEY, PC_SECRET) NO van aquí: son secretos de Cloudflare
+# (npx wrangler pages secret put NOMBRE --project-name himnario-2026).
+name = "himnario-2026"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "himnario-2026"
+database_id = "2ac2a621-a65e-4219-8d07-3af5d6ba780a"
+migrations_dir = "migraciones"
