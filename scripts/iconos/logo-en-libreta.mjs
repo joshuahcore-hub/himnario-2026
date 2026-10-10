@@ -37,7 +37,8 @@ async function teñir(imagen, color) {
 
 export async function iconoConLogo(tam = 512, { margen = 0, variante = 'Símbolo mediano', anchoLogo, corrimiento = 0, fondo = '#FFFFFF', color = CELESTE } = {}) {
   const v = { ...variantes[variante], ...(anchoLogo ? { ancho: anchoLogo } : {}) };
-  const svg = svgIcono(propuestas['1'], { margen, fondo }).replaceAll(CELESTE, color);
+  // El color se cambia solo en el dibujo (no en el fondo, que puede ser celeste).
+  const svg = svgIcono(propuestas['1'].replaceAll(CELESTE, color), { margen, fondo });
   const base = await sharp(Buffer.from(svg)).png().toBuffer();
   let logo = v.fuente === 'simbolo'
     ? await sharp(SIMBOLO).resize({ width: Math.round(v.ancho * (1 - margen * 2)) }).png().toBuffer()
