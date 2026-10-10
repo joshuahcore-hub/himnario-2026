@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/index';
 import { formatearFecha } from '@/lib/minutaUtils';
 
+const DURACION = 220; // ms de cada mitad del deslizamiento (sale el mes, entra el nuevo)
+
 const aFecha = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -28,12 +30,74 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   const [abierto, setAbierto] = useState(false);
   const [elegida, setElegida] = useState<Date>(() => aFecha(valor));
   const [mes, setMes] = useState<Date>(() => aFecha(valor));
-  const inicioToque = useRef<{ x: number; y: number } | null>(null);
+
+  // Deslizamiento de los días (el nombre del mes de arriba no se mueve):
+  // `desliz` = desplazamiento horizontal de la grilla en px; `animando` = con transición suave.
+  const [desliz, setDesliz] = useState(0);
+  const [animando, setAnimando] = useState(false);
+  const tarjetaRef = useRef<HTMLDivElement>(null);
+  const toque = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null);
+  const ocupado = useRef(false);
+  const ignorarClick = useRef(false);
+
+  /** El mes actual sale hacia un lado y el nuevo entra desde el otro. dir: 1 = siguiente, -1 = anterior. */
+  const cambiarMes = (dir: 1 | -1) => {
+    if (ocupado.current) return;
+    ocupado.current = true;
+    const ancho = tarjetaRef.current?.offsetWidth ?? 300;
+    setAnimando(true);
+    setDesliz(-dir * ancho);
+    setTimeout(() => {
+      setAnimando(false);
+      setMes(m => addMonths(m, dir));
+      setDesliz(dir * ancho);
+      // Pausa corta para que el mes nuevo quede ubicado al otro lado antes de entrar deslizándose.
+      // (setTimeout y no requestAnimationFrame: este último se pausa si la app pasa a segundo plano
+      // y el mes podría quedar fuera de la vista.)
+      setTimeout(() => {
+        setAnimando(true);
+        setDesliz(0);
+        setTimeout(() => { setAnimando(false); ocupado.current = false; }, DURACION);
+      }, 30);
+    }, DURACION);
+  };
+
+  const alTocar = (e: React.TouchEvent) => {
+    if (ocupado.current) return;
+    toque.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, horizontal: null };
+  };
+
+  const alMover = (e: React.TouchEvent) => {
+    const t0 = toque.current;
+    if (!t0) return;
+    const dx = e.touches[0].clientX - t0.x;
+    const dy = e.touches[0].clientY - t0.y;
+    if (t0.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) t0.horizontal = Math.abs(dx) > Math.abs(dy);
+    if (t0.horizontal) {
+      setAnimando(false);
+      setDesliz(dx);
+    }
+  };
+
+  const alSoltar = (e: React.TouchEvent) => {
+    const t0 = toque.current;
+    toque.current = null;
+    if (!t0?.horizontal) return;
+    // El toque fue un deslizamiento: que no marque el día donde se soltó.
+    ignorarClick.current = true;
+    setTimeout(() => { ignorarClick.current = false; }, 350);
+    const dx = e.changedTouches[0].clientX - t0.x;
+    if (Math.abs(dx) > 50) cambiarMes(dx < 0 ? 1 : -1);
+    else { setAnimando(true); setDesliz(0); }
+  };
 
   const abrir = () => {
     const f = aFecha(valor);
     setElegida(f);
     setMes(f);
+    setDesliz(0);
+    setAnimando(false);
+    ocupado.current = false;
     setAbierto(true);
   };
 
@@ -60,26 +124,31 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
           onClick={() => setAbierto(false)}
         >
           <div
+            ref={tarjetaRef}
             className="rounded-2xl border border-border bg-card shadow-xl animate-in zoom-in-95 duration-150"
+            style={{
+              '--desliz': `${desliz}px`,
+              '--desliz-transicion': animando ? `transform ${DURACION}ms cubic-bezier(0.22, 1, 0.36, 1)` : 'none',
+              touchAction: 'pan-y',
+            } as React.CSSProperties}
             onClick={e => e.stopPropagation()}
-            onTouchStart={e => { inicioToque.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
-            onTouchEnd={e => {
-              const inicio = inicioToque.current;
-              inicioToque.current = null;
-              if (!inicio) return;
-              const dx = e.changedTouches[0].clientX - inicio.x;
-              const dy = e.changedTouches[0].clientY - inicio.y;
-              if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) setMes(m => addMonths(m, dx < 0 ? 1 : -1));
-            }}
+            onClickCapture={e => { if (ignorarClick.current) { e.stopPropagation(); e.preventDefault(); } }}
+            onTouchStart={alTocar}
+            onTouchMove={alMover}
+            onTouchEnd={alSoltar}
           >
             <Calendar
               mode="single"
               selected={elegida}
               onSelect={d => d && setElegida(d)}
               month={mes}
-              onMonthChange={setMes}
+              onMonthChange={nuevo => cambiarMes(nuevo > mes ? 1 : -1)}
               locale={locale === 'es' ? es : enUS}
               weekStartsOn={1}
+              classNames={{
+                month: 'space-y-4 overflow-hidden',
+                table: 'w-full border-collapse space-y-1 translate-x-[var(--desliz)] [transition:var(--desliz-transicion)]',
+              }}
             />
             {/* Guardar/Cancelar solo aparecen si el día marcado es distinto al que ya tenía. */}
             {aIso(elegida) !== valor && (
