@@ -109,7 +109,8 @@ const SELECT_MINUTAS = `
   LEFT JOIN dispositivos c ON c.id = m.creada_por
   LEFT JOIN dispositivos e ON e.id = m.editada_por`;
 
-function filaAMinuta(f: any) {
+// Quién creó/editó cada minuta solo lo ve el administrador: para los demás esos datos no se envían.
+function filaAMinuta(f: any, conAutores: boolean) {
   return {
     id: f.id,
     titulo: f.titulo,
@@ -119,15 +120,17 @@ function filaAMinuta(f: any) {
     fijada: !!f.fijada,
     creada: f.creada,
     actualizada: f.actualizada,
-    creador: f.creador_nombre ? { nombre: f.creador_nombre, color: f.creador_color } : null,
-    editor: f.editor_nombre ? { nombre: f.editor_nombre, color: f.editor_color } : null,
+    creador: conAutores && f.creador_nombre ? { nombre: f.creador_nombre, color: f.creador_color } : null,
+    editor: conAutores && f.editor_nombre ? { nombre: f.editor_nombre, color: f.editor_color } : null,
   };
 }
 
-async function obtenerMinuta(env: Env, id: string) {
+const esAdmin = (d: Dispositivo | null) => !!d && d.estado === 'aprobado' && d.rol === 'admin';
+
+async function obtenerMinuta(env: Env, id: string, conAutores: boolean) {
   const f = await env.DB.prepare(`${SELECT_MINUTAS} WHERE m.id = ? AND m.borrada = 0`).bind(id).first();
   if (!f) throw new ErrorApi(404, 'Minuta no encontrada.');
-  return filaAMinuta(f);
+  return filaAMinuta(f, conAutores);
 }
 
 const registrar = (env: Env, minutaId: string, dispositivoId: string, accion: string, titulo: string) =>
@@ -137,14 +140,16 @@ const registrar = (env: Env, minutaId: string, dispositivoId: string, accion: st
 async function rutasMinutas(request: Request, env: Env, partes: string[]): Promise<Response> {
   const metodo = request.method;
   const id = partes[1];
+  const quien = await dispositivoActual(request, env);
+  const conAutores = esAdmin(quien);
 
   if (metodo === 'GET' && !id) {
     const { results } = await env.DB.prepare(`${SELECT_MINUTAS} WHERE m.borrada = 0 ORDER BY m.fecha, m.creada`).all();
-    return json(results.map(filaAMinuta));
+    return json(results.map(f => filaAMinuta(f, conAutores)));
   }
-  if (metodo === 'GET' && id) return json(await obtenerMinuta(env, id));
+  if (metodo === 'GET' && id) return json(await obtenerMinuta(env, id, conAutores));
 
-  const yo = exigirEditor(await dispositivoActual(request, env));
+  const yo = exigirEditor(quien);
 
   if (metodo === 'POST' && !id) {
     const body = await leerJson(request);
@@ -159,11 +164,11 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
               yo.id, yo.id, t, t),
       registrar(env, nueva, yo.id, 'creada', titulo),
     ]);
-    return json(await obtenerMinuta(env, nueva), 201);
+    return json(await obtenerMinuta(env, nueva, conAutores), 201);
   }
 
   if (metodo === 'PATCH' && id) {
-    const actual = await obtenerMinuta(env, id);
+    const actual = await obtenerMinuta(env, id, conAutores);
     const body = await leerJson(request);
     const cambios: string[] = [];
     const valores: unknown[] = [];
@@ -178,12 +183,12 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       env.DB.prepare(`UPDATE minutas SET ${cambios.join(', ')} WHERE id = ?`).bind(...valores),
       registrar(env, id, yo.id, 'editada', validarTitulo(body.titulo ?? actual.titulo)),
     ]);
-    return json(await obtenerMinuta(env, id));
+    return json(await obtenerMinuta(env, id, conAutores));
   }
 
   if (metodo === 'DELETE' && id) {
     // Se marca como borrada (no se pierde): el administrador puede restaurarla.
-    const actual = await obtenerMinuta(env, id);
+    const actual = await obtenerMinuta(env, id, conAutores);
     await env.DB.batch([
       env.DB.prepare('UPDATE minutas SET borrada = 1, editada_por = ?, actualizada = ? WHERE id = ?').bind(yo.id, ahora(), id),
       registrar(env, id, yo.id, 'borrada', actual.titulo),

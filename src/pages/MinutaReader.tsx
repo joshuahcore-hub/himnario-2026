@@ -162,7 +162,7 @@ export default function MinutaReader() {
       <div className="absolute inset-0 flex items-center justify-center p-5 overflow-y-auto" style={{ transform: `translateX(${offset * 100}%)` }}>
         {pageIdx === 0 ? (
           <div className="w-full max-w-sm">
-            <Portada date={minuta.fecha} songs={minuta.cantos} creador={minuta.creador} editor={minuta.editor} />
+            <Portada date={minuta.fecha} songs={minuta.cantos} />
           </div>
         ) : item?.isPalabra ? (
           <span className="text-3xl font-bold text-palabra">{t.portada_palabra}</span>

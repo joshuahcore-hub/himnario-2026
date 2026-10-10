@@ -14,7 +14,7 @@ import { useAcceso } from '@/hooks/useAcceso';
 export default function Minutas() {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { puedeEditar } = useAcceso();
+  const { puedeEditar, esAdmin } = useAcceso();
   const { minutas, sinConexion, cargando, refrescar } = useMinutas();
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -153,7 +153,9 @@ export default function Minutas() {
                       </button>
                     </>
                   )}
-                  <Portada date={m.fecha} songs={m.cantos} compact creador={m.creador} editor={m.editor} />
+                  {/* Quién la creó/editó: solo el administrador, y solo aquí en la lista (no dentro de la minuta). */}
+                  <Portada date={m.fecha} songs={m.cantos} compact
+                    creador={esAdmin ? m.creador : null} editor={esAdmin ? m.editor : null} />
                 </div>
               </div>
             ))}
