@@ -1,5 +1,6 @@
 // Botón de fecha (mismo alto y estilo que los campos de texto) que abre el calendario de la app.
-// Tocar un día solo lo marca (círculo rojo); Guardar lo confirma y Cancelar o tocar fuera cierra sin cambiar.
+// Tocar un día solo lo marca (círculo rojo). Si es distinto al que tenía aparecen Guardar y Cancelar;
+// si se vuelve al mismo día, desaparecen. Tocar fuera cierra sin cambiar.
 // La parte de arriba del calendario queda fija (si un mes tiene más semanas, crece hacia abajo)
 // y se puede cambiar de mes deslizando a la izquierda o a la derecha.
 import { useRef, useState } from 'react';
@@ -80,10 +81,13 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
               locale={locale === 'es' ? es : enUS}
               weekStartsOn={1}
             />
-            <div className="flex gap-2 px-3 pb-3">
-              <Button variant="outline" className="flex-1 h-10" onClick={() => setAbierto(false)}>{t.minutas_cancel}</Button>
-              <Button className="flex-1 h-10" onClick={guardar}>{t.minutas_save}</Button>
-            </div>
+            {/* Guardar/Cancelar solo aparecen si el día marcado es distinto al que ya tenía. */}
+            {aIso(elegida) !== valor && (
+              <div className="flex gap-2 px-3 pb-3 animate-in fade-in duration-150">
+                <Button variant="outline" className="flex-1 h-10" onClick={() => setAbierto(false)}>{t.minutas_cancel}</Button>
+                <Button className="flex-1 h-10" onClick={guardar}>{t.minutas_save}</Button>
+              </div>
+            )}
           </div>
         </div>
       )}
