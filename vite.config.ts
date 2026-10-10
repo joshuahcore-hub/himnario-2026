@@ -22,7 +22,8 @@ export default defineConfig({
       // nunca recarga ni cambia la pantalla mientras se usa (ver src/main.tsx).
       registerType: "prompt",
       injectRegister: false,
-      includeAssets: ["favicon.png", "apple-touch-icon.png"],
+      // Íconos con versión en el nombre (scripts/iconos/generar.mjs): así nadie ve uno viejo guardado.
+      includeAssets: ["icono-v2-64.png", "icono-v2-apple-180.png"],
       manifest: {
         name: "Himnario 2026",
         short_name: "Himnario 2026",
@@ -36,10 +37,10 @@ export default defineConfig({
         background_color: "#ffffff",
         theme_color: "#ffffff",
         icons: [
-          { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/icono-v2-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/icono-v2-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
           // Versión con margen para los Android que recortan el ícono en círculo u otra forma.
-          { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "/icono-v2-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {

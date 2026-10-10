@@ -16,21 +16,28 @@ const guardar = async (archivo, buffer) => {
   console.log('  ', archivo);
 };
 
+// Los nombres llevan versión: al cambiar el diseño se sube VERSION, así ningún celular ni navegador
+// puede seguir mostrando un ícono viejo guardado (lo guardan por nombre de archivo).
+// Si se cambia VERSION, actualizar también vite.config.ts e index.html (buscar "icono-v").
+const VERSION = 'v2';
+for (const f of fs.readdirSync(PUBLIC)) if (/^(icon-|icono-v|apple-touch-icon|favicon)/.test(f)) fs.rmSync(path.join(PUBLIC, f));
+
 // Ícono normal ("any"): diseño grande, como lo eligió Josué.
 const normal = await iconoConLogo(512, escala(1.2));
-await guardar('icon-512.png', normal);
-await guardar('icon-192.png', await sharp(normal).resize(192, 192).png().toBuffer());
+await guardar(`icono-${VERSION}-512.png`, normal);
+await guardar(`icono-${VERSION}-192.png`, await sharp(normal).resize(192, 192).png().toBuffer());
 // iPhone redondea las esquinas solo; el diseño queda dentro sin cortes.
-await guardar('apple-touch-icon.png', await sharp(normal).resize(180, 180).png().toBuffer());
-await guardar('favicon.png', await sharp(normal).resize(64, 64).png().toBuffer());
+await guardar(`icono-${VERSION}-apple-180.png`, await sharp(normal).resize(180, 180).png().toBuffer());
+await guardar(`icono-${VERSION}-64.png`, await sharp(normal).resize(64, 64).png().toBuffer());
 
 // Android "maskable": el celular puede recortarlo en círculo; el dibujo debe caber en el 80 % central.
-await guardar('icon-maskable-512.png', await iconoConLogo(512, escala(0.92)));
+await guardar(`icono-${VERSION}-maskable-512.png`, await iconoConLogo(512, escala(0.92)));
 
-// Versión oscura (mismo dibujo celeste sobre el fondo oscuro de la app, hsl(30 8% 10%)).
+// Versión oscura: fondo oscuro de la app (hsl(30 8% 10%)) y un celeste más claro, que se ve mejor sobre negro.
 export const FONDO_OSCURO = '#1C1A18';
-const oscuro = await iconoConLogo(512, { ...escala(1.2), fondo: FONDO_OSCURO });
-await guardar('icon-oscuro-512.png', oscuro);
+export const CELESTE_CLARO = '#7CC4F2';
+const oscuro = await iconoConLogo(512, { ...escala(1.2), fondo: FONDO_OSCURO, color: CELESTE_CLARO });
+await guardar(`icono-${VERSION}-oscuro-512.png`, oscuro);
 
 // Pantallas de apertura de iPhone (Safari no las genera solo): ícono al centro y el nombre,
 // en claro (fondo blanco) y en oscuro (cuando el iPhone está en modo oscuro).
@@ -44,7 +51,7 @@ fs.rmSync(dirApertura, { recursive: true, force: true });
 fs.mkdirSync(dirApertura, { recursive: true });
 const etiquetas = [];
 for (const [w, h, d] of IPHONES) {
-  for (const [modo, imagen, fondo] of [['claro', normal, '#FFFFFF'], ['oscuro', oscuro, FONDO_OSCURO]]) {
+  for (const [modo, imagen, fondo, colorTexto] of [['claro', normal, '#FFFFFF', '#4AA8E8'], ['oscuro', oscuro, FONDO_OSCURO, CELESTE_CLARO]]) {
     // Misma composición que #apertura en index.html: ícono de 56 % del ancho (máx. 300 px) y el nombre
     // debajo (8 px de separación, letra de 22 px), todo el bloque centrado en la pantalla.
     const W = w * d, H = h * d;
@@ -54,8 +61,8 @@ for (const [w, h, d] of IPHONES) {
     const icono = await sharp(imagen).resize(lado, lado).png().toBuffer();
     const texto = Buffer.from(`<svg width="${W}" height="${altoTexto}">
       <text x="${W / 2}" y="${Math.round(21 * d)}" font-family="Segoe UI, Helvetica, Arial" font-size="${22 * d}"
-            font-weight="600" letter-spacing="${d}" text-anchor="middle" fill="#4AA8E8">Himnario 2026</text></svg>`);
-    const archivo = `apertura-${modo}-${W}x${H}.png`;
+            font-weight="600" letter-spacing="${d}" text-anchor="middle" fill="${colorTexto}">Himnario 2026</text></svg>`);
+    const archivo = `apertura-${VERSION}-${modo}-${W}x${H}.png`;
     await sharp({ create: { width: W, height: H, channels: 3, background: fondo } })
       .composite([
         { input: icono, left: Math.round((W - lado) / 2), top },

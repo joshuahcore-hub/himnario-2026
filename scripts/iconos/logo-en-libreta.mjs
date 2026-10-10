@@ -27,12 +27,22 @@ export const variantes = {
   'Logo con letras': { fuente: 'completo', ancho: 162 },
 };
 
-export async function iconoConLogo(tam = 512, { margen = 0, variante = 'Símbolo mediano', anchoLogo, corrimiento = 0, fondo = '#FFFFFF' } = {}) {
+/** Cambia el color de una imagen de un solo color (conserva su transparencia). */
+async function teñir(imagen, color) {
+  const alfa = await sharp(imagen).ensureAlpha().extractChannel('alpha').raw().toBuffer({ resolveWithObject: true });
+  const { width, height } = alfa.info;
+  return sharp({ create: { width, height, channels: 3, background: color } })
+    .joinChannel(alfa.data, { raw: { width, height, channels: 1 } }).png().toBuffer();
+}
+
+export async function iconoConLogo(tam = 512, { margen = 0, variante = 'Símbolo mediano', anchoLogo, corrimiento = 0, fondo = '#FFFFFF', color = CELESTE } = {}) {
   const v = { ...variantes[variante], ...(anchoLogo ? { ancho: anchoLogo } : {}) };
-  const base = await sharp(Buffer.from(svgIcono(propuestas['1'], { margen, fondo }))).png().toBuffer();
-  const logo = v.fuente === 'simbolo'
+  const svg = svgIcono(propuestas['1'], { margen, fondo }).replaceAll(CELESTE, color);
+  const base = await sharp(Buffer.from(svg)).png().toBuffer();
+  let logo = v.fuente === 'simbolo'
     ? await sharp(SIMBOLO).resize({ width: Math.round(v.ancho * (1 - margen * 2)) }).png().toBuffer()
     : await logoCompletoCeleste(Math.round(v.ancho * (1 - margen * 2)));
+  if (color !== CELESTE) logo = await teñir(logo, color);
   const meta = await sharp(logo).metadata();
   const s = 1 - margen * 2, t = 256 * (1 - s);
   const cx = t + (CENTRO.x + corrimiento) * s, cy = t + CENTRO.y * s;
