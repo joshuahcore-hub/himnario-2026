@@ -63,11 +63,11 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
             inputMode="search"
           />
         </div>
-        <Button size="sm" onClick={onClose} className="h-10">
-          {t.editor_done}{seleccionados.length > 0 ? ` (${seleccionados.length})` : ''}
-        </Button>
+        <button onClick={onClose} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_cancel}>
+          <X size={20} />
+        </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
+      <div className="flex-1 overflow-y-auto px-3 pt-2 pb-28 space-y-0.5">
         {resultados.map(h => {
           const marcado = marcados.has(h.hymn_number);
           return (
@@ -94,6 +94,14 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
           );
         })}
         {resultados.length === 0 && <p className="text-muted-foreground text-xs text-center py-8">{t.hymnal_no_results}</p>}
+      </div>
+      {/* "Listo" flotando abajo, al alcance del pulgar */}
+      <div className="absolute left-0 right-0 bottom-0 px-5 pt-6 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none"
+           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+        <Button onClick={onClose} className="w-full h-12 text-base gap-2 shadow-lg pointer-events-auto rounded-xl">
+          <Check size={18} />
+          {t.editor_done}{seleccionados.length > 0 ? ` (${seleccionados.length})` : ''}
+        </Button>
       </div>
     </div>
   );
