@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowDown, ArrowUp, Check, Link2, Loader2, Plus, Search, Unlink, X } from 'lucide-react';
@@ -45,10 +45,9 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
   const { t } = useI18n();
   const { hymns } = getHymns();
   const [q, setQ] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
   const marcados = new Set(seleccionados);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  // Sin foco automático: se abre con la lista completa; el teclado aparece solo al tocar la búsqueda.
 
   const resultados = useMemo(() => {
     const n = normalizar(q);
@@ -66,7 +65,6 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            ref={inputRef}
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder={t.hymnal_search_placeholder}
