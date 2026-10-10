@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
 import FilaDeslizable from '@/components/FilaDeslizable';
+import { useReordenar } from '@/hooks/useReordenar';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import { getHymns, normalizar } from '@/lib/hymnCache';
 import { cantoDesdeHimno, esMarcador, ORACION, PALABRA, renumerar } from '@/lib/minutaUtils';
@@ -136,6 +137,14 @@ export default function EditorMinuta() {
 
   const numerados = renumerar(cantos) as Fila[]; // renumerar copia cada canto, conserva _k
 
+  // Mantener presionada una fila y arrastrarla para ponerla en otro lugar.
+  const reordenar = useReordenar((desde, hasta) => setCantos(prev => {
+    const next = [...prev];
+    const [fila] = next.splice(desde, 1);
+    next.splice(hasta, 0, fila);
+    return next;
+  }));
+
   if (!puedeEditar) {
     return (
       <div className="flex flex-col items-center justify-center px-6 text-center gap-3" style={{ height: 'calc(100vh - 4rem)' }}>
@@ -164,7 +173,6 @@ export default function EditorMinuta() {
     [next[i], next[j]] = [next[j], next[i]];
     return next;
   });
-
   // Por clave (no por posición): la fila puede borrarse al terminar su animación, cuando la lista ya cambió.
   const quitar = (clave: number) => setCantos(prev => prev.filter(c => c._k !== clave));
 
@@ -255,9 +263,10 @@ export default function EditorMinuta() {
           <Button variant="outline" onClick={() => agregar({ ...ORACION })} className="text-xs h-10 text-oracion">{t.portada_oracion}</Button>
         </div>
 
-        <div>
+        <div ref={reordenar.contenedorRef}>
           {numerados.map((c, i) => (
-            <FilaDeslizable key={c._k} onBorrar={() => quitar(c._k!)}>
+            <FilaDeslizable key={c._k} onBorrar={() => quitar(c._k!)} indice={i}
+              estilo={reordenar.estiloFila(i)} bloqueado={reordenar.arrastrando}>
               <div className={`flex items-center gap-0.5 rounded-lg border pl-2 pr-1 py-2.5 animate-in fade-in slide-in-from-bottom-1 duration-200 ${
                 c.found === false ? 'border-destructive/50 bg-destructive/5' : 'border-border bg-card'
               }`}>

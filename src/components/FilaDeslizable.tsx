@@ -1,13 +1,22 @@
 // Fila que se borra deslizándola hacia cualquier lado: sigue el dedo, deja ver un fondo rojo con el
 // basurero y, si se desliza lo suficiente, sale de la pantalla y la fila se cierra suavemente.
 // Si se suelta antes, vuelve a su lugar.
-import { ReactNode, useRef, useState } from 'react';
+import { CSSProperties, ReactNode, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
 const SALIDA_MS = 180;
 const CIERRE_MS = 170;
 
-export default function FilaDeslizable({ children, onBorrar }: { children: ReactNode; onBorrar: () => void }) {
+export default function FilaDeslizable({ children, onBorrar, indice, estilo, bloqueado = false }: {
+  children: ReactNode;
+  onBorrar: () => void;
+  /** Posición en la lista (atributo data-fila, lo usa useReordenar para arrastrar). */
+  indice?: number;
+  /** Estilo extra (p. ej. el desplazamiento mientras se reordena). */
+  estilo?: CSSProperties;
+  /** Mientras se arrastra para reordenar, no se desliza para borrar. */
+  bloqueado?: boolean;
+}) {
   const contenedor = useRef<HTMLDivElement>(null);
   const toque = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null);
   const [dx, setDx] = useState(0);
@@ -23,6 +32,7 @@ export default function FilaDeslizable({ children, onBorrar }: { children: React
   const alMover = (e: React.TouchEvent) => {
     const t = toque.current;
     if (!t) return;
+    if (bloqueado) { toque.current = null; setDx(0); return; }
     const mx = e.touches[0].clientX - t.x;
     const my = e.touches[0].clientY - t.y;
     if (t.horizontal === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) t.horizontal = Math.abs(mx) > Math.abs(my);
@@ -56,10 +66,12 @@ export default function FilaDeslizable({ children, onBorrar }: { children: React
   return (
     <div
       ref={contenedor}
-      className="relative overflow-hidden pb-1.5"
+      data-fila={indice}
+      className="relative overflow-hidden pb-1.5 select-none"
+      onContextMenu={e => e.preventDefault()}
       style={
         alto === null
-          ? undefined
+          ? estilo
           : {
               height: cerrando ? 0 : alto,
               paddingBottom: cerrando ? 0 : undefined,
