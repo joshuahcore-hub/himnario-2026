@@ -28,16 +28,3 @@ if (import.meta.env.PROD) {
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
-
-// Desvanece la pantalla de apertura (index.html) apenas la app ya se dibujó.
-// Respaldo con tiempo: si la pantalla no está dibujando (app en segundo plano), igual se quita.
-let aperturaQuitada = false;
-const quitarApertura = () => {
-  const apertura = document.getElementById("apertura");
-  if (aperturaQuitada || !apertura) return;
-  aperturaQuitada = true;
-  apertura.classList.add("oculta");
-  setTimeout(() => apertura.remove(), 300);
-};
-requestAnimationFrame(() => requestAnimationFrame(quitarApertura));
-setTimeout(quitarApertura, 600);

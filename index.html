@@ -43,18 +43,10 @@
     <link rel="apple-touch-startup-image" media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" href="/apertura/apertura-v2-oscuro-640x1136.png" />
     <!-- apertura-iphone:fin -->
     <style>
-      /* Apertura: fondo blanco con el ícono, igual que la pantalla del sistema; se desvanece al cargar la app. */
-      #apertura { position: fixed; inset: 0; z-index: 9999; background: #fff; display: flex; flex-direction: column;
-                  align-items: center; justify-content: center; transition: opacity 250ms ease-out; }
-      #apertura img { width: 56vw; max-width: 300px; height: auto; }
-      #apertura span { margin-top: 8px; font: 600 22px/1.2 "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
-                       letter-spacing: 1px; color: #4AA8E8; }
-      #apertura.oculta { opacity: 0; pointer-events: none; }
-      /* Modo oscuro de la app: fondo oscuro de la app (hsl 30 8% 10%) y el ícono sobre ese fondo. */
-      #apertura .oscuro, .dark #apertura .claro { display: none; }
-      .dark #apertura { background: #1C1A18; }
-      .dark #apertura span { color: #7CC4F2; }
-      .dark #apertura .oscuro { display: block; }
+      /* Fondo del color del tema desde el primer instante (los estilos de la app cargan después).
+         La apertura la muestra el propio sistema (Android/iPhone) hasta que la app está lista. */
+      html { background: #F7F5F3; }
+      html.dark { background: #1C1A18; }
     </style>
   </head>
 
@@ -66,11 +58,6 @@
         document.querySelector('meta[name="theme-color"]').setAttribute('content','#1C1A18');
         var m=document.querySelector('link[rel="manifest"]');if(m)m.href='/manifest-oscuro.webmanifest';}}catch(e){}})();
     </script>
-    <div id="apertura" aria-hidden="true">
-      <img class="claro" src="/icono-v2-512.png" alt="" />
-      <img class="oscuro" src="/icono-v2-oscuro-512.png" alt="" />
-      <span>Himnario 2026</span>
-    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
