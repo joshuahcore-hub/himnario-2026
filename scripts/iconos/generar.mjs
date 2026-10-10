@@ -27,7 +27,13 @@ await guardar('favicon.png', await sharp(normal).resize(64, 64).png().toBuffer()
 // Android "maskable": el celular puede recortarlo en círculo; el dibujo debe caber en el 80 % central.
 await guardar('icon-maskable-512.png', await iconoConLogo(512, escala(0.92)));
 
-// Pantallas de apertura de iPhone (Safari no las genera solo): fondo blanco, ícono al centro y el nombre.
+// Versión oscura (mismo dibujo celeste sobre el fondo oscuro de la app, hsl(30 8% 10%)).
+export const FONDO_OSCURO = '#1C1A18';
+const oscuro = await iconoConLogo(512, { ...escala(1.2), fondo: FONDO_OSCURO });
+await guardar('icon-oscuro-512.png', oscuro);
+
+// Pantallas de apertura de iPhone (Safari no las genera solo): ícono al centro y el nombre,
+// en claro (fondo blanco) y en oscuro (cuando el iPhone está en modo oscuro).
 // [ancho CSS, alto CSS, densidad]
 const IPHONES = [
   [440, 956, 3], [430, 932, 3], [420, 912, 3], [402, 874, 3], [393, 852, 3], [428, 926, 3],
@@ -38,26 +44,28 @@ fs.rmSync(dirApertura, { recursive: true, force: true });
 fs.mkdirSync(dirApertura, { recursive: true });
 const etiquetas = [];
 for (const [w, h, d] of IPHONES) {
-  // Misma composición que #apertura en index.html: ícono de 56 % del ancho (máx. 300 px) y el nombre
-  // debajo (8 px de separación, letra de 22 px), todo el bloque centrado en la pantalla.
-  const W = w * d, H = h * d;
-  const lado = Math.round(Math.min(w * 0.56, 300) * d);
-  const altoTexto = Math.round(22 * 1.2 * d), separacion = 8 * d;
-  const top = Math.round((H - (lado + separacion + altoTexto)) / 2);
-  const icono = await sharp(normal).resize(lado, lado).png().toBuffer();
-  const texto = Buffer.from(`<svg width="${W}" height="${altoTexto}">
-    <text x="${W / 2}" y="${Math.round(21 * d)}" font-family="Segoe UI, Helvetica, Arial" font-size="${22 * d}"
-          font-weight="600" letter-spacing="${d}" text-anchor="middle" fill="#4AA8E8">Himnario 2026</text></svg>`);
-  const archivo = `apertura-${W}x${H}.png`;
-  await sharp({ create: { width: W, height: H, channels: 3, background: '#FFFFFF' } })
-    .composite([
-      { input: icono, left: Math.round((W - lado) / 2), top },
-      { input: texto, left: 0, top: top + lado + separacion },
-    ])
-    .png({ compressionLevel: 9 }).toFile(path.join(dirApertura, archivo));
-  etiquetas.push(`<link rel="apple-touch-startup-image" media="screen and (device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${d}) and (orientation: portrait)" href="/apertura/${archivo}" />`);
+  for (const [modo, imagen, fondo] of [['claro', normal, '#FFFFFF'], ['oscuro', oscuro, FONDO_OSCURO]]) {
+    // Misma composición que #apertura en index.html: ícono de 56 % del ancho (máx. 300 px) y el nombre
+    // debajo (8 px de separación, letra de 22 px), todo el bloque centrado en la pantalla.
+    const W = w * d, H = h * d;
+    const lado = Math.round(Math.min(w * 0.56, 300) * d);
+    const altoTexto = Math.round(22 * 1.2 * d), separacion = 8 * d;
+    const top = Math.round((H - (lado + separacion + altoTexto)) / 2);
+    const icono = await sharp(imagen).resize(lado, lado).png().toBuffer();
+    const texto = Buffer.from(`<svg width="${W}" height="${altoTexto}">
+      <text x="${W / 2}" y="${Math.round(21 * d)}" font-family="Segoe UI, Helvetica, Arial" font-size="${22 * d}"
+            font-weight="600" letter-spacing="${d}" text-anchor="middle" fill="#4AA8E8">Himnario 2026</text></svg>`);
+    const archivo = `apertura-${modo}-${W}x${H}.png`;
+    await sharp({ create: { width: W, height: H, channels: 3, background: fondo } })
+      .composite([
+        { input: icono, left: Math.round((W - lado) / 2), top },
+        { input: texto, left: 0, top: top + lado + separacion },
+      ])
+      .png({ compressionLevel: 9 }).toFile(path.join(dirApertura, archivo));
+    etiquetas.push(`<link rel="apple-touch-startup-image" media="screen and (device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${d}) and (orientation: portrait) and (prefers-color-scheme: ${modo === 'claro' ? 'light' : 'dark'})" href="/apertura/${archivo}" />`);
+  }
 }
-console.log(`   apertura/ (${IPHONES.length} pantallas de iPhone)`);
+console.log(`   apertura/ (${IPHONES.length} pantallas de iPhone, en claro y en oscuro)`);
 
 // Las etiquetas <link> van en index.html, entre los comentarios marcadores.
 const indexHtml = path.resolve('index.html');

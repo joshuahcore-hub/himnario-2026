@@ -27,9 +27,9 @@ export const variantes = {
   'Logo con letras': { fuente: 'completo', ancho: 162 },
 };
 
-export async function iconoConLogo(tam = 512, { margen = 0, variante = 'Símbolo mediano', anchoLogo, corrimiento = 0 } = {}) {
+export async function iconoConLogo(tam = 512, { margen = 0, variante = 'Símbolo mediano', anchoLogo, corrimiento = 0, fondo = '#FFFFFF' } = {}) {
   const v = { ...variantes[variante], ...(anchoLogo ? { ancho: anchoLogo } : {}) };
-  const base = await sharp(Buffer.from(svgIcono(propuestas['1'], { margen }))).png().toBuffer();
+  const base = await sharp(Buffer.from(svgIcono(propuestas['1'], { margen, fondo }))).png().toBuffer();
   const logo = v.fuente === 'simbolo'
     ? await sharp(SIMBOLO).resize({ width: Math.round(v.ancho * (1 - margen * 2)) }).png().toBuffer()
     : await logoCompletoCeleste(Math.round(v.ancho * (1 - margen * 2)));
