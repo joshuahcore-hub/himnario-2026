@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 36 20% 96%;
+    --foreground: 30 10% 12%;
+
+    --card: 36 25% 98%;
+    --card-foreground: 30 10% 12%;
+
+    --popover: 36 25% 98%;
+    --popover-foreground: 30 10% 12%;
+
+    --primary: 30 10% 18%;
+    --primary-foreground: 36 20% 96%;
+
+    --secondary: 36 15% 91%;
+    --secondary-foreground: 30 10% 18%;
+
+    --muted: 36 12% 92%;
+    --muted-foreground: 30 8% 50%;
+
+    --accent: 36 15% 91%;
+    --accent-foreground: 30 10% 18%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 36 20% 96%;
+
+    --border: 36 15% 88%;
+    --input: 36 15% 88%;
+    --ring: 30 10% 18%;
+
+    --radius: 0.75rem;
+
+    /* Custom Hymnal tokens */
+    --header-bar: 220 35% 16%;
+    --hymn-key: 0 55% 55%;
+    --hymn-number: 168 40% 42%;
+    --palabra: 120 35% 35%;
+    --oracion: 120 35% 35%;
+    --preview-badge: 45 80% 55%;
+
+    --sidebar-background: 36 20% 96%;
+    --sidebar-foreground: 30 10% 12%;
+    --sidebar-primary: 30 10% 18%;
+    --sidebar-primary-foreground: 36 20% 96%;
+    --sidebar-accent: 36 15% 91%;
+    --sidebar-accent-foreground: 30 10% 18%;
+    --sidebar-border: 36 15% 88%;
+    --sidebar-ring: 30 10% 18%;
+  }
+
+  .dark {
+    --background: 30 8% 10%;
+    --foreground: 36 15% 90%;
+
+    --card: 30 8% 13%;
+    --card-foreground: 36 15% 90%;
+
+    --popover: 30 8% 13%;
+    --popover-foreground: 36 15% 90%;
+
+    --primary: 36 15% 90%;
+    --primary-foreground: 30 8% 10%;
+
+    --secondary: 30 8% 18%;
+    --secondary-foreground: 36 15% 90%;
+
+    --muted: 30 6% 20%;
+    --muted-foreground: 36 10% 60%;
+
+    --accent: 30 8% 18%;
+    --accent-foreground: 36 15% 90%;
+
+    --destructive: 0 50% 40%;
+    --destructive-foreground: 36 15% 90%;
+
+    --border: 30 6% 22%;
+    --input: 30 6% 22%;
+    --ring: 36 15% 90%;
+
+    --header-bar: 220 35% 16%;
+    --hymn-key: 0 50% 60%;
+    --hymn-number: 168 35% 55%;
+    --palabra: 120 20% 50%;
+    --oracion: 120 20% 50%;
+    --preview-badge: 45 70% 50%;
+
+    --sidebar-background: 30 8% 10%;
+    --sidebar-foreground: 36 15% 90%;
+    --sidebar-primary: 36 15% 90%;
+    --sidebar-primary-foreground: 30 8% 10%;
+    --sidebar-accent: 30 8% 18%;
+    --sidebar-accent-foreground: 36 15% 90%;
+    --sidebar-border: 30 6% 22%;
+    --sidebar-ring: 36 15% 90%;
+  }
+}
+
+@layer base {
+  * {
+    max-height: 999999px;
+  }
+
+  html {
+    font-size: 15px;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  /* Disable all transitions during theme switch for instant change */
+  html.theme-switching,
+  html.theme-switching *,
+  html.theme-switching *::before,
+  html.theme-switching *::after {
+    transition-duration: 0s !important;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .text-hymn-key {
+    color: hsl(var(--hymn-key));
+  }
+  .text-hymn-number {
+    color: hsl(var(--hymn-number));
+  }
+  .text-palabra {
+    color: hsl(var(--palabra));
+  }
+  .bg-preview-badge {
+    background-color: hsl(var(--preview-badge));
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tap-highlight:active {
+    background-color: hsl(var(--accent));
+  }
+
+  /* Global tap feedback for all interactive elements */
+  .tap-btn {
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.05s ease-out, background-color 0.05s ease-out;
+  }
+  .tap-btn:active {
+    opacity: 0.85;
+  }
+
+  /* Tap feedback for overlay buttons (semi-transparent bg) */
+  .tap-btn-overlay {
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.05s ease-out;
+  }
+  .tap-btn-overlay:active {
+    opacity: 0.5 !important;
+  }
+}

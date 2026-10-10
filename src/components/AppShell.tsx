@@ -1,0 +1,49 @@
+import { ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Music, Settings } from 'lucide-react';
+
+import { useI18n } from '@/lib/i18n/index';
+
+export default function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { t } = useI18n();
+
+  // Las pestañas de minutas (Crear / Minutas) se agregan en la fase 3, con el servidor de minutas.
+  const tabs = [
+    { path: '/', label: t.tab_hymnal, icon: Music },
+    { path: '/settings', label: t.tab_settings, icon: Settings },
+  ];
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      {/* Safe area top padding instead of header bar */}
+      <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
+      <main className="flex-1 overflow-hidden">
+        {children}
+      </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border z-50">
+        <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
+          {tabs.map(tab => {
+            const active = location.pathname === tab.path;
+            return (
+              <button
+                key={tab.path}
+                onClick={() => navigate(tab.path)}
+                className={`tap-btn flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200 ${
+                  active
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground/70'
+                }`}
+              >
+                <tab.icon size={22} strokeWidth={active ? 2.2 : 1.6} />
+                <span className="text-[11px] font-medium">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
+  );
+}
