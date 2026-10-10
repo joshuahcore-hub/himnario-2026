@@ -32,16 +32,21 @@ export default defineConfig({
         scope: "/",
         display: "standalone",
         orientation: "portrait",
-        background_color: "#f5f2ed",
-        theme_color: "#2d2a26",
+        // Pantalla de apertura de Android: fondo blanco + ícono (la arma el celular con estos datos).
+        background_color: "#ffffff",
+        theme_color: "#ffffff",
         icons: [
-          { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
           { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          // Versión con margen para los Android que recortan el ícono en círculo u otra forma.
+          { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
         // Todo queda guardado en el celular al instalar: la app y las 326 imágenes de los himnos.
         globPatterns: ["**/*.{js,css,html,png,svg,woff2,webp}"],
+        // Las pantallas de apertura de iPhone las pide el sistema al instalar; no hace falta guardarlas.
+        globIgnores: ["apertura/**"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
