@@ -89,6 +89,73 @@ export interface Translations {
   offline_unsupported: string;
   settings_version: string;
 
+  // Minutas en línea
+  minuta_creada_por: string;
+  minuta_editada_por: string;
+  minuta_not_found: string;
+  minuta_share: string;
+  minutas_refresh: string;
+  minutas_offline: string;
+  minutas_hint_select: string;
+  minutas_pin: string;
+
+  // Editor de minutas
+  editor_title_edit: string;
+  editor_title_placeholder: string;
+  editor_add_song: string;
+  editor_done: string;
+  editor_empty: string;
+  editor_empty_hint: string;
+  editor_no_access: string;
+  editor_needs_internet: string;
+  editor_group: string;
+  editor_ungroup: string;
+  editor_group_hint: string;
+  editor_up: string;
+  editor_down: string;
+
+  // Acceso (creadores)
+  access_title: string;
+  access_intro: string;
+  access_request: string;
+  access_name_required: string;
+  access_pending: string;
+  access_check: string;
+  access_approved: string;
+  access_admin: string;
+  access_rejected: string;
+  access_disabled: string;
+  access_edit_profile: string;
+
+  // Administración
+  admin_title: string;
+  admin_only: string;
+  admin_activate: string;
+  admin_activate_button: string;
+  admin_key_placeholder: string;
+  admin_activated: string;
+  admin_people: string;
+  admin_history: string;
+  admin_pending_requests: string;
+  admin_no_people: string;
+  admin_requested: string;
+  admin_this_device: string;
+  admin_role_admin: string;
+  admin_state_pending: string;
+  admin_state_approved: string;
+  admin_state_rejected: string;
+  admin_state_disabled: string;
+  admin_approve: string;
+  admin_reject: string;
+  admin_disable: string;
+  admin_enable: string;
+  admin_restore: string;
+  admin_restored: string;
+  admin_action_created: string;
+  admin_action_edited: string;
+  admin_action_deleted: string;
+  admin_action_restored: string;
+
   // Auth
   auth_title: string;
   auth_login_subtitle: string;
@@ -209,6 +276,69 @@ export const es: Translations = {
   offline_unsupported: 'Abre la app instalada (o con internet) para guardar los himnos.',
   settings_version: 'Versión',
 
+  minuta_creada_por: 'Creada por',
+  minuta_editada_por: 'Editada por',
+  minuta_not_found: 'No se encontró esta minuta. Ábrela una vez con internet para guardarla en el celular.',
+  minuta_share: 'Compartir por WhatsApp',
+  minutas_refresh: 'Actualizar',
+  minutas_offline: 'Sin conexión: mostrando las minutas guardadas en este celular.',
+  minutas_hint_select: 'Mantén presionada una minuta para seleccionarla, fijarla o borrarla.',
+  minutas_pin: 'Fijar',
+
+  editor_title_edit: 'Editar minuta',
+  editor_title_placeholder: 'Título (opcional)',
+  editor_add_song: 'Canto',
+  editor_done: 'Listo',
+  editor_empty: 'Agrega al menos un canto.',
+  editor_empty_hint: 'Pulsa "+ Canto" para buscar y añadir cantos.',
+  editor_no_access: 'Para crear minutas, pide acceso en Ajustes. El administrador debe aprobarlo.',
+  editor_needs_internet: 'Se necesita internet para guardar.',
+  editor_group: 'Agrupar con el siguiente',
+  editor_ungroup: 'Separar',
+  editor_group_hint: 'El ícono de cadena agrupa un canto con el siguiente (se cantan juntos).',
+  editor_up: 'Subir',
+  editor_down: 'Bajar',
+
+  access_title: 'Crear minutas',
+  access_intro: 'Cualquiera puede ver los himnos y las minutas. Para crear o editar minutas, escribe tu nombre, elige un color y pide acceso: el administrador lo aprobará.',
+  access_request: 'Pedir acceso',
+  access_name_required: 'Escribe tu nombre.',
+  access_pending: 'Solicitud enviada. Espera a que el administrador la apruebe.',
+  access_check: 'Revisar estado',
+  access_approved: 'Tienes acceso: puedes crear, editar y borrar minutas.',
+  access_admin: 'Este celular es el administrador.',
+  access_rejected: 'Tu solicitud anterior fue rechazada. Puedes volver a pedir acceso.',
+  access_disabled: 'El administrador deshabilitó el acceso de este celular.',
+  access_edit_profile: 'Cambiar nombre o color',
+
+  admin_title: 'Administración',
+  admin_only: 'Solo el administrador puede ver esta pantalla.',
+  admin_activate: 'Activar como administrador',
+  admin_activate_button: 'Activar',
+  admin_key_placeholder: 'Clave de administrador',
+  admin_activated: 'Este celular ahora es el administrador.',
+  admin_people: 'Personas',
+  admin_history: 'Historial',
+  admin_pending_requests: 'Solicitudes pendientes',
+  admin_no_people: 'Todavía nadie ha pedido acceso.',
+  admin_requested: 'Pidió acceso el',
+  admin_this_device: 'este celular',
+  admin_role_admin: 'Administrador',
+  admin_state_pending: 'Pendiente',
+  admin_state_approved: 'Aprobado',
+  admin_state_rejected: 'Rechazado',
+  admin_state_disabled: 'Deshabilitado',
+  admin_approve: 'Aprobar',
+  admin_reject: 'Rechazar',
+  admin_disable: 'Deshabilitar',
+  admin_enable: 'Habilitar',
+  admin_restore: 'Restaurar',
+  admin_restored: 'Minuta restaurada.',
+  admin_action_created: 'Creó',
+  admin_action_edited: 'Editó',
+  admin_action_deleted: 'Borró',
+  admin_action_restored: 'Restauró',
+
   auth_title: 'Hymnal',
   auth_login_subtitle: 'Inicia sesión para continuar',
   auth_signup_subtitle: 'Crea tu cuenta',
@@ -324,6 +454,69 @@ export const en: Translations = {
   offline_preparing: (done, total) => `Saving hymns for offline use… ${done} / ${total}`,
   offline_unsupported: 'Open the installed app (or go online) to save the hymns.',
   settings_version: 'Version',
+
+  minuta_creada_por: 'Created by',
+  minuta_editada_por: 'Edited by',
+  minuta_not_found: 'Service not found. Open it once while online to save it on this phone.',
+  minuta_share: 'Share on WhatsApp',
+  minutas_refresh: 'Refresh',
+  minutas_offline: 'Offline: showing the services saved on this phone.',
+  minutas_hint_select: 'Press and hold a service to select, pin or delete it.',
+  minutas_pin: 'Pin',
+
+  editor_title_edit: 'Edit service',
+  editor_title_placeholder: 'Title (optional)',
+  editor_add_song: 'Song',
+  editor_done: 'Done',
+  editor_empty: 'Add at least one song.',
+  editor_empty_hint: 'Tap "+ Song" to search and add songs.',
+  editor_no_access: 'To create services, request access in Settings. The administrator must approve it.',
+  editor_needs_internet: 'An internet connection is needed to save.',
+  editor_group: 'Group with next',
+  editor_ungroup: 'Ungroup',
+  editor_group_hint: 'The chain icon groups a song with the next one (sung together).',
+  editor_up: 'Move up',
+  editor_down: 'Move down',
+
+  access_title: 'Create services',
+  access_intro: 'Anyone can view hymns and services. To create or edit services, enter your name, pick a color and request access: the administrator will approve it.',
+  access_request: 'Request access',
+  access_name_required: 'Enter your name.',
+  access_pending: 'Request sent. Wait for the administrator to approve it.',
+  access_check: 'Check status',
+  access_approved: 'You have access: you can create, edit and delete services.',
+  access_admin: 'This phone is the administrator.',
+  access_rejected: 'Your previous request was rejected. You can request access again.',
+  access_disabled: 'The administrator disabled access for this phone.',
+  access_edit_profile: 'Change name or color',
+
+  admin_title: 'Administration',
+  admin_only: 'Only the administrator can see this screen.',
+  admin_activate: 'Activate as administrator',
+  admin_activate_button: 'Activate',
+  admin_key_placeholder: 'Administrator key',
+  admin_activated: 'This phone is now the administrator.',
+  admin_people: 'People',
+  admin_history: 'History',
+  admin_pending_requests: 'Pending requests',
+  admin_no_people: 'Nobody has requested access yet.',
+  admin_requested: 'Requested on',
+  admin_this_device: 'this phone',
+  admin_role_admin: 'Administrator',
+  admin_state_pending: 'Pending',
+  admin_state_approved: 'Approved',
+  admin_state_rejected: 'Rejected',
+  admin_state_disabled: 'Disabled',
+  admin_approve: 'Approve',
+  admin_reject: 'Reject',
+  admin_disable: 'Disable',
+  admin_enable: 'Enable',
+  admin_restore: 'Restore',
+  admin_restored: 'Service restored.',
+  admin_action_created: 'Created',
+  admin_action_edited: 'Edited',
+  admin_action_deleted: 'Deleted',
+  admin_action_restored: 'Restored',
 
   auth_title: 'Hymnal',
   auth_login_subtitle: 'Sign in to continue',

@@ -1,0 +1,155 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Trash2, Pin, WifiOff, RefreshCw, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Portada from '@/components/Portada';
+import type { MinutaData } from '@/lib/types';
+import { useMinutas, quitarMinutaLocal, guardarMinutaLocal } from '@/lib/minutaCache';
+import { tituloVisible } from '@/lib/minutaUtils';
+import { api } from '@/lib/api';
+import { useI18n } from '@/lib/i18n/index';
+import { useAcceso } from '@/hooks/useAcceso';
+
+export default function Minutas() {
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const { puedeEditar } = useAcceso();
+  const { minutas, sinConexion, cargando, refrescar } = useMinutas();
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const longPress = useRef<ReturnType<typeof setTimeout>>();
+
+  // Fijadas primero; el resto por fecha. Se abre mostrando la más reciente (a la derecha).
+  const ordenadas = useMemo(
+    () => [...minutas.filter(m => m.fijada), ...minutas.filter(m => !m.fijada)],
+    [minutas],
+  );
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [ordenadas.length]);
+
+  const toggleSelect = (id: string) => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const salirSeleccion = () => { setSelectMode(false); setSelected(new Set()); };
+
+  const borrar = async () => {
+    const ids = [...selected];
+    try {
+      for (const id of ids) {
+        await api(`minutas/${id}`, { metodo: 'DELETE' });
+        quitarMinutaLocal(id);
+      }
+      toast.success(t.minutas_deleted(ids.length));
+      salirSeleccion();
+    } catch (e: any) {
+      toast.error(e.message || t.minutas_error_delete);
+    }
+  };
+
+  const fijar = async (m: MinutaData) => {
+    try {
+      guardarMinutaLocal(await api<MinutaData>(`minutas/${m.id}`, { metodo: 'PATCH', datos: { fijada: !m.fijada } }));
+      toast.success(m.fijada ? t.minutas_unpinned : t.minutas_pinned);
+    } catch (e: any) {
+      toast.error(e.message || t.minutas_error_rename);
+    }
+  };
+
+  return (
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
+      <div className="flex items-center justify-between px-5 pt-4 gap-2">
+        <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
+        <div className="flex items-center gap-2">
+          {selectMode ? (
+            <>
+              {selected.size > 0 && (
+                <Button size="sm" variant="destructive" onClick={borrar}>
+                  <Trash2 size={14} className="mr-1" />
+                  {t.minutas_delete} ({selected.size})
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={salirSeleccion}><X size={14} /></Button>
+            </>
+          ) : (
+            <button onClick={refrescar} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_refresh}>
+              <RefreshCw size={16} className={cargando ? 'animate-spin' : ''} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {sinConexion && (
+        <div className="mx-5 mt-3 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-[11px] text-muted-foreground">
+          <WifiOff size={13} className="shrink-0" />
+          {t.minutas_offline}
+        </div>
+      )}
+      {puedeEditar && !selectMode && ordenadas.length > 0 && (
+        <p className="px-5 pt-2 text-[10px] text-muted-foreground/70">{t.minutas_hint_select}</p>
+      )}
+
+      {ordenadas.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center px-5">
+          <p className="text-muted-foreground text-sm text-center">
+            {cargando ? t.minutas_loading : t.minutas_empty}
+          </p>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center overflow-hidden">
+          <div
+            ref={scrollRef}
+            className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory w-full py-4"
+            style={{ paddingLeft: 'calc(50% - 140px)', paddingRight: 'calc(50% - 140px)' }}
+          >
+            {ordenadas.map(m => (
+              <div key={m.id} className="snap-center shrink-0 w-[280px]" onContextMenu={e => e.preventDefault()}>
+                <div className="mb-2 flex items-center justify-center gap-1 h-6">
+                  {m.fijada && <Pin size={10} className="text-primary rotate-45" />}
+                  <p className="text-xs font-semibold text-foreground/80 text-center truncate">{tituloVisible(m)}</p>
+                </div>
+                <div
+                  className={`relative cursor-pointer ${m.fijada ? 'ring-2 ring-primary/40 rounded-xl' : ''}`}
+                  onTouchStart={() => {
+                    if (!puedeEditar) return;
+                    longPress.current = setTimeout(() => { setSelectMode(true); toggleSelect(m.id); }, 500);
+                  }}
+                  onTouchEnd={() => clearTimeout(longPress.current)}
+                  onTouchMove={() => clearTimeout(longPress.current)}
+                  onClick={() => (selectMode ? toggleSelect(m.id) : navigate(`/minuta/${m.id}`))}
+                >
+                  {selectMode && (
+                    <>
+                      <div className={`absolute top-2 right-2 z-10 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        selected.has(m.id) ? 'bg-destructive border-destructive text-destructive-foreground' : 'border-muted-foreground/30 bg-card'
+                      }`}>
+                        {selected.has(m.id) && <span className="text-xs">✓</span>}
+                      </div>
+                      <button
+                        className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center ${
+                          m.fijada ? 'bg-primary text-primary-foreground' : 'bg-card/80 border border-border text-muted-foreground'
+                        }`}
+                        onClick={e => { e.stopPropagation(); fijar(m); }}
+                        aria-label={t.minutas_pin}
+                      >
+                        <Pin size={10} />
+                      </button>
+                    </>
+                  )}
+                  <Portada date={m.fecha} songs={m.cantos} compact creador={m.creador} editor={m.editor} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

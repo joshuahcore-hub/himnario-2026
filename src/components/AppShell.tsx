@@ -1,16 +1,20 @@
 import { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Music, Settings } from 'lucide-react';
+import { Plus, BookOpen, Music, Settings } from 'lucide-react';
 
 import { useI18n } from '@/lib/i18n/index';
+import { useAcceso } from '@/hooks/useAcceso';
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { puedeEditar } = useAcceso();
 
-  // Las pestañas de minutas (Crear / Minutas) se agregan en la fase 3, con el servidor de minutas.
+  // "Crear" solo aparece en los celulares aprobados (creadores y administrador).
   const tabs = [
+    ...(puedeEditar ? [{ path: '/crear', label: t.tab_create, icon: Plus }] : []),
+    { path: '/minutas', label: t.tab_minutas, icon: BookOpen },
     { path: '/', label: t.tab_hymnal, icon: Music },
     { path: '/settings', label: t.tab_settings, icon: Settings },
   ];

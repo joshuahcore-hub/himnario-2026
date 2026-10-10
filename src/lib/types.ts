@@ -7,25 +7,25 @@ export interface ParsedSong {
   isPalabra?: boolean;
   isOracion?: boolean;
   isGrouped?: boolean;
-  groupedWith?: ParsedSong;
-  firstLine?: string;
+  groupedWith?: ParsedSong | null;
+  firstLine?: string | null;
   psalmTitle?: boolean;
 }
 
-export interface MinutaPreview {
-  date: string;
-  songs: ParsedSong[];
+export interface Autor {
+  nombre: string;
+  color: string;
 }
 
 export interface MinutaData {
   id: string;
-  title: string;
-  date: string;
-  songs: any;
-  raw_text: string | null;
-  created_at: string;
-  created_by: string | null;
-  status: string;
-  updated_at?: string;
-  pinned?: boolean;
+  titulo: string;
+  fecha: string;
+  cantos: ParsedSong[];
+  texto_original: string | null;
+  fijada: boolean;
+  creada: string;
+  actualizada: string;
+  creador: Autor | null;
+  editor: Autor | null;
 }

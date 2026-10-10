@@ -3,6 +3,7 @@ import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
 import { useTheme } from '@/hooks/useTheme';
 import { useOffline } from '@/lib/offline';
+import SeccionAcceso from '@/components/SeccionAcceso';
 
 const LANGUAGES: { code: Locale; label: string }[] = [
   { code: 'es', label: 'Español' },
@@ -18,6 +19,8 @@ export default function SettingsPage() {
   return (
     <div className="px-5 pt-4 pb-24 space-y-5 overflow-y-auto" style={{ height: 'calc(100vh - 4rem)' }}>
       <h1 className="text-xl font-bold text-foreground">{t.settings_title}</h1>
+
+      <SeccionAcceso />
 
       <div className="bg-card rounded-xl border border-border p-4">
         <div className="flex items-center justify-between">
