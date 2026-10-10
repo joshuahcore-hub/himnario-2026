@@ -1,18 +1,22 @@
 // Botón de fecha (mismo alto y estilo que los campos de texto) que abre el calendario de la app.
 // Tocar un día solo lo marca (círculo rojo). Si es distinto al que tenía aparecen Guardar y Cancelar;
 // si se vuelve al mismo día, desaparecen. Tocar fuera cierra sin cambiar.
-// La parte de arriba del calendario queda fija (si un mes tiene más semanas, crece hacia abajo)
-// y se puede cambiar de mes deslizando a la izquierda o a la derecha.
+// Meses como una tira continua: el anterior, el actual y el siguiente van lado a lado (separados por
+// ESPACIO px); al deslizar se ve asomar el mes vecino y la tira sigue el dedo. El nombre del mes
+// y las flechas de arriba no se mueven. Todos los meses con 6 filas: la tira es pareja.
 import { useRef, useState } from 'react';
-import { CalendarDays } from 'lucide-react';
-import { addMonths } from 'date-fns';
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { addMonths, format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/index';
 import { formatearFecha } from '@/lib/minutaUtils';
 
-const DURACION = 220; // ms de cada mitad del deslizamiento (sale el mes, entra el nuevo)
+const DURACION = 260;       // ms del deslizamiento al soltar o al tocar una flecha
+const ANCHO_MES = 304;      // 7 días × 40 px + 12 px de margen a cada lado (igual que ui/calendar)
+const ESPACIO = 24;         // separación entre un mes y el siguiente en la tira
+const PASO = ANCHO_MES + ESPACIO;
 
 const aFecha = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number);
@@ -27,38 +31,44 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   className?: string;
 }) {
   const { t, locale } = useI18n();
+  const idioma = locale === 'es' ? es : enUS;
   const [abierto, setAbierto] = useState(false);
   const [elegida, setElegida] = useState<Date>(() => aFecha(valor));
   const [mes, setMes] = useState<Date>(() => aFecha(valor));
 
-  // Deslizamiento de los días (el nombre del mes de arriba no se mueve):
-  // `desliz` = desplazamiento horizontal de la grilla en px; `animando` = con transición suave.
-  const [desliz, setDesliz] = useState(0);
+  // dx = desplazamiento de la tira respecto del mes actual; animando = con transición suave.
+  const [dx, setDx] = useState(0);
   const [animando, setAnimando] = useState(false);
-  const tarjetaRef = useRef<HTMLDivElement>(null);
   const toque = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null);
   const ocupado = useRef(false);
   const ignorarClick = useRef(false);
 
-  /** El mes actual sale hacia un lado y el nuevo entra desde el otro. dir: 1 = siguiente, -1 = anterior. */
+  const abrir = () => {
+    const f = aFecha(valor);
+    setElegida(f);
+    setMes(f);
+    setDx(0);
+    setAnimando(false);
+    ocupado.current = false;
+    setAbierto(true);
+  };
+
+  const guardar = () => {
+    onChange(aIso(elegida));
+    setAbierto(false);
+  };
+
+  /** Desliza la tira hasta el mes vecino y luego lo deja como mes actual. dir: 1 = siguiente, -1 = anterior. */
   const cambiarMes = (dir: 1 | -1) => {
     if (ocupado.current) return;
     ocupado.current = true;
-    const ancho = tarjetaRef.current?.offsetWidth ?? 300;
     setAnimando(true);
-    setDesliz(-dir * ancho);
+    setDx(-dir * PASO);
     setTimeout(() => {
       setAnimando(false);
       setMes(m => addMonths(m, dir));
-      setDesliz(dir * ancho);
-      // Pausa corta para que el mes nuevo quede ubicado al otro lado antes de entrar deslizándose.
-      // (setTimeout y no requestAnimationFrame: este último se pausa si la app pasa a segundo plano
-      // y el mes podría quedar fuera de la vista.)
-      setTimeout(() => {
-        setAnimando(true);
-        setDesliz(0);
-        setTimeout(() => { setAnimando(false); ocupado.current = false; }, DURACION);
-      }, 30);
+      setDx(0);
+      ocupado.current = false;
     }, DURACION);
   };
 
@@ -70,12 +80,12 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   const alMover = (e: React.TouchEvent) => {
     const t0 = toque.current;
     if (!t0) return;
-    const dx = e.touches[0].clientX - t0.x;
-    const dy = e.touches[0].clientY - t0.y;
-    if (t0.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) t0.horizontal = Math.abs(dx) > Math.abs(dy);
+    const mx = e.touches[0].clientX - t0.x;
+    const my = e.touches[0].clientY - t0.y;
+    if (t0.horizontal === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) t0.horizontal = Math.abs(mx) > Math.abs(my);
     if (t0.horizontal) {
       setAnimando(false);
-      setDesliz(dx);
+      setDx(Math.max(-PASO, Math.min(PASO, mx)));
     }
   };
 
@@ -83,28 +93,30 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
     const t0 = toque.current;
     toque.current = null;
     if (!t0?.horizontal) return;
-    // El toque fue un deslizamiento: que no marque el día donde se soltó.
+    // Fue un deslizamiento: que no marque el día donde se soltó el dedo.
     ignorarClick.current = true;
     setTimeout(() => { ignorarClick.current = false; }, 350);
-    const dx = e.changedTouches[0].clientX - t0.x;
-    if (Math.abs(dx) > 50) cambiarMes(dx < 0 ? 1 : -1);
-    else { setAnimando(true); setDesliz(0); }
+    const mx = e.changedTouches[0].clientX - t0.x;
+    if (Math.abs(mx) > 60) cambiarMes(mx < 0 ? 1 : -1);
+    else { setAnimando(true); setDx(0); setTimeout(() => setAnimando(false), DURACION); }
   };
 
-  const abrir = () => {
-    const f = aFecha(valor);
-    setElegida(f);
-    setMes(f);
-    setDesliz(0);
-    setAnimando(false);
-    ocupado.current = false;
-    setAbierto(true);
-  };
-
-  const guardar = () => {
-    onChange(aIso(elegida));
-    setAbierto(false);
-  };
+  const panel = (m: Date) => (
+    <div style={{ width: ANCHO_MES, flexShrink: 0 }} key={aIso(m)}>
+      <Calendar
+        mode="single"
+        selected={elegida}
+        onSelect={d => d && setElegida(d)}
+        month={m}
+        disableNavigation
+        fixedWeeks
+        locale={idioma}
+        weekStartsOn={1}
+        className="px-3 pb-3 pt-0"
+        classNames={{ caption: 'hidden', month: 'space-y-0' }}
+      />
+    </div>
+  );
 
   return (
     <>
@@ -124,32 +136,49 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
           onClick={() => setAbierto(false)}
         >
           <div
-            ref={tarjetaRef}
-            className="rounded-2xl border border-border bg-card shadow-xl animate-in zoom-in-95 duration-150"
-            style={{
-              '--desliz': `${desliz}px`,
-              '--desliz-transicion': animando ? `transform ${DURACION}ms cubic-bezier(0.22, 1, 0.36, 1)` : 'none',
-              touchAction: 'pan-y',
-            } as React.CSSProperties}
+            className="rounded-2xl border border-border bg-card shadow-xl animate-in zoom-in-95 duration-150 overflow-hidden"
+            style={{ width: ANCHO_MES }}
             onClick={e => e.stopPropagation()}
             onClickCapture={e => { if (ignorarClick.current) { e.stopPropagation(); e.preventDefault(); } }}
-            onTouchStart={alTocar}
-            onTouchMove={alMover}
-            onTouchEnd={alSoltar}
           >
-            <Calendar
-              mode="single"
-              selected={elegida}
-              onSelect={d => d && setElegida(d)}
-              month={mes}
-              onMonthChange={nuevo => cambiarMes(nuevo > mes ? 1 : -1)}
-              locale={locale === 'es' ? es : enUS}
-              weekStartsOn={1}
-              classNames={{
-                month: 'space-y-4 overflow-hidden',
-                table: 'w-full border-collapse space-y-1 translate-x-[var(--desliz)] [transition:var(--desliz-transicion)]',
-              }}
-            />
+            {/* Encabezado fijo: flechas y nombre del mes (no se desliza). */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <button
+                type="button"
+                onClick={() => cambiarMes(-1)}
+                className="h-8 w-8 rounded-md border border-input flex items-center justify-center opacity-60 hover:opacity-100"
+                aria-label="‹"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-semibold capitalize" aria-live="polite">{format(mes, 'LLLL yyyy', { locale: idioma })}</span>
+              <button
+                type="button"
+                onClick={() => cambiarMes(1)}
+                className="h-8 w-8 rounded-md border border-input flex items-center justify-center opacity-60 hover:opacity-100"
+                aria-label="›"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Tira de meses: anterior | actual | siguiente. */}
+            <div className="overflow-hidden" style={{ touchAction: 'pan-y' }}
+                 onTouchStart={alTocar} onTouchMove={alMover} onTouchEnd={alSoltar} onTouchCancel={alSoltar}>
+              <div
+                className="flex"
+                style={{
+                  gap: ESPACIO,
+                  transform: `translateX(${-PASO + dx}px)`,
+                  transition: animando ? `transform ${DURACION}ms cubic-bezier(0.22, 1, 0.36, 1)` : 'none',
+                }}
+              >
+                {panel(addMonths(mes, -1))}
+                {panel(mes)}
+                {panel(addMonths(mes, 1))}
+              </div>
+            </div>
+
             {/* Guardar/Cancelar solo aparecen si el día marcado es distinto al que ya tenía. */}
             {aIso(elegida) !== valor && (
               <div className="flex gap-2 px-3 pb-3 animate-in fade-in duration-150">
