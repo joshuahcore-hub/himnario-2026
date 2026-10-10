@@ -49,7 +49,8 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
   }, [q, hymns]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in fade-in duration-150">
+    // z-[60]: por encima de la barra de pestañas de abajo (z-50), que si no tapa el botón "Listo".
+    <div className="fixed inset-0 z-[60] bg-background flex flex-col animate-in fade-in duration-150">
       <div className="flex items-center gap-2 px-4 pb-3 border-b border-border"
            style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
         <div className="relative flex-1">

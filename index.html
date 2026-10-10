@@ -2,7 +2,7 @@
 <html lang="es" translate="no">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Himnario 2026</title>
     <meta name="description" content="Himnario 2026 — himnos y minutas, también sin internet" />
 
@@ -60,7 +60,11 @@
 
   <body>
     <script>
-      (function(){try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();
+      // Tema oscuro antes de dibujar nada; también barra del celular y manifiesto oscuro
+      // (para que la apertura de Android al instalar sea oscura). Ver src/hooks/useTheme.ts.
+      (function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content','#1C1A18');
+        var m=document.querySelector('link[rel="manifest"]');if(m)m.href='/manifest-oscuro.webmanifest';}}catch(e){}})();
     </script>
     <div id="apertura" aria-hidden="true">
       <img class="claro" src="/icono-v2-512.png" alt="" />

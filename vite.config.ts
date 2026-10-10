@@ -1,7 +1,43 @@
-﻿import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import { VitePWA } from "vite-plugin-pwa";
+import { VitePWA, type ManifestOptions } from "vite-plugin-pwa";
+
+// Manifiesto de la app instalable. La pantalla de apertura de Android la arma el celular con
+// background_color + ícono, y solo admite UN color: por eso hay dos manifiestos (claro y oscuro)
+// y la app enlaza el que corresponde al tema elegido (ver index.html y src/hooks/useTheme.ts).
+const manifiesto: Partial<ManifestOptions> = {
+  id: "/",
+  name: "Himnario 2026",
+  short_name: "Himnario 2026",
+  description: "Himnario 2026 — himnos y minutas, también sin internet",
+  lang: "es",
+  start_url: "/",
+  scope: "/",
+  display: "standalone",
+  orientation: "portrait",
+  background_color: "#ffffff",
+  theme_color: "#ffffff",
+  icons: [
+    { src: "/icono-v2-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/icono-v2-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    // Versión con margen para los Android que recortan el ícono en círculo u otra forma.
+    { src: "/icono-v2-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+  ],
+};
+
+/** Genera manifest-oscuro.webmanifest: igual al normal, con el fondo oscuro de la app. */
+const manifiestoOscuro = (): Plugin => ({
+  name: "manifiesto-oscuro",
+  apply: "build",
+  generateBundle() {
+    this.emitFile({
+      type: "asset",
+      fileName: "manifest-oscuro.webmanifest",
+      source: JSON.stringify({ ...manifiesto, background_color: "#1C1A18", theme_color: "#1C1A18" }),
+    });
+  },
+});
 
 export default defineConfig({
   server: {
@@ -17,6 +53,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    manifiestoOscuro(),
     VitePWA({
       // Cuando se publica una versión nueva, el celular la descarga en silencio y la deja en espera:
       // nunca recarga ni cambia la pantalla mientras se usa (ver src/main.tsx).
@@ -24,25 +61,7 @@ export default defineConfig({
       injectRegister: false,
       // Íconos con versión en el nombre (scripts/iconos/generar.mjs): así nadie ve uno viejo guardado.
       includeAssets: ["icono-v2-64.png", "icono-v2-apple-180.png"],
-      manifest: {
-        name: "Himnario 2026",
-        short_name: "Himnario 2026",
-        description: "Himnario 2026 — himnos y minutas, también sin internet",
-        lang: "es",
-        start_url: "/",
-        scope: "/",
-        display: "standalone",
-        orientation: "portrait",
-        // Pantalla de apertura de Android: fondo blanco + ícono (la arma el celular con estos datos).
-        background_color: "#ffffff",
-        theme_color: "#ffffff",
-        icons: [
-          { src: "/icono-v2-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "/icono-v2-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-          // Versión con margen para los Android que recortan el ícono en círculo u otra forma.
-          { src: "/icono-v2-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-        ],
-      },
+      manifest: manifiesto,
       workbox: {
         // Todo queda guardado en el celular al instalar: la app y las 326 imágenes de los himnos.
         globPatterns: ["**/*.{js,css,html,png,svg,woff2,webp}"],
