@@ -3,14 +3,27 @@ import { registerSW } from "virtual:pwa-register";
 import App from "./App.tsx";
 import "./index.css";
 
-// Service worker: guarda la app y los himnos para usarlos sin internet, y la actualiza sola.
-// Al abrir la app con internet revisa si hay versión nueva; también cada hora si queda abierta.
+// Service worker: guarda la app y los himnos para usarlos sin internet.
+// Actualizaciones sin interrumpir: la versión nueva se descarga en silencio y queda en espera;
+// se activa cuando la app pasa a segundo plano, SIN recargar la pantalla. La próxima vez que se abra
+// la app desde cero ya usa la versión nueva. Nunca se corta lo que la persona está haciendo.
 if (import.meta.env.PROD) {
-  registerSW({
+  let hayVersionNueva = false;
+  const activarVersionNueva = registerSW({
     immediate: true,
+    onNeedRefresh() {
+      hayVersionNueva = true;
+      if (document.visibilityState === "hidden") activarVersionNueva();
+    },
+    onNeedReload() {
+      // No recargar nunca por una actualización.
+    },
     onRegisteredSW(_url, registro) {
       if (registro) setInterval(() => registro.update().catch(() => {}), 60 * 60 * 1000);
     },
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && hayVersionNueva) activarVersionNueva();
   });
 }
 

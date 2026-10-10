@@ -18,8 +18,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Cuando se publica una versión nueva, el celular la descarga y se actualiza solo.
-      registerType: "autoUpdate",
+      // Cuando se publica una versión nueva, el celular la descarga en silencio y la deja en espera:
+      // nunca recarga ni cambia la pantalla mientras se usa (ver src/main.tsx).
+      registerType: "prompt",
       injectRegister: false,
       includeAssets: ["favicon.png", "apple-touch-icon.png"],
       manifest: {
@@ -44,7 +45,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
