@@ -23,7 +23,7 @@ interface DispositivoAdmin {
 interface EntradaHistorial {
   id: number;
   minuta_id: string;
-  accion: 'creada' | 'editada' | 'borrada' | 'restaurada';
+  accion: 'creada' | 'editada' | 'borrada' | 'restaurada' | 'publicada' | 'privada';
   titulo: string | null;
   fecha: string;
   nombre: string | null;
@@ -102,6 +102,8 @@ export default function Admin() {
     editada: t.admin_action_edited,
     borrada: t.admin_action_deleted,
     restaurada: t.admin_action_restored,
+    publicada: t.admin_action_published,
+    privada: t.admin_action_private,
   };
 
   const pendientes = dispositivos.filter(d => d.estado === 'pendiente');

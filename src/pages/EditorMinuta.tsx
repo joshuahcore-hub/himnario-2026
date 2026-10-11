@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowDown, ArrowUp, Check, Link2, Loader2, Plus, Search, Unlink, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Globe, Link2, Loader2, Plus, Search, Unlink, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -132,7 +132,7 @@ export default function EditorMinuta() {
   const [buscando, setBuscando] = useState(false);
   // Posición de la lista desde donde empiezan los cantos añadidos en la búsqueda abierta (se pueden desmarcar ahí mismo).
   const [inicioBusqueda, setInicioBusqueda] = useState(0);
-  const [guardando, setGuardando] = useState(false);
+  const [guardando, setGuardando] = useState<null | 'guardar' | 'publicar'>(null);
   const finRef = useRef<HTMLDivElement>(null);
 
   const numerados = renumerar(cantos) as Fila[]; // renumerar copia cada canto, conserva _k
@@ -203,13 +203,17 @@ export default function EditorMinuta() {
     return next;
   });
 
-  const guardar = async () => {
+  // Guardar: la nueva queda privada (solo quien la crea); la existente conserva su visibilidad.
+  // Publicar: guarda y la deja visible para todos.
+  const yaPublicada = !!existente?.publicada;
+  const guardar = async (publicar: boolean) => {
     if (cantos.length === 0) { toast.error(t.editor_empty); return; }
-    setGuardando(true);
+    setGuardando(publicar ? 'publicar' : 'guardar');
     const datos = {
       titulo: titulo.trim() || 'Minuta',
       fecha,
       cantos: renumerar(cantos).map(sinClave),
+      ...(publicar ? { publicada: true } : id ? {} : { publicada: false }),
       ...(borrador?.textoOriginal && !id ? { texto_original: borrador.textoOriginal } : {}),
     };
     try {
@@ -217,12 +221,12 @@ export default function EditorMinuta() {
         ? await api<MinutaData>(`minutas/${id}`, { metodo: 'PATCH', datos })
         : await api<MinutaData>('minutas', { metodo: 'POST', datos });
       guardarMinutaLocal(m);
-      toast.success(t.create_saved);
+      toast.success(publicar && !yaPublicada ? t.minuta_published_toast : m.publicada ? t.create_saved : t.minuta_saved_private_toast);
       navigate(`/minuta/${m.id}`, { replace: true });
     } catch (e: any) {
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.create_error_save));
     } finally {
-      setGuardando(false);
+      setGuardando(null);
     }
   };
 
@@ -299,11 +303,23 @@ export default function EditorMinuta() {
         {cantos.length > 1 && <p className="text-[10px] text-muted-foreground/70 text-center">{t.editor_group_hint}</p>}
       </div>
 
-      <div className="px-5 py-3 border-t border-border bg-background">
-        <Button onClick={guardar} disabled={guardando || cantos.length === 0} className="w-full h-12 text-base gap-2">
-          {guardando ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-          {guardando ? t.create_saving : t.minutas_save}
+      <div className="px-5 py-3 border-t border-border bg-background flex gap-2">
+        {/* Si ya está publicada, solo Guardar (sigue pública). Si no: Guardar (privada) y Publicar. */}
+        <Button
+          onClick={() => guardar(false)}
+          disabled={!!guardando || cantos.length === 0}
+          variant={yaPublicada ? 'default' : 'outline'}
+          className="flex-1 h-12 text-base gap-2"
+        >
+          {guardando === 'guardar' ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+          {t.minutas_save}
         </Button>
+        {!yaPublicada && (
+          <Button onClick={() => guardar(true)} disabled={!!guardando || cantos.length === 0} className="flex-1 h-12 text-base gap-2">
+            {guardando === 'publicar' ? <Loader2 size={18} className="animate-spin" /> : <Globe size={18} />}
+            {t.minuta_publish}
+          </Button>
+        )}
       </div>
 
       {buscando && (

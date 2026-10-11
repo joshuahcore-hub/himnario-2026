@@ -24,6 +24,10 @@ export interface MinutaData {
   cantos: ParsedSong[];
   texto_original: string | null;
   fijada: boolean;
+  /** true: la ven todos. false: solo quien la creó (borrador privado). */
+  publicada: boolean;
+  /** La creó este celular (para mostrarle si está publicada o es solo suya). */
+  mia: boolean;
   creada: string;
   actualizada: string;
   creador: Autor | null;

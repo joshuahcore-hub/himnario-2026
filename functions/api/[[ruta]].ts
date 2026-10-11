@@ -103,6 +103,7 @@ function validarCantos(cantos: unknown): string {
 
 const SELECT_MINUTAS = `
   SELECT m.id, m.titulo, m.fecha, m.cantos, m.texto_original, m.fijada, m.creada, m.actualizada,
+         m.publicada, m.creada_por,
          c.nombre AS creador_nombre, c.color AS creador_color,
          e.nombre AS editor_nombre, e.color AS editor_color
   FROM minutas m
@@ -110,7 +111,8 @@ const SELECT_MINUTAS = `
   LEFT JOIN dispositivos e ON e.id = m.editada_por`;
 
 // Quién creó/editó cada minuta solo lo ve el administrador: para los demás esos datos no se envían.
-function filaAMinuta(f: any, conAutores: boolean) {
+// "mia" indica si la creó quien pregunta (para mostrarle si está publicada o es solo suya).
+function filaAMinuta(f: any, conAutores: boolean, quienId: string | null) {
   return {
     id: f.id,
     titulo: f.titulo,
@@ -118,6 +120,8 @@ function filaAMinuta(f: any, conAutores: boolean) {
     cantos: JSON.parse(f.cantos),
     texto_original: f.texto_original,
     fijada: !!f.fijada,
+    publicada: !!f.publicada,
+    mia: !!quienId && f.creada_por === quienId,
     creada: f.creada,
     actualizada: f.actualizada,
     creador: conAutores && f.creador_nombre ? { nombre: f.creador_nombre, color: f.creador_color } : null,
@@ -127,10 +131,15 @@ function filaAMinuta(f: any, conAutores: boolean) {
 
 const esAdmin = (d: Dispositivo | null) => !!d && d.estado === 'aprobado' && d.rol === 'admin';
 
-async function obtenerMinuta(env: Env, id: string, conAutores: boolean) {
-  const f = await env.DB.prepare(`${SELECT_MINUTAS} WHERE m.id = ? AND m.borrada = 0`).bind(id).first();
+// Visibilidad: las publicadas las ve todo el mundo; las privadas, solo quien las creó.
+const VISIBLE = '(m.publicada = 1 OR m.creada_por = ?)';
+
+async function obtenerMinuta(env: Env, id: string, conAutores: boolean, quienId: string | null, verificarVisible = true) {
+  const f = verificarVisible
+    ? await env.DB.prepare(`${SELECT_MINUTAS} WHERE m.id = ? AND m.borrada = 0 AND ${VISIBLE}`).bind(id, quienId ?? '').first()
+    : await env.DB.prepare(`${SELECT_MINUTAS} WHERE m.id = ? AND m.borrada = 0`).bind(id).first();
   if (!f) throw new ErrorApi(404, 'Minuta no encontrada.');
-  return filaAMinuta(f, conAutores);
+  return filaAMinuta(f, conAutores, quienId);
 }
 
 const registrar = (env: Env, minutaId: string, dispositivoId: string, accion: string, titulo: string) =>
@@ -142,12 +151,15 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
   const id = partes[1];
   const quien = await dispositivoActual(request, env);
   const conAutores = esAdmin(quien);
+  const quienId = quien?.estado === 'aprobado' ? quien.id : null;
 
   if (metodo === 'GET' && !id) {
-    const { results } = await env.DB.prepare(`${SELECT_MINUTAS} WHERE m.borrada = 0 ORDER BY m.fecha, m.creada`).all();
-    return json(results.map(f => filaAMinuta(f, conAutores)));
+    const { results } = await env.DB.prepare(
+      `${SELECT_MINUTAS} WHERE m.borrada = 0 AND ${VISIBLE} ORDER BY m.fecha, m.creada`,
+    ).bind(quienId ?? '').all();
+    return json(results.map(f => filaAMinuta(f, conAutores, quienId)));
   }
-  if (metodo === 'GET' && id) return json(await obtenerMinuta(env, id, conAutores));
+  if (metodo === 'GET' && id) return json(await obtenerMinuta(env, id, conAutores, quienId));
 
   const yo = exigirEditor(quien);
 
@@ -155,20 +167,22 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     const body = await leerJson(request);
     const nueva = crypto.randomUUID();
     const titulo = validarTitulo(body.titulo);
+    const publicada = body.publicada === true ? 1 : 0; // por defecto, privada (solo quien la crea)
     const t = ahora();
     await env.DB.batch([
-      env.DB.prepare(`INSERT INTO minutas (id, titulo, fecha, cantos, texto_original, creada_por, editada_por, creada, actualizada)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      env.DB.prepare(`INSERT INTO minutas (id, titulo, fecha, cantos, texto_original, publicada, creada_por, editada_por, creada, actualizada)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .bind(nueva, titulo, validarFecha(body.fecha), validarCantos(body.cantos),
               typeof body.texto_original === 'string' ? body.texto_original.slice(0, 5000) : null,
-              yo.id, yo.id, t, t),
+              publicada, yo.id, yo.id, t, t),
       registrar(env, nueva, yo.id, 'creada', titulo),
+      ...(publicada ? [registrar(env, nueva, yo.id, 'publicada', titulo)] : []),
     ]);
-    return json(await obtenerMinuta(env, nueva, conAutores), 201);
+    return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
   }
 
   if (metodo === 'PATCH' && id) {
-    const actual = await obtenerMinuta(env, id, conAutores);
+    const actual = await obtenerMinuta(env, id, conAutores, yo.id);
     const body = await leerJson(request);
     const cambios: string[] = [];
     const valores: unknown[] = [];
@@ -176,19 +190,31 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     if (body.fecha !== undefined) { cambios.push('fecha = ?'); valores.push(validarFecha(body.fecha)); }
     if (body.cantos !== undefined) { cambios.push('cantos = ?'); valores.push(validarCantos(body.cantos)); }
     if (body.fijada !== undefined) { cambios.push('fijada = ?'); valores.push(body.fijada ? 1 : 0); }
+    let cambioVisibilidad: 'publicada' | 'privada' | null = null;
+    if (body.publicada !== undefined && !!body.publicada !== actual.publicada) {
+      // Publicar o volver a privada: solo quien la creó o el administrador.
+      if (!actual.mia && !esAdmin(yo)) throw new ErrorApi(403, 'Solo quien creó la minuta puede publicarla.');
+      cambios.push('publicada = ?');
+      valores.push(body.publicada ? 1 : 0);
+      cambioVisibilidad = body.publicada ? 'publicada' : 'privada';
+    }
     if (cambios.length === 0) return json(actual);
     cambios.push('editada_por = ?', 'actualizada = ?');
     valores.push(yo.id, ahora(), id);
+    const titulo = validarTitulo(body.titulo ?? actual.titulo);
+    const soloVisibilidad = cambioVisibilidad && cambios.length === 3;
     await env.DB.batch([
       env.DB.prepare(`UPDATE minutas SET ${cambios.join(', ')} WHERE id = ?`).bind(...valores),
-      registrar(env, id, yo.id, 'editada', validarTitulo(body.titulo ?? actual.titulo)),
+      ...(soloVisibilidad ? [] : [registrar(env, id, yo.id, 'editada', titulo)]),
+      ...(cambioVisibilidad ? [registrar(env, id, yo.id, cambioVisibilidad, titulo)] : []),
     ]);
-    return json(await obtenerMinuta(env, id, conAutores));
+    // Sin verificar visibilidad: si el administrador dejó privada la minuta de otro, igual recibe la respuesta.
+    return json(await obtenerMinuta(env, id, conAutores, yo.id, false));
   }
 
   if (metodo === 'DELETE' && id) {
     // Se marca como borrada (no se pierde): el administrador puede restaurarla.
-    const actual = await obtenerMinuta(env, id, conAutores);
+    const actual = await obtenerMinuta(env, id, conAutores, yo.id);
     await env.DB.batch([
       env.DB.prepare('UPDATE minutas SET borrada = 1, editada_por = ?, actualizada = ? WHERE id = ?').bind(yo.id, ahora(), id),
       registrar(env, id, yo.id, 'borrada', actual.titulo),

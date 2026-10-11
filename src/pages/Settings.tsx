@@ -4,6 +4,7 @@ import type { Locale } from '@/lib/i18n/translations';
 import { useTheme } from '@/hooks/useTheme';
 import { useOffline } from '@/lib/offline';
 import SeccionAcceso from '@/components/SeccionAcceso';
+import SeccionPdf from '@/components/SeccionPdf';
 
 const LANGUAGES: { code: Locale; label: string }[] = [
   { code: 'es', label: 'Español' },
@@ -82,6 +83,8 @@ export default function SettingsPage() {
           </>
         )}
       </div>
+
+      <SeccionPdf />
 
       <p className="text-center text-[10px] text-muted-foreground/60">
         Himnario 2026 · {t.settings_version} {__APP_VERSION__}

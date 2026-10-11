@@ -96,6 +96,17 @@ export interface Translations {
   minuta_share: string;
   minuta_fullscreen: string;
   minuta_exit_fullscreen: string;
+  minuta_publish: string;
+  minuta_make_private: string;
+  minuta_badge_public: string;
+  minuta_badge_private: string;
+  minuta_published_toast: string;
+  minuta_private_toast: string;
+  minuta_saved_private_toast: string;
+  pdf_title: string;
+  pdf_description: string;
+  pdf_download: string;
+  pdf_updated: string;
   minutas_refresh: string;
   minutas_offline: string;
   minutas_hint_select: string;
@@ -157,6 +168,8 @@ export interface Translations {
   admin_action_edited: string;
   admin_action_deleted: string;
   admin_action_restored: string;
+  admin_action_published: string;
+  admin_action_private: string;
 
   // Auth
   auth_title: string;
@@ -284,6 +297,17 @@ export const es: Translations = {
   minuta_share: 'Compartir por WhatsApp',
   minuta_fullscreen: 'Pantalla completa',
   minuta_exit_fullscreen: 'Salir de pantalla completa',
+  minuta_publish: 'Publicar',
+  minuta_make_private: 'Volver a privada',
+  minuta_badge_public: 'Pública',
+  minuta_badge_private: 'Solo tú',
+  minuta_published_toast: 'Minuta publicada: ahora la ven todos.',
+  minuta_private_toast: 'Ahora solo tú ves esta minuta.',
+  minuta_saved_private_toast: 'Guardada. Solo tú la ves hasta que la publiques.',
+  pdf_title: 'Himnario en PDF',
+  pdf_description: 'La versión más reciente del himnario completo, para descargar o imprimir.',
+  pdf_download: 'Descargar PDF',
+  pdf_updated: 'Actualizado el',
   minutas_refresh: 'Actualizar',
   minutas_offline: 'Sin conexión: mostrando las minutas guardadas en este celular.',
   minutas_hint_select: 'Mantén presionada una minuta para seleccionarla, fijarla o borrarla.',
@@ -342,6 +366,8 @@ export const es: Translations = {
   admin_action_edited: 'Editó',
   admin_action_deleted: 'Borró',
   admin_action_restored: 'Restauró',
+  admin_action_published: 'Publicó',
+  admin_action_private: 'Dejó privada',
 
   auth_title: 'Hymnal',
   auth_login_subtitle: 'Inicia sesión para continuar',
@@ -465,6 +491,17 @@ export const en: Translations = {
   minuta_share: 'Share on WhatsApp',
   minuta_fullscreen: 'Full screen',
   minuta_exit_fullscreen: 'Exit full screen',
+  minuta_publish: 'Publish',
+  minuta_make_private: 'Make private',
+  minuta_badge_public: 'Public',
+  minuta_badge_private: 'Only you',
+  minuta_published_toast: 'Service published: everyone can see it now.',
+  minuta_private_toast: 'Now only you can see this service.',
+  minuta_saved_private_toast: 'Saved. Only you can see it until you publish it.',
+  pdf_title: 'Hymnal PDF',
+  pdf_description: 'The latest version of the full hymnal, to download or print.',
+  pdf_download: 'Download PDF',
+  pdf_updated: 'Updated on',
   minutas_refresh: 'Refresh',
   minutas_offline: 'Offline: showing the services saved on this phone.',
   minutas_hint_select: 'Press and hold a service to select, pin or delete it.',
@@ -523,6 +560,8 @@ export const en: Translations = {
   admin_action_edited: 'Edited',
   admin_action_deleted: 'Deleted',
   admin_action_restored: 'Restored',
+  admin_action_published: 'Published',
+  admin_action_private: 'Made private',
 
   auth_title: 'Hymnal',
   auth_login_subtitle: 'Sign in to continue',

@@ -64,7 +64,8 @@ export default defineConfig({
       manifest: manifiesto,
       workbox: {
         // Todo queda guardado en el celular al instalar: la app y las 326 imágenes de los himnos.
-        globPatterns: ["**/*.{js,css,html,png,svg,woff2,webp}"],
+        // (también el PDF del himnario, para poder descargarlo sin internet)
+        globPatterns: ["**/*.{js,css,html,png,svg,woff2,webp,pdf}"],
         // Las pantallas de apertura de iPhone las pide el sistema al instalar; no hace falta guardarlas.
         globIgnores: ["apertura/**"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Trash2, Pin, WifiOff, RefreshCw, Pencil } from 'lucide-react';
+import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock } from 'lucide-react';
 import Portada from '@/components/Portada';
 import type { MinutaData } from '@/lib/types';
 import { useMinutas, quitarMinutaLocal, guardarMinutaLocal } from '@/lib/minutaCache';
@@ -55,6 +55,21 @@ export default function Minutas() {
     }
   };
 
+  // Publicar (la ven todos) o volver a privada (solo quien la creó). Quien la creó o el administrador.
+  const unaSeleccionada = selected.size === 1 ? minutas.find(m => m.id === [...selected][0]) : undefined;
+  const puedeCambiarVisibilidad = !!unaSeleccionada && (unaSeleccionada.mia || esAdmin);
+  const cambiarVisibilidad = async () => {
+    if (!unaSeleccionada) return;
+    const publicar = !unaSeleccionada.publicada;
+    try {
+      guardarMinutaLocal(await api<MinutaData>(`minutas/${unaSeleccionada.id}`, { metodo: 'PATCH', datos: { publicada: publicar } }));
+      toast.success(publicar ? t.minuta_published_toast : t.minuta_private_toast);
+      salirSeleccion();
+    } catch (e: any) {
+      toast.error(e.message || t.minutas_error_rename);
+    }
+  };
+
   const fijar = async (m: MinutaData) => {
     try {
       guardarMinutaLocal(await api<MinutaData>(`minutas/${m.id}`, { metodo: 'PATCH', datos: { fijada: !m.fijada } }));
@@ -101,9 +116,18 @@ export default function Minutas() {
           >
             {ordenadas.map(m => (
               <div key={m.id} className="snap-center shrink-0 w-[280px]" onContextMenu={e => e.preventDefault()} onClick={e => e.stopPropagation()}>
-                <div className="mb-2 flex items-center justify-center gap-1 h-6">
+                <div className="mb-2 flex items-center justify-center gap-1.5 h-6">
                   {m.fijada && <Pin size={10} className="text-primary rotate-45" />}
                   <p className="text-xs font-semibold text-foreground/80 text-center truncate">{tituloVisible(m)}</p>
+                  {/* Solo en las minutas propias: si la ven todos o solo quien la creó. Los visores no ven esto. */}
+                  {m.mia && (
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0 ${
+                      m.publicada ? 'bg-green-600/15 text-green-700 dark:text-green-400' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {m.publicada ? <Globe size={10} /> : <Lock size={10} />}
+                      {m.publicada ? t.minuta_badge_public : t.minuta_badge_private}
+                    </span>
+                  )}
                 </div>
                 <div
                   className={`relative cursor-pointer ${m.fijada ? 'ring-2 ring-primary/40 rounded-xl' : ''}`}
@@ -154,7 +178,7 @@ export default function Minutas() {
           basurero = borrar las seleccionadas. Solo íconos. */}
       {selectMode && (
         <div
-          className="fixed left-0 right-0 z-40 flex justify-center gap-12 animate-in fade-in slide-in-from-bottom-4 duration-200"
+          className="fixed left-0 right-0 z-40 flex justify-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-200"
           style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)' }}
           onClick={e => e.stopPropagation()}
         >
@@ -165,6 +189,14 @@ export default function Minutas() {
             aria-label={t.create_edit}
           >
             <Pencil size={22} />
+          </button>
+          <button
+            onClick={cambiarVisibilidad}
+            disabled={!puedeCambiarVisibilidad}
+            className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
+            aria-label={unaSeleccionada?.publicada ? t.minuta_make_private : t.minuta_publish}
+          >
+            {unaSeleccionada?.publicada ? <Lock size={22} /> : <Globe size={22} className="text-green-600 dark:text-green-400" />}
           </button>
           <button
             onClick={borrar}
