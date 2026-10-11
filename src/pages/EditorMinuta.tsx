@@ -150,6 +150,8 @@ export default function EditorMinuta() {
   const fotoInicial = useRef<string | null>(null);
   if (fotoInicial.current === null) fotoInicial.current = foto();
   const hayCambios = foto() !== fotoInicial.current;
+  // Botones Guardar/Publicar: solo con cantos y algo nuevo (un borrador traído de otra pantalla cuenta como nuevo).
+  const mostrarBotones = cantos.length > 0 && (hayCambios || (!id && !!borrador));
   const salida = useSalidaProtegida(hayCambios, () => {
     if (buscando) { setBuscando(false); return true; } // "atrás" en el buscador: solo cierra el buscador
     return false;
@@ -357,6 +359,13 @@ export default function EditorMinuta() {
         {cantos.length > 1 && <p className="text-[10px] text-muted-foreground/70 text-center">{t.editor_group_hint}</p>}
       </div>
 
+      {/* Guardar/Publicar aparecen SOLO cuando hay algo que guardar (regla de Josué): se despliegan con suavidad. */}
+      <div className="grid" style={{
+        gridTemplateRows: mostrarBotones ? '1fr' : '0fr',
+        opacity: mostrarBotones ? 1 : 0,
+        transition: 'grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease',
+      }} aria-hidden={!mostrarBotones}>
+      <div className="overflow-hidden">
       <div className="px-5 py-3 border-t border-border bg-background flex gap-2">
         {/* Si ya está publicada, solo Guardar (sigue pública). Si no: Guardar (privada) y Publicar. */}
         <Button
@@ -374,6 +383,8 @@ export default function EditorMinuta() {
             {t.minuta_publish}
           </Button>
         )}
+      </div>
+      </div>
       </div>
       </>}
 
