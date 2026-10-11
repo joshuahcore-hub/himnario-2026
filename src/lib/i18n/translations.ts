@@ -145,6 +145,8 @@ export interface Translations {
   editor_unsaved_title: string;
   editor_unsaved_text: string;
   editor_discard: string;
+  editor_discard_new: string;
+  editor_unsaved_text_new: string;
   editor_keep_editing: string;
   editor_title_placeholder: string;
   editor_add_song: string;
@@ -382,6 +384,8 @@ export const es: Translations = {
   editor_unsaved_title: '¿Salir sin guardar?',
   editor_unsaved_text: 'Hiciste cambios en esta minuta que todavía no están guardados.',
   editor_discard: 'Descartar cambios',
+  editor_discard_new: 'Descartar',
+  editor_unsaved_text_new: 'Esta minuta nueva todavía no está guardada.',
   editor_keep_editing: 'Seguir editando',
   editor_title_placeholder: 'Título (opcional)',
   editor_add_song: 'Canto',
@@ -613,6 +617,8 @@ export const en: Translations = {
   editor_unsaved_title: 'Leave without saving?',
   editor_unsaved_text: 'You made changes to this service that are not saved yet.',
   editor_discard: 'Discard changes',
+  editor_discard_new: 'Discard',
+  editor_unsaved_text_new: 'This new service has not been saved yet.',
   editor_keep_editing: 'Keep editing',
   editor_title_placeholder: 'Title (optional)',
   editor_add_song: 'Song',

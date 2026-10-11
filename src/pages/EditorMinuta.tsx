@@ -413,7 +413,8 @@ export default function EditorMinuta() {
         <DialogContent className="max-w-[320px] rounded-2xl gap-3">
           <DialogHeader>
             <DialogTitle className="text-base">{t.editor_unsaved_title}</DialogTitle>
-            <DialogDescription className="text-xs">{t.editor_unsaved_text}</DialogDescription>
+            {/* Minuta nueva: no hay "cambios" que descartar, se descarta la minuta. Existente: "Descartar cambios". */}
+            <DialogDescription className="text-xs">{id ? t.editor_unsaved_text : t.editor_unsaved_text_new}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2 pt-1">
             <Button
@@ -429,7 +430,7 @@ export default function EditorMinuta() {
               className="h-10 text-sm text-destructive"
               onClick={() => { const ir = salida.pendiente!; salida.cerrarPregunta(); ir(); }}
             >
-              {t.editor_discard}
+              {id ? t.editor_discard : t.editor_discard_new}
             </Button>
             <Button variant="ghost" className="h-9 text-sm text-muted-foreground" onClick={salida.cerrarPregunta}>
               {t.editor_keep_editing}
