@@ -10,7 +10,9 @@ import sharp from 'sharp';
 const ORIGEN = path.resolve('..', 'imagenes-originales');
 const DESTINO = path.resolve('public', 'himnos');
 const ANCHO_MAX = 1400;
-const CALIDAD = 82;
+// WebP SIN PÉRDIDA (11-10-2026): con pérdida (calidad 82) el fondo quedaba 1–2 tonos corrido y con manchitas por
+// bloques, y se notaba una franja entre la imagen y la pantalla (Josué). Sin pérdida el fondo es EXACTO y, como
+// las partituras tienen pocos colores, los archivos pesan ~60 % menos.
 const todo = process.argv.includes('--todo');
 
 // El fondo de cada imagen se lleva exactamente al fondo de la app (para que canto e imagen sean una sola
@@ -18,7 +20,8 @@ const todo = process.argv.includes('--todo');
 // Ajuste lineal por canal: el fondo pasa al color de la app y el otro extremo (blanco en oscuro, negro en
 // claro) no cambia, así el texto y los acordes conservan su color.
 const FONDO = {
-  oscuro: { origen: [14, 13, 12], app: [28, 26, 24], fijo: 255 },
+  // [28,26,23] = hsl(30 8% 10%) tal como lo calcula el navegador (antes decía 24 y quedaba 1 tono corrido).
+  oscuro: { origen: [14, 13, 12], app: [28, 26, 23], fijo: 255 },
   claro: { origen: [255, 255, 255], app: [247, 245, 243], fijo: 0 },
 };
 function ajusteDeFondo({ origen, app, fijo }) {
@@ -46,7 +49,7 @@ for (const tema of ['claro', 'oscuro']) {
       .flatten({ background: { r: fondo.origen[0], g: fondo.origen[1], b: fondo.origen[2] } })
       .linear(a, b)
       .resize({ width: ANCHO_MAX, withoutEnlargement: true })
-      .webp({ quality: CALIDAD, effort: 6 })
+      .webp({ lossless: true, effort: 6 })
       .toFile(salida);
     convertidas++;
     bytes += fs.statSync(salida).size;

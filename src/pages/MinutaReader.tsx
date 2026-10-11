@@ -11,7 +11,6 @@ import { renumerar, textoParaCompartir, compartirPorWhatsApp, tituloVisible } fr
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
-
 function SongPage({ song }: { song: ParsedSong }) {
   const [imgError, setImgError] = useState(false);
   const { theme } = useTheme();

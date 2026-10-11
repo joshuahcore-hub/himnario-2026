@@ -7,7 +7,6 @@ import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
 import ZoomableImage from '@/components/ZoomableImage';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
-
 export default function HymnDetail() {
   const { number } = useParams<{ number: string }>();
   const navigate = useNavigate();
