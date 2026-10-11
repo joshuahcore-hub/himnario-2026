@@ -120,16 +120,15 @@ export interface Translations {
   editor_mode_ai: string;
   ia_badge: string;
   ia_checking: string;
-  ia_available_gemini: string;
-  ia_available_pc: string;
-  ia_unavailable: string;
+  ia_state_on: string;
+  ia_state_off: string;
+  ia_off_hint: string;
   ia_remaining: (n: number) => string;
   ia_photo_title: string;
   ia_camera: string;
   ia_gallery: string;
   ia_reading_photo: string;
   ia_text_title: string;
-  ia_text_placeholder: string;
   ia_generate: string;
   ia_text_hint: string;
   ia_nothing_found: string;
@@ -347,16 +346,15 @@ export const es: Translations = {
   editor_mode_ai: 'Automático',
   ia_badge: 'IA',
   ia_checking: 'Revisando la IA…',
-  ia_available_gemini: 'IA disponible (Gemini)',
-  ia_available_pc: 'IA disponible (PC)',
-  ia_unavailable: 'IA no disponible: usa el texto o el modo manual',
+  ia_state_on: 'Disponible',
+  ia_state_off: 'No disponible',
+  ia_off_hint: 'La foto con IA está apagada por ahora. Usa el texto o el modo manual.',
   ia_remaining: n => `${n} fotos hoy`,
   ia_photo_title: 'Desde una foto',
   ia_camera: 'Cámara',
   ia_gallery: 'Galería',
   ia_reading_photo: 'Leyendo la foto…',
   ia_text_title: 'Desde texto (por ejemplo, de WhatsApp)',
-  ia_text_placeholder: 'Ej.:\n1. 141 Inclino mi rostro\n2. Consejero\nPalabra\n3. 52 - Tu manera',
   ia_generate: 'Generar minuta',
   ia_text_hint: 'Sin IA: lo lee la app, funciona siempre, incluso sin internet.',
   ia_nothing_found: 'No se encontraron cantos en ese texto.',
@@ -570,16 +568,15 @@ export const en: Translations = {
   editor_mode_ai: 'Automatic',
   ia_badge: 'AI',
   ia_checking: 'Checking AI…',
-  ia_available_gemini: 'AI available (Gemini)',
-  ia_available_pc: 'AI available (PC)',
-  ia_unavailable: 'AI unavailable: use text or manual mode',
+  ia_state_on: 'Available',
+  ia_state_off: 'Unavailable',
+  ia_off_hint: 'Photo AI is off for now. Use text or manual mode.',
   ia_remaining: n => `${n} photos today`,
   ia_photo_title: 'From a photo',
   ia_camera: 'Camera',
   ia_gallery: 'Gallery',
   ia_reading_photo: 'Reading the photo…',
   ia_text_title: 'From text (e.g. from WhatsApp)',
-  ia_text_placeholder: 'E.g.:\n1. 141 Inclino mi rostro\n2. Consejero\nPalabra\n3. 52 - Tu manera',
   ia_generate: 'Generate service',
   ia_text_hint: 'No AI: the app reads it itself, it always works, even offline.',
   ia_nothing_found: 'No songs were found in that text.',
