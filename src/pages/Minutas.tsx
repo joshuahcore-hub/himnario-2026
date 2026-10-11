@@ -81,7 +81,8 @@ export default function Minutas() {
 
   return (
     // Tocar en cualquier parte fuera de una minuta sale del modo selección (igual que la X).
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }} onClick={() => { if (selectMode) salirSeleccion(); }}>
+    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 4rem)', overscrollBehavior: 'none' }}
+         onClick={() => { if (selectMode) salirSeleccion(); }}>
       <div className="flex items-center justify-between px-5 pt-4 gap-2">
         <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
         {!selectMode && (
@@ -112,7 +113,11 @@ export default function Minutas() {
           <div
             ref={scrollRef}
             className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory w-full py-4"
-            style={{ paddingLeft: 'calc(50% - 140px)', paddingRight: 'calc(50% - 140px)' }}
+            // Solo hacia los lados: sin desplazamiento vertical (antes se podía correr arriba/abajo sin sentido).
+            style={{
+              paddingLeft: 'calc(50% - 140px)', paddingRight: 'calc(50% - 140px)',
+              overflowY: 'hidden', touchAction: 'pan-x', overscrollBehavior: 'contain',
+            }}
           >
             {ordenadas.map(m => (
               <div key={m.id} className="snap-center shrink-0 w-[280px]" onContextMenu={e => e.preventDefault()} onClick={e => e.stopPropagation()}>

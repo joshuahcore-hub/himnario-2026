@@ -159,7 +159,7 @@ export default function EditorMinuta() {
 
   if (!puedeEditar) {
     return (
-      <div className="flex flex-col items-center justify-center px-6 text-center gap-3" style={{ height: 'calc(100vh - 4rem)' }}>
+      <div className="flex flex-col items-center justify-center px-6 text-center gap-3" style={{ height: 'calc(100dvh - 4rem)' }}>
         <p className="text-sm text-muted-foreground">{t.editor_no_access}</p>
         <Button variant="outline" onClick={() => navigate('/settings')}>{t.tab_settings}</Button>
       </div>
@@ -167,7 +167,7 @@ export default function EditorMinuta() {
   }
   if (id && !existente) {
     return (
-      <div className="flex items-center justify-center px-6 text-center" style={{ height: 'calc(100vh - 4rem)' }}>
+      <div className="flex items-center justify-center px-6 text-center" style={{ height: 'calc(100dvh - 4rem)' }}>
         <p className="text-sm text-muted-foreground">{t.minuta_not_found}</p>
       </div>
     );
@@ -255,7 +255,7 @@ export default function EditorMinuta() {
   );
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="flex flex-col" style={{ height: 'calc(100dvh - 4rem)' }}>
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <h1 className="text-xl font-bold text-foreground">{id ? t.editor_title_edit : t.create_title}</h1>
         {id && (

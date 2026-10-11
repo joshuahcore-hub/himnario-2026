@@ -121,7 +121,7 @@ export default function HymnalPage() {
     <div
       ref={scrollRef}
       className="px-5 pt-4 pb-4 overflow-y-auto"
-      style={{ height: 'calc(100vh - 4rem)' }}
+      style={{ height: 'calc(100dvh - 4rem)' }}
     >
       <h1 className="text-xl font-bold text-foreground mb-3">{t.hymnal_title}</h1>
 

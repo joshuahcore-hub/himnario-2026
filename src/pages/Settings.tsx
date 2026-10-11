@@ -19,7 +19,7 @@ export default function SettingsPage() {
   const offline = useOffline();
 
   return (
-    <div className="px-5 pt-4 pb-24 space-y-5 overflow-y-auto" style={{ height: 'calc(100vh - 4rem)' }}>
+    <div className="px-5 pt-4 pb-24 space-y-5 overflow-y-auto" style={{ height: 'calc(100dvh - 4rem)' }}>
       <h1 className="text-xl font-bold text-foreground">{t.settings_title}</h1>
 
       <SeccionAcceso />
