@@ -25,6 +25,25 @@ if (import.meta.env.PROD) {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden" && hayVersionNueva) activarVersionNueva();
   });
+
+  // Red de seguridad: si la app abrió SIN estilos (CSS guardado roto o de una versión que ya no existe),
+  // se repara sola: 1.º recarga; 2.º si sigue igual, borra lo guardado y recarga desde internet. Solo 2 intentos.
+  window.addEventListener("load", () => setTimeout(async () => {
+    const conEstilos = getComputedStyle(document.documentElement).getPropertyValue("--background").trim() !== "";
+    let intento = 0;
+    try { intento = Number(sessionStorage.getItem("reparar-estilos") || 0); } catch { /* sin sessionStorage */ }
+    if (conEstilos) {
+      try { sessionStorage.removeItem("reparar-estilos"); } catch { /* nada */ }
+      return;
+    }
+    if (intento >= 2 || !navigator.onLine) return;
+    try { sessionStorage.setItem("reparar-estilos", String(intento + 1)); } catch { return; } // sin registro, no arriesgar un bucle
+    if (intento === 1) {
+      for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+      for (const k of await caches.keys()) await caches.delete(k);
+    }
+    location.reload();
+  }, 300));
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
