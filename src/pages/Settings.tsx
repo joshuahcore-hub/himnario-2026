@@ -52,8 +52,14 @@ export default function SettingsPage() {
         </div>
         {!offline.soportado ? (
           <p className="text-[11px] text-muted-foreground">{t.offline_unsupported}</p>
+        ) : !offline.revisado ? (
+          // Contando (milisegundos): la misma línea de "Listo" pero invisible (idéntico alto), para que nada salte.
+          <p className="text-[11px] flex items-center gap-1.5 invisible" aria-hidden>
+            <CheckCircle2 size={14} className="shrink-0" />
+            {t.offline_ready}
+          </p>
         ) : offline.listo ? (
-          <p className="text-[11px] text-foreground flex items-center gap-1.5">
+          <p className="text-[11px] text-foreground flex items-center gap-1.5 animate-in fade-in duration-200">
             <CheckCircle2 size={14} className="text-green-600 shrink-0" />
             {t.offline_ready}
           </p>

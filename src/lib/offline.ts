@@ -18,14 +18,19 @@ async function contarImagenesGuardadas(): Promise<number> {
 
 export interface EstadoOffline {
   soportado: boolean;
+  /** false mientras se cuenta por primera vez (no mostrar "0 de N": parpadeaba al abrir Ajustes). */
+  revisado: boolean;
   guardadas: number;
   total: number;
   listo: boolean;
 }
 
+// Último conteo conocido en esta sesión: al volver a Ajustes se muestra al instante, sin volver a contar desde 0.
+let ultimoConteo: number | null = null;
+
 export function useOffline(): EstadoOffline {
   const soportado = 'serviceWorker' in navigator && 'caches' in window;
-  const [guardadas, setGuardadas] = useState(0);
+  const [guardadas, setGuardadas] = useState<number | null>(ultimoConteo);
 
   useEffect(() => {
     if (!soportado) return;
@@ -34,6 +39,7 @@ export function useOffline(): EstadoOffline {
     const revisar = async () => {
       const n = await contarImagenesGuardadas().catch(() => 0);
       if (!activo) return;
+      ultimoConteo = n;
       setGuardadas(n);
       if (n < TOTAL_IMAGENES) timer = window.setTimeout(revisar, 1000);
     };
@@ -41,6 +47,6 @@ export function useOffline(): EstadoOffline {
     return () => { activo = false; window.clearTimeout(timer); };
   }, [soportado]);
 
-  const listo = guardadas >= TOTAL_IMAGENES;
-  return { soportado, guardadas: Math.min(guardadas, TOTAL_IMAGENES), total: TOTAL_IMAGENES, listo };
+  const n = guardadas ?? 0;
+  return { soportado, revisado: guardadas !== null, guardadas: Math.min(n, TOTAL_IMAGENES), total: TOTAL_IMAGENES, listo: n >= TOTAL_IMAGENES };
 }
