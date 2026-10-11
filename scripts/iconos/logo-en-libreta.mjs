@@ -35,10 +35,11 @@ async function teñir(imagen, color) {
     .joinChannel(alfa.data, { raw: { width, height, channels: 1 } }).png().toBuffer();
 }
 
-export async function iconoConLogo(tam = 512, { margen = 0, variante = 'Símbolo mediano', anchoLogo, corrimiento = 0, fondo = '#FFFFFF', color = CELESTE } = {}) {
+export async function iconoConLogo(tam = 512, { margen = 0, variante = 'Símbolo mediano', anchoLogo, corrimiento = 0, fondo = '#FFFFFF', color = CELESTE, dx = 0 } = {}) {
   const v = { ...variantes[variante], ...(anchoLogo ? { ancho: anchoLogo } : {}) };
   // El color se cambia solo en el dibujo (no en el fondo, que puede ser celeste).
-  const svg = svgIcono(propuestas['1'].replaceAll(CELESTE, color), { margen, fondo });
+  // dx corre libreta + símbolo juntos (negativo = a la izquierda).
+  const svg = svgIcono(propuestas['1'].replaceAll(CELESTE, color), { margen, fondo, dx });
   const base = await sharp(Buffer.from(svg)).png().toBuffer();
   let logo = v.fuente === 'simbolo'
     ? await sharp(SIMBOLO).resize({ width: Math.round(v.ancho * (1 - margen * 2)) }).png().toBuffer()
@@ -46,7 +47,7 @@ export async function iconoConLogo(tam = 512, { margen = 0, variante = 'Símbolo
   if (color !== CELESTE) logo = await teñir(logo, color);
   const meta = await sharp(logo).metadata();
   const s = 1 - margen * 2, t = 256 * (1 - s);
-  const cx = t + (CENTRO.x + corrimiento) * s, cy = t + CENTRO.y * s;
+  const cx = t + (CENTRO.x + corrimiento + dx) * s, cy = t + CENTRO.y * s;
   const compuesto = await sharp(base)
     .composite([{ input: logo, left: Math.round(cx - meta.width / 2), top: Math.round(cy - meta.height / 2) }])
     .png().toBuffer();

@@ -37,12 +37,13 @@ export const propuestas = {
     <path d="M216 282 H 340 M 216 330 H 300" ${trazo(18)}/>`,
 };
 
-/** Ícono completo. `margen` encoge el dibujo hacia el centro (para la zona segura de Android). */
-export function svgIcono(dibujo, { margen = 0, fondo = '#FFFFFF' } = {}) {
+/** Ícono completo. `margen` encoge el dibujo hacia el centro (para la zona segura de Android).
+ *  `dx` corre todo el dibujo en horizontal (unidades de 512; negativo = a la izquierda). */
+export function svgIcono(dibujo, { margen = 0, fondo = '#FFFFFF', dx = 0 } = {}) {
   const s = 1 - margen * 2;
   const t = 256 * (1 - s);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <rect width="512" height="512" fill="${fondo}"/>
-  <g transform="translate(${t} ${t}) scale(${s})">${dibujo}</g>
+  <g transform="translate(${t + dx * s} ${t}) scale(${s})">${dibujo}</g>
 </svg>`;
 }

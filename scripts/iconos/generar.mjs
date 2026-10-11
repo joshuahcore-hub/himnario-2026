@@ -9,7 +9,9 @@ import { iconoConLogo } from './logo-en-libreta.mjs';
 import { CELESTE } from './propuestas.mjs';
 
 const PUBLIC = path.resolve('public');
-const DISENO = { anchoLogo: 140, corrimiento: 4, fondo: CELESTE, color: '#FFFFFF' };
+// dx -8 (11-10-2026, pedido de Josué): todo el dibujo un poco a la izquierda; antes quedaba 3 px a la
+// derecha del centro y no se sentía equilibrado.
+const DISENO = { anchoLogo: 140, corrimiento: 4, fondo: CELESTE, color: '#FFFFFF', dx: -8 };
 const escala = e => ({ ...DISENO, margen: (1 - e) / 2 });
 export const FONDO_OSCURO = '#1C1A18';
 export const CELESTE_CLARO = '#7CC4F2';
@@ -17,7 +19,7 @@ export const CELESTE_CLARO = '#7CC4F2';
 // Los nombres llevan versión: al cambiar el diseño se sube VERSION, así ningún celular ni navegador
 // puede seguir mostrando un ícono viejo guardado (lo guardan por nombre de archivo).
 // Si se cambia VERSION, actualizar también vite.config.ts e index.html (buscar "icono-v").
-const VERSION = 'v3';
+const VERSION = 'v4';
 for (const f of fs.readdirSync(PUBLIC)) if (/^(icon-|icono-v|apple-touch-icon|favicon)/.test(f)) fs.rmSync(path.join(PUBLIC, f));
 
 const guardar = async (archivo, buffer) => {

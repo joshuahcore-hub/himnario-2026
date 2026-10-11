@@ -1,4 +1,4 @@
-﻿import { defineConfig, type Plugin } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { readFileSync } from "fs";
@@ -20,10 +20,10 @@ const manifiesto: Partial<ManifestOptions> = {
   background_color: "#ffffff",
   theme_color: "#ffffff",
   icons: [
-    { src: "/icono-v3-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-    { src: "/icono-v3-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/icono-v4-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/icono-v4-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
     // Versión con margen para los Android que recortan el ícono en círculo u otra forma.
-    { src: "/icono-v3-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    { src: "/icono-v4-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
   ],
 };
 
@@ -63,7 +63,7 @@ export default defineConfig({
       registerType: "prompt",
       injectRegister: false,
       // Íconos con versión en el nombre (scripts/iconos/generar.mjs): así nadie ve uno viejo guardado.
-      includeAssets: ["icono-v3-64.png", "icono-v3-apple-180.png"],
+      includeAssets: ["icono-v4-64.png", "icono-v4-apple-180.png"],
       manifest: manifiesto,
       workbox: {
         // Todo queda guardado en el celular al instalar: la app y las 326 imágenes de los himnos.
