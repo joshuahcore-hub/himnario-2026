@@ -97,7 +97,8 @@ export default function HymnDetail() {
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) isHorizontalRef.current = Math.abs(dx) > Math.abs(dy);
       return;
     }
-    if (!isHorizontalRef.current) { if (dy > 0) setDragY(dy); return; }
+    // Vertical: hacia abajo o hacia arriba, la imagen sigue al dedo y al soltar sale (vuelve al himnario).
+    if (!isHorizontalRef.current) { setDragY(dy); return; }
     e.preventDefault();
     const atEdge = (dx > 0 && currentIndex === 0) || (dx < 0 && currentIndex === navNumbers.length - 1);
     setDragX(atEdge ? dx * 0.3 : dx);
@@ -106,8 +107,8 @@ export default function HymnDetail() {
   const handleTouchEnd = () => {
     if (!isDragging) return;
     setIsDragging(false);
-    if (dragY > 80) { setIsDismissing(true); setTimeout(() => navigate('/hymnal'), 280); return; }
-    if (dragY > 0) { setDragY(0); return; }
+    if (Math.abs(dragY) > 80) { setIsDismissing(true); setTimeout(() => navigate('/hymnal'), 280); return; }
+    if (dragY !== 0) { setDragY(0); return; }
     const threshold = window.innerWidth * 0.08;
     if (dragX < -threshold && currentIndex < navNumbers.length - 1) animateSlide(-1);
     else if (dragX > threshold && currentIndex > 0) animateSlide(1);
@@ -165,12 +166,15 @@ export default function HymnDetail() {
     willChange: 'transform',
   };
 
-  const dismissProgress = isDismissing ? 1 : dragY / 300;
+  // Al salir, se va por el lado hacia donde se deslizó (abajo o arriba).
+  const distancia = Math.abs(dragY);
+  const dismissProgress = isDismissing ? 1 : distancia / 300;
   const outerStyle: React.CSSProperties = {
-    transform: isDismissing ? 'translateY(100vh) scale(0.85)' : dragY > 0 ? `translateY(${dragY}px) scale(${Math.max(0.88, 1 - dragY / 2000)})` : 'none',
-    opacity: isDismissing ? 0 : dragY > 0 ? Math.max(0.3, 1 - dismissProgress) : 1,
+    transform: isDismissing ? `translateY(${dragY < 0 ? '-' : ''}100vh) scale(0.85)`
+      : distancia > 0 ? `translateY(${dragY}px) scale(${Math.max(0.88, 1 - distancia / 2000)})` : 'none',
+    opacity: isDismissing ? 0 : distancia > 0 ? Math.max(0.3, 1 - dismissProgress) : 1,
     transition: !isDragging || isDismissing ? 'all 280ms ease-out' : 'none',
-    borderRadius: dragY > 0 || isDismissing ? '16px' : '0',
+    borderRadius: distancia > 0 || isDismissing ? '16px' : '0',
     overflow: 'hidden',
   };
 

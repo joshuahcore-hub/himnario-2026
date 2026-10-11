@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import { getHymns, normalizar } from '@/lib/hymnCache';
 import { cantoDesdeHimno, esMarcador, ORACION, PALABRA, renumerar } from '@/lib/minutaUtils';
-import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
+import { getMinuta, guardarMinutaLocal, marcarParaEnfocar } from '@/lib/minutaCache';
 import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
@@ -251,7 +251,12 @@ export default function EditorMinuta() {
         : yaPublicada ? t.minuta_changes_published_toast
         : m.publicada ? t.create_saved : t.minuta_saved_private_toast);
       if (despues) despues();
-      else salida.salirHacia(() => navigate(`/minuta/${m.id}`, { replace: true }));
+      else {
+        // Tras guardar NO se abre la minuta (Josué): se vuelve a la lista con esa minuta al centro; si quiere, entra.
+        marcarParaEnfocar(m.id);
+        const hayDondeVolver = id && ((history.state as { idx?: number } | null)?.idx ?? 0) > 0;
+        salida.salirHacia(() => (hayDondeVolver ? history.back() : navigate('/minutas', { replace: true })));
+      }
     } catch (e: any) {
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.create_error_save));
     } finally {

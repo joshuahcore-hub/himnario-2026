@@ -43,6 +43,15 @@ export function getMinuta(id: string): MinutaData | undefined {
   return leerLocal().find(m => m.id === id);
 }
 
+// Minuta que la lista debe mostrar al centro la próxima vez que se abra (p. ej. al volver de editarla).
+let enfocarAlVolver: string | null = null;
+export const marcarParaEnfocar = (id: string) => { enfocarAlVolver = id; };
+export function tomarParaEnfocar(): string | null {
+  const id = enfocarAlVolver;
+  enfocarAlVolver = null;
+  return id;
+}
+
 export function guardarMinutaLocal(m: MinutaData) {
   const lista = leerLocal().filter(x => x.id !== m.id);
   guardar([...lista, m].sort((a, b) => a.fecha.localeCompare(b.fecha) || a.creada.localeCompare(b.creada)));

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2 } from 'lucide-react';
 import Portada from '@/components/Portada';
 import type { MinutaData } from '@/lib/types';
-import { useMinutas, quitarMinutaLocal, guardarMinutaLocal } from '@/lib/minutaCache';
+import { useMinutas, quitarMinutaLocal, guardarMinutaLocal, tomarParaEnfocar } from '@/lib/minutaCache';
 import { tituloVisible } from '@/lib/minutaUtils';
 import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
@@ -28,9 +28,16 @@ export default function Minutas() {
     [minutas],
   );
 
+  // Minuta a dejar al centro: la que se acaba de editar (al volver del editor) o la copia recién duplicada.
+  // Si no hay ninguna, se muestra la más reciente.
+  const enfocar = useRef<string | null>(null);
+  if (enfocar.current === null) enfocar.current = tomarParaEnfocar();
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollLeft = el.scrollWidth;
+    if (!el) return;
+    const tarjeta = enfocar.current && el.querySelector<HTMLElement>(`[data-minuta="${enfocar.current}"]`);
+    if (tarjeta) el.scrollLeft = tarjeta.offsetLeft - (el.clientWidth - tarjeta.offsetWidth) / 2;
+    else el.scrollLeft = el.scrollWidth;
   }, [ordenadas.length]);
 
   const toggleSelect = (id: string) => setSelected(prev => {
@@ -77,12 +84,10 @@ export default function Minutas() {
     setDuplicando(true);
     try {
       const copia = await api<MinutaData>(`minutas/${unaSeleccionada.id}/duplicar`, { metodo: 'POST' });
+      enfocar.current = copia.id; // al aparecer en la lista, queda al centro (junto a la original, misma fecha)
       guardarMinutaLocal(copia);
       toast.success(t.minuta_duplicated_toast);
       salirSeleccion();
-      // Mostrar la copia (queda junto a la original, misma fecha).
-      setTimeout(() => scrollRef.current?.querySelector(`[data-minuta="${copia.id}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }), 150);
     } catch (e: any) {
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.create_error_save));
     } finally {
@@ -105,11 +110,13 @@ export default function Minutas() {
          onClick={() => { if (selectMode) salirSeleccion(); }}>
       <div className="flex items-center justify-between px-5 pt-4 gap-2">
         <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
-        {!selectMode && (
-          <button onClick={refrescar} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_refresh}>
-            <RefreshCw size={16} className={cargando ? 'animate-spin' : ''} />
-          </button>
-        )}
+        {/* Al seleccionar, esto y la ayuda de abajo se desvanecen SIN quitar su espacio: si se quitaran,
+            la lista (centrada en la pantalla) saltaría hacia arriba justo al mantener presionada una minuta. */}
+        <button onClick={refrescar} disabled={selectMode} aria-hidden={selectMode}
+          className={`tap-btn p-2 text-muted-foreground transition-opacity duration-200 ${selectMode ? 'opacity-0 pointer-events-none' : ''}`}
+          aria-label={t.minutas_refresh}>
+          <RefreshCw size={16} className={cargando ? 'animate-spin' : ''} />
+        </button>
       </div>
 
       {sinConexion && (
@@ -118,8 +125,10 @@ export default function Minutas() {
           {t.minutas_offline}
         </div>
       )}
-      {puedeEditar && !selectMode && ordenadas.length > 0 && (
-        <p className="px-5 pt-2 text-[10px] text-muted-foreground/70">{t.minutas_hint_select}</p>
+      {puedeEditar && ordenadas.length > 0 && (
+        <p className={`px-5 pt-2 text-[10px] text-muted-foreground/70 transition-opacity duration-200 ${selectMode ? 'opacity-0' : ''}`}>
+          {t.minutas_hint_select}
+        </p>
       )}
 
       {ordenadas.length === 0 ? (
