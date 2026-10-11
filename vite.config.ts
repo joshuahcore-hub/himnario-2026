@@ -1,6 +1,7 @@
 ﻿import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { readFileSync } from "fs";
 import { VitePWA, type ManifestOptions } from "vite-plugin-pwa";
 
 // Manifiesto de la app instalable. La pantalla de apertura de Android la arma el celular con
@@ -49,7 +50,9 @@ export default defineConfig({
     },
   },
   define: {
-    __APP_VERSION__: JSON.stringify(new Date().toISOString().slice(0, 16).replace("T", " ")),
+    // Número de versión de package.json ("version"): subirlo en cada publicación
+    // (1.0.1, 1.0.2… arreglos; 1.1.0, 1.2.0… funciones nuevas). Se muestra al final de Ajustes.
+    __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version),
   },
   plugins: [
     react(),
