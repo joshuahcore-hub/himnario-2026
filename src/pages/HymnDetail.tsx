@@ -193,7 +193,8 @@ export default function HymnDetail() {
           {renderSlide(nextNum, 1)}
         </div>
       </div>
-      <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
+      {/* Contador justo encima de la barra de pestañas (h-16, z-50), que lo tapaba. */}
+      <div className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(4rem + 0.5rem)' }}>
         <p className="text-muted-foreground/40 text-xs">{currentIndex + 1} / {navNumbers.length}</p>
       </div>
     </div>
