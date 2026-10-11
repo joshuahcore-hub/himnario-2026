@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Clock, KeyRound, Loader2, PenLine, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { COLORES, useAcceso } from '@/hooks/useAcceso';
 import { ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
@@ -77,6 +77,7 @@ export default function SeccionAcceso() {
   const acceso = useAcceso();
   const [editandoPerfil, setEditandoPerfil] = useState(false);
   const [dialogoAdmin, setDialogoAdmin] = useState(false);
+  const [dialogoSolicitud, setDialogoSolicitud] = useState(false);
   const [clave, setClave] = useState('');
   const tarjetaRef = useRef<HTMLDivElement>(null);
   useAlTocarFuera(tarjetaRef, editandoPerfil, useCallback(() => setEditandoPerfil(false), []));
@@ -85,14 +86,14 @@ export default function SeccionAcceso() {
 
   let contenido: React.ReactNode;
   if (acceso.estado === 'ninguno' || acceso.estado === 'rechazado') {
+    // Solo un botón; el nombre y el color se piden recién al tocarlo (Josué: el formulario abierto de entrada se veía raro).
     contenido = (
-      <>
-        <p className="text-[11px] text-muted-foreground mb-3">
+      <div className="space-y-3">
+        <p className="text-[11px] text-muted-foreground">
           {acceso.estado === 'rechazado' ? t.access_rejected : t.access_intro}
         </p>
-        <FormNombreColor textoBoton={t.access_request} onEnviar={acceso.solicitar}
-          nombreInicial={acceso.nombre} colorInicial={acceso.color} />
-      </>
+        <Button className="w-full h-10 text-sm" onClick={() => setDialogoSolicitud(true)}>{t.access_request}</Button>
+      </div>
     );
   } else if (acceso.estado === 'pendiente') {
     contenido = (
@@ -155,8 +156,25 @@ export default function SeccionAcceso() {
         </button>
       )}
 
+      {/* Pedir ser creador: nombre + color (tocar fuera cierra). */}
+      <Dialog open={dialogoSolicitud} onOpenChange={setDialogoSolicitud}>
+        {/* Sin foco automático: el teclado se abre solo al tocar el campo (regla de Josué). */}
+        <DialogContent className="max-w-[340px] rounded-2xl" onOpenAutoFocus={e => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="text-sm">{t.access_dialog_title}</DialogTitle>
+            <DialogDescription className="text-[11px]">{t.access_dialog_text}</DialogDescription>
+          </DialogHeader>
+          <FormNombreColor
+            nombreInicial={acceso.nombre}
+            colorInicial={acceso.color}
+            textoBoton={t.access_send}
+            onEnviar={async (nombre, color) => { await acceso.solicitar(nombre, color); setDialogoSolicitud(false); }}
+          />
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialogoAdmin} onOpenChange={o => { setDialogoAdmin(o); if (!o) setClave(''); }}>
-        <DialogContent className="max-w-[340px] rounded-2xl">
+        <DialogContent className="max-w-[340px] rounded-2xl" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="text-sm">{t.admin_activate}</DialogTitle>
           </DialogHeader>

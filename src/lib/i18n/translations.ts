@@ -165,6 +165,9 @@ export interface Translations {
   access_title: string;
   access_intro: string;
   access_request: string;
+  access_dialog_title: string;
+  access_dialog_text: string;
+  access_send: string;
   access_name_required: string;
   access_pending: string;
   access_check: string;
@@ -401,14 +404,17 @@ export const es: Translations = {
   editor_down: 'Bajar',
 
   access_title: 'Crear minutas',
-  access_intro: 'Cualquiera puede ver los himnos y las minutas. Para crear o editar minutas, escribe tu nombre, elige un color y pide acceso: el administrador lo aprobará.',
-  access_request: 'Pedir acceso',
+  access_intro: 'Para crear o editar minutas, pide acceso de creador. El administrador lo aprobará.',
+  access_request: 'Solicitar ser creador',
+  access_dialog_title: 'Solicitar ser creador',
+  access_dialog_text: 'Escribe tu nombre y elige un color: así se distinguen tus minutas.',
+  access_send: 'Enviar solicitud',
   access_name_required: 'Escribe tu nombre.',
   access_pending: 'Solicitud enviada. Espera a que el administrador la apruebe.',
   access_check: 'Revisar estado',
   access_approved: 'Tienes acceso: puedes crear, editar y borrar minutas.',
   access_admin: 'Este celular es el administrador.',
-  access_rejected: 'Tu solicitud anterior fue rechazada. Puedes volver a pedir acceso.',
+  access_rejected: 'Tu solicitud anterior fue rechazada. Puedes volver a solicitarlo.',
   access_disabled: 'El administrador deshabilitó el acceso de este celular.',
   access_edit_profile: 'Cambiar nombre o color',
 
@@ -634,8 +640,11 @@ export const en: Translations = {
   editor_down: 'Move down',
 
   access_title: 'Create services',
-  access_intro: 'Anyone can view hymns and services. To create or edit services, enter your name, pick a color and request access: the administrator will approve it.',
-  access_request: 'Request access',
+  access_intro: 'To create or edit services, request creator access. The administrator will approve it.',
+  access_request: 'Request creator access',
+  access_dialog_title: 'Request creator access',
+  access_dialog_text: 'Enter your name and pick a color: it identifies your services.',
+  access_send: 'Send request',
   access_name_required: 'Enter your name.',
   access_pending: 'Request sent. Wait for the administrator to approve it.',
   access_check: 'Check status',
