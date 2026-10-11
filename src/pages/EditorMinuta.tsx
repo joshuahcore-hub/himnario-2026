@@ -150,8 +150,13 @@ export default function EditorMinuta() {
   const fotoInicial = useRef<string | null>(null);
   if (fotoInicial.current === null) fotoInicial.current = foto();
   const hayCambios = foto() !== fotoInicial.current;
-  // Botones Guardar/Publicar: solo con cantos y algo nuevo (un borrador traído de otra pantalla cuenta como nuevo).
-  const mostrarBotones = cantos.length > 0 && (hayCambios || (!id && !!borrador));
+  // Botones de abajo (reglas de Josué):
+  //  - Crear: Guardar + Publicar, solo cuando ya hay cantos.
+  //  - Editar una privada: sin cambios → solo "Publicar" (centrado); con cambios → Guardar + Publicar.
+  //  - Editar una publicada: sin cambios → nada; con cambios → solo "Publicar cambios".
+  const yaPublicada = !!existente?.publicada;
+  const algoNuevo = hayCambios || (!id && !!borrador); // un borrador traído de otra pantalla cuenta como nuevo
+  const mostrarBotones = cantos.length > 0 && (algoNuevo || (!!id && !yaPublicada));
   const salida = useSalidaProtegida(hayCambios, () => {
     if (buscando) { setBuscando(false); return true; } // "atrás" en el buscador: solo cierra el buscador
     return false;
@@ -225,12 +230,12 @@ export default function EditorMinuta() {
 
   // Guardar: la nueva queda privada (solo quien la crea); la existente conserva su visibilidad.
   // Publicar: guarda y la deja visible para todos.
-  const yaPublicada = !!existente?.publicada;
   /** despues: hacia dónde ir tras guardar (por defecto, abrir la minuta guardada). */
   const guardar = async (publicar: boolean, despues?: () => void) => {
     if (cantos.length === 0) { toast.error(t.editor_empty); return; }
     setGuardando(publicar ? 'publicar' : 'guardar');
-    const datos = {
+    // Publicar una privada sin cambios: solo cambia la visibilidad (el historial no marca "editada").
+    const datos = id && publicar && !hayCambios ? { publicada: true } : {
       titulo: titulo.trim() || 'Minuta',
       fecha,
       cantos: renumerar(cantos).map(sinClave),
@@ -242,7 +247,9 @@ export default function EditorMinuta() {
         ? await api<MinutaData>(`minutas/${id}`, { metodo: 'PATCH', datos })
         : await api<MinutaData>('minutas', { metodo: 'POST', datos });
       guardarMinutaLocal(m);
-      toast.success(publicar && !yaPublicada ? t.minuta_published_toast : m.publicada ? t.create_saved : t.minuta_saved_private_toast);
+      toast.success(publicar && !yaPublicada ? t.minuta_published_toast
+        : yaPublicada ? t.minuta_changes_published_toast
+        : m.publicada ? t.create_saved : t.minuta_saved_private_toast);
       if (despues) despues();
       else salida.salirHacia(() => navigate(`/minuta/${m.id}`, { replace: true }));
     } catch (e: any) {
@@ -366,23 +373,27 @@ export default function EditorMinuta() {
         transition: 'grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease',
       }} aria-hidden={!mostrarBotones}>
       <div className="overflow-hidden">
-      <div className="px-5 py-3 border-t border-border bg-background flex gap-2">
-        {/* Si ya está publicada, solo Guardar (sigue pública). Si no: Guardar (privada) y Publicar. */}
-        <Button
-          onClick={() => guardar(false)}
-          disabled={!!guardando || cantos.length === 0}
-          variant={yaPublicada ? 'default' : 'outline'}
-          className="flex-1 h-10 text-sm gap-1.5"
-        >
-          {guardando === 'guardar' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-          {t.minutas_save}
-        </Button>
-        {!yaPublicada && (
-          <Button onClick={() => guardar(true)} disabled={!!guardando || cantos.length === 0} className="flex-1 h-10 text-sm gap-1.5">
+      <div className="px-5 py-3 border-t border-border bg-background flex justify-center gap-2">
+        {yaPublicada ? (
+          // Ya la ven todos: un solo botón, "Publicar cambios" (solo aparece si hubo cambios).
+          <Button onClick={() => guardar(false)} disabled={!!guardando} className="flex-1 max-w-[260px] h-10 text-sm gap-1.5">
+            {guardando ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
+            {t.minuta_publish_changes}
+          </Button>
+        ) : <>
+          {/* Guardar (queda privada) solo si hay algo nuevo; Publicar siempre (centrado si va solo). */}
+          {algoNuevo && (
+            <Button onClick={() => guardar(false)} disabled={!!guardando} variant="outline"
+              className="flex-1 max-w-[260px] h-10 text-sm gap-1.5 animate-in fade-in zoom-in-95 duration-200">
+              {guardando === 'guardar' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+              {t.minutas_save}
+            </Button>
+          )}
+          <Button onClick={() => guardar(true)} disabled={!!guardando} className="flex-1 max-w-[260px] h-10 text-sm gap-1.5">
             {guardando === 'publicar' ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
             {t.minuta_publish}
           </Button>
-        )}
+        </>}
       </div>
       </div>
       </div>
@@ -401,8 +412,8 @@ export default function EditorMinuta() {
               disabled={!!guardando || cantos.length === 0}
               onClick={() => { const ir = salida.pendiente!; salida.cerrarPregunta(); guardar(false, ir); }}
             >
-              {guardando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-              {t.minutas_save}
+              {guardando ? <Loader2 size={16} className="animate-spin" /> : yaPublicada ? <Globe size={16} /> : <Check size={16} />}
+              {yaPublicada ? t.minuta_publish_changes : t.minutas_save}
             </Button>
             <Button
               variant="outline"

@@ -32,4 +32,6 @@ export interface MinutaData {
   actualizada: string;
   creador: Autor | null;
   editor: Autor | null;
+  /** Solo para el admin: es una copia (se muestra "Duplicada por" en vez de "Creada por"). */
+  duplicada?: boolean;
 }

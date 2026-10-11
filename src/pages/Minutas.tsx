@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock } from 'lucide-react';
+import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2 } from 'lucide-react';
 import Portada from '@/components/Portada';
 import type { MinutaData } from '@/lib/types';
 import { useMinutas, quitarMinutaLocal, guardarMinutaLocal } from '@/lib/minutaCache';
 import { tituloVisible } from '@/lib/minutaUtils';
-import { api } from '@/lib/api';
+import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 
@@ -70,6 +70,26 @@ export default function Minutas() {
     }
   };
 
+  // Duplicar: crea una copia privada de quien duplica (la puede editar y dejar solo para sí).
+  const [duplicando, setDuplicando] = useState(false);
+  const duplicar = async () => {
+    if (!unaSeleccionada || duplicando) return;
+    setDuplicando(true);
+    try {
+      const copia = await api<MinutaData>(`minutas/${unaSeleccionada.id}/duplicar`, { metodo: 'POST' });
+      guardarMinutaLocal(copia);
+      toast.success(t.minuta_duplicated_toast);
+      salirSeleccion();
+      // Mostrar la copia (queda junto a la original, misma fecha).
+      setTimeout(() => scrollRef.current?.querySelector(`[data-minuta="${copia.id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }), 150);
+    } catch (e: any) {
+      toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.create_error_save));
+    } finally {
+      setDuplicando(false);
+    }
+  };
+
   const fijar = async (m: MinutaData) => {
     try {
       guardarMinutaLocal(await api<MinutaData>(`minutas/${m.id}`, { metodo: 'PATCH', datos: { fijada: !m.fijada } }));
@@ -120,7 +140,7 @@ export default function Minutas() {
             }}
           >
             {ordenadas.map(m => (
-              <div key={m.id} className="snap-center shrink-0 w-[280px]" onContextMenu={e => e.preventDefault()} onClick={e => e.stopPropagation()}>
+              <div key={m.id} data-minuta={m.id} className="snap-center shrink-0 w-[280px]" onContextMenu={e => e.preventDefault()} onClick={e => e.stopPropagation()}>
                 <div className="mb-2 flex items-center justify-center gap-1.5 h-6">
                   {m.fijada && <Pin size={10} className="text-primary rotate-45" />}
                   <p className="text-xs font-semibold text-foreground/80 text-center truncate">{tituloVisible(m)}</p>
@@ -171,7 +191,7 @@ export default function Minutas() {
                   )}
                   {/* Quién la creó/editó: solo el administrador, y solo aquí en la lista (no dentro de la minuta). */}
                   <Portada date={m.fecha} songs={m.cantos} compact
-                    creador={esAdmin ? m.creador : null} editor={esAdmin ? m.editor : null} />
+                    creador={esAdmin ? m.creador : null} editor={esAdmin ? m.editor : null} duplicada={esAdmin && !!m.duplicada} />
                 </div>
               </div>
             ))}
@@ -179,11 +199,12 @@ export default function Minutas() {
         </div>
       )}
 
-      {/* Acciones de la selección: abajo, al alcance del pulgar. Lápiz = editar (con una sola minuta),
-          basurero = borrar las seleccionadas. Solo íconos. */}
+      {/* Acciones de la selección: abajo, al alcance del pulgar. Solo íconos. Con una sola minuta: lápiz = editar,
+          copiar = duplicar (copia privada propia), globo/candado = publicar/privada (quien la creó o el admin).
+          Basurero = borrar las seleccionadas. */}
       {selectMode && (
         <div
-          className="fixed left-0 right-0 z-40 flex justify-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-200"
+          className="fixed left-0 right-0 z-40 flex justify-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-200"
           style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)' }}
           onClick={e => e.stopPropagation()}
         >
@@ -194,6 +215,14 @@ export default function Minutas() {
             aria-label={t.create_edit}
           >
             <Pencil size={22} />
+          </button>
+          <button
+            onClick={duplicar}
+            disabled={selected.size !== 1 || duplicando}
+            className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
+            aria-label={t.minuta_duplicate}
+          >
+            {duplicando ? <Loader2 size={22} className="animate-spin" /> : <Copy size={22} />}
           </button>
           <button
             onClick={cambiarVisibilidad}

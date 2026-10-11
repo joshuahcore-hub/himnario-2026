@@ -93,6 +93,11 @@ export interface Translations {
 
   // Minutas en línea
   minuta_creada_por: string;
+  minuta_duplicada_por: string;
+  minuta_duplicate: string;
+  minuta_duplicated_toast: string;
+  minuta_publish_changes: string;
+  minuta_changes_published_toast: string;
   minuta_editada_por: string;
   minuta_not_found: string;
   minuta_share: string;
@@ -196,6 +201,7 @@ export interface Translations {
   admin_action_restored: string;
   admin_action_published: string;
   admin_action_private: string;
+  admin_action_duplicated: string;
 
   // Auth
   auth_title: string;
@@ -320,6 +326,11 @@ export const es: Translations = {
   settings_version: 'Versión',
 
   minuta_creada_por: 'Creada por',
+  minuta_duplicada_por: 'Duplicada por',
+  minuta_duplicate: 'Duplicar',
+  minuta_duplicated_toast: 'Minuta duplicada: la copia es tuya y queda solo para ti.',
+  minuta_publish_changes: 'Publicar cambios',
+  minuta_changes_published_toast: 'Cambios publicados.',
   minuta_editada_por: 'Editada por',
   minuta_not_found: 'No se encontró esta minuta. Ábrela una vez con internet para guardarla en el celular.',
   minuta_share: 'Compartir por WhatsApp',
@@ -422,6 +433,7 @@ export const es: Translations = {
   admin_action_restored: 'Restauró',
   admin_action_published: 'Publicó',
   admin_action_private: 'Dejó privada',
+  admin_action_duplicated: 'Duplicó',
 
   auth_title: 'Hymnal',
   auth_login_subtitle: 'Inicia sesión para continuar',
@@ -542,6 +554,11 @@ export const en: Translations = {
   settings_version: 'Version',
 
   minuta_creada_por: 'Created by',
+  minuta_duplicada_por: 'Duplicated by',
+  minuta_duplicate: 'Duplicate',
+  minuta_duplicated_toast: 'Service duplicated: the copy is yours and only you can see it.',
+  minuta_publish_changes: 'Publish changes',
+  minuta_changes_published_toast: 'Changes published.',
   minuta_editada_por: 'Edited by',
   minuta_not_found: 'Service not found. Open it once while online to save it on this phone.',
   minuta_share: 'Share on WhatsApp',
@@ -644,6 +661,7 @@ export const en: Translations = {
   admin_action_restored: 'Restored',
   admin_action_published: 'Published',
   admin_action_private: 'Made private',
+  admin_action_duplicated: 'Duplicated',
 
   auth_title: 'Hymnal',
   auth_login_subtitle: 'Sign in to continue',

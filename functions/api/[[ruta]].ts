@@ -112,7 +112,7 @@ function validarCantos(cantos: unknown): string {
 
 const SELECT_MINUTAS = `
   SELECT m.id, m.titulo, m.fecha, m.cantos, m.texto_original, m.fijada, m.creada, m.actualizada,
-         m.publicada, m.creada_por,
+         m.publicada, m.creada_por, m.duplicada_de,
          c.nombre AS creador_nombre, c.color AS creador_color,
          e.nombre AS editor_nombre, e.color AS editor_color
   FROM minutas m
@@ -135,6 +135,7 @@ function filaAMinuta(f: any, conAutores: boolean, quienId: string | null) {
     actualizada: f.actualizada,
     creador: conAutores && f.creador_nombre ? { nombre: f.creador_nombre, color: f.creador_color } : null,
     editor: conAutores && f.editor_nombre ? { nombre: f.editor_nombre, color: f.editor_color } : null,
+    duplicada: conAutores && !!f.duplicada_de, // el admin ve "Duplicada por" en vez de "Creada por"
   };
 }
 
@@ -190,6 +191,22 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
   }
 
+  // Duplicar: copia privada de quien duplica (cualquier minuta que pueda ver). Es suya: puede editarla y
+  // dejarla privada, sin tocar la original.
+  if (metodo === 'POST' && id && partes[2] === 'duplicar') {
+    const original = await obtenerMinuta(env, id, false, yo.id);
+    const nueva = crypto.randomUUID();
+    const t = ahora();
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO minutas (id, titulo, fecha, cantos, texto_original, publicada, creada_por, editada_por, creada, actualizada, duplicada_de)
+                      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`)
+        .bind(nueva, original.titulo, original.fecha, JSON.stringify(original.cantos), original.texto_original,
+              yo.id, yo.id, t, t, id),
+      registrar(env, nueva, yo.id, 'duplicada', original.titulo),
+    ]);
+    return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
+  }
+
   if (metodo === 'PATCH' && id) {
     const actual = await obtenerMinuta(env, id, conAutores, yo.id);
     const body = await leerJson(request);
@@ -202,7 +219,7 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     let cambioVisibilidad: 'publicada' | 'privada' | null = null;
     if (body.publicada !== undefined && !!body.publicada !== actual.publicada) {
       // Publicar o volver a privada: solo quien la creó o el administrador.
-      if (!actual.mia && !esAdmin(yo)) throw new ErrorApi(403, 'Solo quien creó la minuta puede publicarla.');
+      if (!actual.mia && !esAdmin(yo)) throw new ErrorApi(403, 'Solo quien creó la minuta puede cambiar si es pública o privada. Si quieres una para ti, duplícala.');
       cambios.push('publicada = ?');
       valores.push(body.publicada ? 1 : 0);
       cambioVisibilidad = body.publicada ? 'publicada' : 'privada';

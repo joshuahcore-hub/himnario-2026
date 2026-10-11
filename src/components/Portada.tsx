@@ -8,6 +8,8 @@ interface PortadaProps {
   compact?: boolean;
   creador?: Autor | null;
   editor?: Autor | null;
+  /** La minuta es una copia: el chip dice "Duplicada por" en vez de "Creada por". */
+  duplicada?: boolean;
 }
 
 export function ChipAutor({ autor, etiqueta }: { autor: Autor; etiqueta?: string }) {
@@ -20,7 +22,7 @@ export function ChipAutor({ autor, etiqueta }: { autor: Autor; etiqueta?: string
   );
 }
 
-export default function Portada({ date, songs, compact = false, creador, editor }: PortadaProps) {
+export default function Portada({ date, songs, compact = false, creador, editor, duplicada = false }: PortadaProps) {
   const { t } = useI18n();
   const numerados = renumerar(songs);
 
@@ -78,7 +80,7 @@ export default function Portada({ date, songs, compact = false, creador, editor 
 
       {(creador || editor) && (
         <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-x-3 gap-y-1">
-          {creador && <ChipAutor autor={creador} etiqueta={t.minuta_creada_por} />}
+          {creador && <ChipAutor autor={creador} etiqueta={duplicada ? t.minuta_duplicada_por : t.minuta_creada_por} />}
           {editor && (!creador || editor.nombre !== creador.nombre || editor.color !== creador.color) && (
             <ChipAutor autor={editor} etiqueta={t.minuta_editada_por} />
           )}
