@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
 import FilaDeslizable from '@/components/FilaDeslizable';
 import { useReordenar } from '@/hooks/useReordenar';
+import { useSalidaProtegida } from '@/hooks/useSalidaProtegida';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import { getHymns, normalizar } from '@/lib/hymnCache';
 import { cantoDesdeHimno, esMarcador, ORACION, PALABRA, renumerar } from '@/lib/minutaUtils';
@@ -137,6 +139,16 @@ export default function EditorMinuta() {
 
   const numerados = renumerar(cantos) as Fila[]; // renumerar copia cada canto, conserva _k
 
+  // ¿Hay cambios sin guardar? Se compara con cómo estaba al abrir el editor.
+  const foto = () => JSON.stringify({ titulo: titulo.trim(), fecha, cantos: renumerar(cantos).map(sinClave) });
+  const fotoInicial = useRef<string | null>(null);
+  if (fotoInicial.current === null) fotoInicial.current = foto();
+  const hayCambios = foto() !== fotoInicial.current;
+  const salida = useSalidaProtegida(hayCambios, () => {
+    if (buscando) { setBuscando(false); return true; } // "atrás" en el buscador: solo cierra el buscador
+    return false;
+  });
+
   // Mantener presionada una fila y arrastrarla para ponerla en otro lugar.
   const reordenar = useReordenar((desde, hasta) => setCantos(prev => {
     const next = [...prev];
@@ -206,7 +218,8 @@ export default function EditorMinuta() {
   // Guardar: la nueva queda privada (solo quien la crea); la existente conserva su visibilidad.
   // Publicar: guarda y la deja visible para todos.
   const yaPublicada = !!existente?.publicada;
-  const guardar = async (publicar: boolean) => {
+  /** despues: hacia dónde ir tras guardar (por defecto, abrir la minuta guardada). */
+  const guardar = async (publicar: boolean, despues?: () => void) => {
     if (cantos.length === 0) { toast.error(t.editor_empty); return; }
     setGuardando(publicar ? 'publicar' : 'guardar');
     const datos = {
@@ -222,7 +235,8 @@ export default function EditorMinuta() {
         : await api<MinutaData>('minutas', { metodo: 'POST', datos });
       guardarMinutaLocal(m);
       toast.success(publicar && !yaPublicada ? t.minuta_published_toast : m.publicada ? t.create_saved : t.minuta_saved_private_toast);
-      navigate(`/minuta/${m.id}`, { replace: true });
+      if (despues) despues();
+      else salida.salirHacia(() => navigate(`/minuta/${m.id}`, { replace: true }));
     } catch (e: any) {
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.create_error_save));
     } finally {
@@ -245,7 +259,7 @@ export default function EditorMinuta() {
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <h1 className="text-xl font-bold text-foreground">{id ? t.editor_title_edit : t.create_title}</h1>
         {id && (
-          <button onClick={() => navigate(-1)} className="text-muted-foreground p-1.5" aria-label={t.minutas_cancel}>
+          <button onClick={salida.intentarVolver} className="text-muted-foreground p-1.5" aria-label={t.minutas_cancel}>
             <X size={20} />
           </button>
         )}
@@ -309,18 +323,48 @@ export default function EditorMinuta() {
           onClick={() => guardar(false)}
           disabled={!!guardando || cantos.length === 0}
           variant={yaPublicada ? 'default' : 'outline'}
-          className="flex-1 h-12 text-base gap-2"
+          className="flex-1 h-10 text-sm gap-1.5"
         >
-          {guardando === 'guardar' ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+          {guardando === 'guardar' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
           {t.minutas_save}
         </Button>
         {!yaPublicada && (
-          <Button onClick={() => guardar(true)} disabled={!!guardando || cantos.length === 0} className="flex-1 h-12 text-base gap-2">
-            {guardando === 'publicar' ? <Loader2 size={18} className="animate-spin" /> : <Globe size={18} />}
+          <Button onClick={() => guardar(true)} disabled={!!guardando || cantos.length === 0} className="flex-1 h-10 text-sm gap-1.5">
+            {guardando === 'publicar' ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
             {t.minuta_publish}
           </Button>
         )}
       </div>
+
+      {/* Salir con cambios sin guardar: descartar, guardar o seguir editando (tocar fuera = seguir editando). */}
+      <Dialog open={!!salida.pendiente} onOpenChange={abierto => { if (!abierto) salida.cerrarPregunta(); }}>
+        <DialogContent className="max-w-[320px] rounded-2xl gap-3">
+          <DialogHeader>
+            <DialogTitle className="text-base">{t.editor_unsaved_title}</DialogTitle>
+            <DialogDescription className="text-xs">{t.editor_unsaved_text}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              className="h-10 text-sm gap-1.5"
+              disabled={!!guardando || cantos.length === 0}
+              onClick={() => { const ir = salida.pendiente!; salida.cerrarPregunta(); guardar(false, ir); }}
+            >
+              {guardando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+              {t.minutas_save}
+            </Button>
+            <Button
+              variant="outline"
+              className="h-10 text-sm text-destructive"
+              onClick={() => { const ir = salida.pendiente!; salida.cerrarPregunta(); ir(); }}
+            >
+              {t.editor_discard}
+            </Button>
+            <Button variant="ghost" className="h-9 text-sm text-muted-foreground" onClick={salida.cerrarPregunta}>
+              {t.editor_keep_editing}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {buscando && (
         <BuscadorCantos

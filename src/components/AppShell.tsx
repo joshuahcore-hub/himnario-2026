@@ -4,6 +4,7 @@ import { Plus, BookOpen, Music, Settings } from 'lucide-react';
 
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
+import { intentarSalir } from '@/lib/guardiaSalida';
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -34,7 +35,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             return (
               <button
                 key={tab.path}
-                onClick={() => navigate(tab.path)}
+                onClick={() => intentarSalir(() => navigate(tab.path))}
                 className={`tap-btn flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200 ${
                   active
                     ? 'text-foreground'

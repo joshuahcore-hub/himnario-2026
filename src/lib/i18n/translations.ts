@@ -116,6 +116,10 @@ export interface Translations {
 
   // Editor de minutas
   editor_title_edit: string;
+  editor_unsaved_title: string;
+  editor_unsaved_text: string;
+  editor_discard: string;
+  editor_keep_editing: string;
   editor_title_placeholder: string;
   editor_add_song: string;
   editor_done: string;
@@ -318,6 +322,10 @@ export const es: Translations = {
   minutas_pin: 'Fijar',
 
   editor_title_edit: 'Editar minuta',
+  editor_unsaved_title: '¿Salir sin guardar?',
+  editor_unsaved_text: 'Hiciste cambios en esta minuta que todavía no están guardados.',
+  editor_discard: 'Descartar cambios',
+  editor_keep_editing: 'Seguir editando',
   editor_title_placeholder: 'Título (opcional)',
   editor_add_song: 'Canto',
   editor_done: 'Listo',
@@ -514,6 +522,10 @@ export const en: Translations = {
   minutas_pin: 'Pin',
 
   editor_title_edit: 'Edit service',
+  editor_unsaved_title: 'Leave without saving?',
+  editor_unsaved_text: 'You made changes to this service that are not saved yet.',
+  editor_discard: 'Discard changes',
+  editor_keep_editing: 'Keep editing',
   editor_title_placeholder: 'Title (optional)',
   editor_add_song: 'Song',
   editor_done: 'Done',
