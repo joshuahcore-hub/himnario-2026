@@ -1,6 +1,9 @@
-import { useRef, useCallback, useState } from 'react';
+// Rueda horizontal de tempo (Todas / Lentas / Rápidas): misma animación que las ruedas de tonalidad
+// (sigue el dedo, varias opciones por gesto, se acomoda suave al soltar; useRueda).
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n/index';
 import type { TempoFilter } from '@/lib/hymnalState';
+import { useRueda, estiloOpcion } from '@/hooks/useRueda';
 
 interface TempoPickerProps {
   value: TempoFilter;
@@ -8,18 +11,13 @@ interface TempoPickerProps {
 }
 
 const OPTIONS: TempoFilter[] = ['all', 'slow', 'fast'];
-const ANIM_DURATION = 200;
-const EASING = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+const ITEM_WIDTH = 110;
 
 export default function TempoPicker({ value, onChange }: TempoPickerProps) {
   const { t } = useI18n();
-  const gestureActive = useRef(false);
-  const startX = useRef(0);
-  const hasStepped = useRef(false);
-  const animating = useRef(false);
-  const [slideOffset, setSlideOffset] = useState(0);
-  const [transitioning, setTransitioning] = useState(false);
-  const [displayIdx, setDisplayIdx] = useState(OPTIONS.indexOf(value));
+  const contenedor = useRef<HTMLDivElement>(null);
+  const [ancho, setAncho] = useState(0);
+  useLayoutEffect(() => { setAncho(contenedor.current?.clientWidth ?? 0); }, []);
 
   const labels: Record<TempoFilter, string> = {
     all: t.hymnal_tempo_all,
@@ -27,120 +25,40 @@ export default function TempoPicker({ value, onChange }: TempoPickerProps) {
     fast: t.hymnal_tempo_fast,
   };
 
-  const currentIdx = OPTIONS.indexOf(value);
-  if (currentIdx !== displayIdx && slideOffset === 0 && !animating.current) {
-    setDisplayIdx(currentIdx);
-  }
+  const { posicion, transicion, irA, manejadores } = useRueda({
+    cantidad: OPTIONS.length,
+    indice: OPTIONS.indexOf(value),
+    onCambio: i => onChange(OPTIONS[i]),
+    tamano: ITEM_WIDTH,
+    eje: 'x',
+  });
 
-  const ITEM_WIDTH = 120;
-
-  const animateStep = useCallback((direction: 1 | -1) => {
-    if (animating.current) return;
-    const newIdx = displayIdx + direction;
-    if (newIdx < 0 || newIdx >= OPTIONS.length) return;
-
-    animating.current = true;
-
-    // Immediately switch to new index — active styling correct from frame 1
-    setTransitioning(false);
-    setDisplayIdx(newIdx);
-    setSlideOffset(direction * ITEM_WIDTH); // compensate so visual position unchanged
-    onChange(OPTIONS[newIdx]);
-
-    requestAnimationFrame(() => {
-      setTransitioning(true);
-      setSlideOffset(0); // animate to final position
-      setTimeout(() => {
-        setTransitioning(false);
-        animating.current = false;
-      }, ANIM_DURATION);
-    });
-  }, [displayIdx, onChange]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    gestureActive.current = true;
-    hasStepped.current = false;
-    startX.current = e.touches[0].clientX;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!gestureActive.current || hasStepped.current) return;
-    const delta = startX.current - e.touches[0].clientX;
-    if (Math.abs(delta) >= 30) {
-      hasStepped.current = true;
-      animateStep(delta > 0 ? 1 : -1);
-    }
-  }, [animateStep]);
-
-  const handleTouchEnd = useCallback(() => {
-    gestureActive.current = false;
-    hasStepped.current = false;
-  }, []);
-
-  const prevIdx = displayIdx - 1;
-  const nextIdx = displayIdx + 1;
-
-  const transitionStyle = transitioning
-    ? `transform ${ANIM_DURATION}ms ${EASING}`
-    : 'none';
+  const linea = 'linear-gradient(to right, transparent 0%, hsl(var(--foreground) / 0.18) 25%, hsl(var(--foreground) / 0.18) 75%, transparent 100%)';
 
   return (
-    <div
-      className="relative w-full overflow-hidden select-none"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ touchAction: 'pan-y' }}
-    >
-      {/* Top delimiter line with horizontal fade */}
-      <div className="h-px" style={{ background: 'linear-gradient(to right, transparent 0%, hsl(var(--foreground) / 0.18) 25%, hsl(var(--foreground) / 0.18) 75%, transparent 100%)' }} />
-
+    <div ref={contenedor} className="relative w-full overflow-hidden select-none" style={{ touchAction: 'pan-y' }} {...manejadores}>
+      <div className="h-px" style={{ background: linea }} />
       <div
-        className="flex items-center justify-center"
+        className="flex items-center"
         style={{
-          transform: `translateX(${slideOffset}px)`,
-          transition: transitionStyle,
+          transform: `translateX(${ancho / 2 - ITEM_WIDTH / 2 - posicion * ITEM_WIDTH}px)`,
+          transition: transicion,
+          willChange: 'transform',
         }}
       >
-        {/* Left item */}
-        <div className="flex-1 flex justify-center min-w-0">
-          {prevIdx >= 0 ? (
-            <button
-              onClick={() => animateStep(-1)}
-              className="text-sm text-muted-foreground opacity-50"
-              style={{ transition: `opacity ${ANIM_DURATION}ms ${EASING}, font-size ${ANIM_DURATION}ms ${EASING}, color ${ANIM_DURATION}ms ${EASING}` }}
-            >
-              {labels[OPTIONS[prevIdx]]}
-            </button>
-          ) : <span />}
-        </div>
-
-        {/* Center item — selected */}
-        <div className="flex-1 flex justify-center min-w-0">
-          <span
-            className="text-base font-bold text-foreground py-3"
-            style={{ transition: `opacity ${ANIM_DURATION}ms ${EASING}, font-size ${ANIM_DURATION}ms ${EASING}, color ${ANIM_DURATION}ms ${EASING}` }}
+        {OPTIONS.map((op, i) => (
+          <button
+            key={op}
+            type="button"
+            onClick={() => irA(i)}
+            className={`shrink-0 py-3 text-base text-foreground ${Math.abs(i - posicion) < 0.5 ? 'font-bold' : 'font-normal'}`}
+            style={{ width: ITEM_WIDTH, ...estiloOpcion(i - posicion, transicion) }}
           >
-            {labels[OPTIONS[displayIdx]]}
-          </span>
-        </div>
-
-        {/* Right item */}
-        <div className="flex-1 flex justify-center min-w-0">
-          {nextIdx < OPTIONS.length ? (
-            <button
-              onClick={() => animateStep(1)}
-              className="text-sm text-muted-foreground opacity-50"
-              style={{ transition: `opacity ${ANIM_DURATION}ms ${EASING}, font-size ${ANIM_DURATION}ms ${EASING}, color ${ANIM_DURATION}ms ${EASING}` }}
-            >
-              {labels[OPTIONS[nextIdx]]}
-            </button>
-          ) : <span />}
-        </div>
+            {labels[op]}
+          </button>
+        ))}
       </div>
-
-      {/* Bottom delimiter line with horizontal fade */}
-      <div className="h-px" style={{ background: 'linear-gradient(to right, transparent 0%, hsl(var(--foreground) / 0.18) 25%, hsl(var(--foreground) / 0.18) 75%, transparent 100%)' }} />
+      <div className="h-px" style={{ background: linea }} />
     </div>
   );
 }

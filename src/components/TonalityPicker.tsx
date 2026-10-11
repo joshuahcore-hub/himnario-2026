@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import ScrollWheel from './ScrollWheel';
 import { useI18n } from '@/lib/i18n/index';
 
@@ -17,103 +17,19 @@ function AccidentalSlots({ note, value, onChange }: {
   const showSharp = note === '—' || (!SHARP_INVALID.has(note) && note !== '');
   const showFlat = note === '—' || (!FLAT_INVALID.has(note) && note !== '');
 
+  // Misma rueda que la nota y el modo; las alteraciones que no existen para esa nota se saltan.
   const allItems = ['#', '', 'b'];
   const selectedIdx = value === '#' ? 0 : value === 'b' ? 2 : 1;
-
-  const gestureRef = useRef({ active: false, startY: 0, stepped: false });
-
-  const select = useCallback((acc: string) => {
-    onChange(acc);
-  }, [onChange]);
-
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    gestureRef.current = { active: true, startY: e.touches[0].clientY, stepped: false };
-  }, []);
-
-  const stepBy = useCallback((direction: 1 | -1) => {
-    const newIdx = selectedIdx + direction;
-    if (newIdx < 0 || newIdx > 2) return;
-    const newVal = allItems[newIdx];
-    if (newVal === '#' && !showSharp) return;
-    if (newVal === 'b' && !showFlat) return;
-    select(newVal);
-  }, [selectedIdx, allItems, showSharp, showFlat, select]);
-
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    const g = gestureRef.current;
-    if (!g.active || g.stepped) return;
-    e.preventDefault();
-    const delta = g.startY - e.touches[0].clientY;
-    if (Math.abs(delta) >= 20) {
-      g.stepped = true;
-      stepBy(delta > 0 ? 1 : -1);
-    }
-  }, [stepBy]);
-
-  const onTouchEnd = useCallback(() => {
-    gestureRef.current.active = false;
-  }, []);
-
-  const wheelLock = useRef(false);
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    if (wheelLock.current) return;
-    wheelLock.current = true;
-    stepBy(e.deltaY > 0 ? 1 : -1);
-    setTimeout(() => { wheelLock.current = false; }, 250);
-  }, [stepBy]);
-
-  const shiftY = -selectedIdx * ITEM_HEIGHT;
+  const disabled = useCallback((i: number) => (i === 0 && !showSharp) || (i === 2 && !showFlat), [showSharp, showFlat]);
 
   return (
-    <div
-      className="w-10 overflow-hidden"
-      style={{ height: ITEM_HEIGHT * 3, touchAction: 'none', overscrollBehavior: 'none' }}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onWheel={onWheel}
-    >
-      <div
-        style={{
-          transform: `translateY(${shiftY}px)`,
-          transition: `transform 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
-        }}
-      >
-        <div style={{ height: ITEM_HEIGHT }} />
-        {allItems.map((item, idx) => {
-          const isSelected = idx === selectedIdx;
-          const isSharp = item === '#';
-          const isFlat = item === 'b';
-          const isEmpty = (isSharp && !showSharp) || (isFlat && !showFlat);
-
-          return (
-            <div
-              key={item || 'none'}
-              onClick={() => {
-                if (isEmpty) return;
-                if (isSharp) select('#');
-                else if (isFlat) select('b');
-                else select('');
-              }}
-              className={`flex items-center justify-center cursor-pointer select-none ${
-                isSelected
-                  ? 'text-foreground font-bold text-lg'
-                  : 'text-muted-foreground text-sm opacity-50'
-              }`}
-              style={{
-                height: ITEM_HEIGHT,
-                transition: 'opacity 200ms, font-size 200ms, font-weight 200ms, color 200ms, transform 200ms',
-              }}
-              translate="no"
-            >
-              {isEmpty ? '' : (item || '—')}
-            </div>
-          );
-        })}
-        <div style={{ height: ITEM_HEIGHT }} />
-      </div>
-    </div>
+    <ScrollWheel
+      items={['#', '—', 'b']}
+      selectedIndex={selectedIdx}
+      onChange={i => onChange(allItems[i])}
+      width="w-10"
+      disabled={disabled}
+    />
   );
 }
 
