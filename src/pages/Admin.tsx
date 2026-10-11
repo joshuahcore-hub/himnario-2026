@@ -42,16 +42,19 @@ export default function Admin() {
   const [dispositivos, setDispositivos] = useState<DispositivoAdmin[]>([]);
   const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [iaCreadores, setIaCreadores] = useState<boolean | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [d, h] = await Promise.all([
+      const [d, h, c] = await Promise.all([
         api<DispositivoAdmin[]>('admin/dispositivos'),
         api<EntradaHistorial[]>('admin/historial'),
+        api<{ ia_creadores: boolean }>('admin/config'),
       ]);
       setDispositivos(d);
       setHistorial(h);
+      setIaCreadores(c.ia_creadores);
     } catch (e: any) {
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
     } finally {
@@ -67,6 +70,17 @@ export default function Admin() {
       setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, estado } : x)));
     } catch (e: any) {
       toast.error(e.message);
+    }
+  };
+
+  const cambiarIaCreadores = async (valor: boolean) => {
+    setIaCreadores(valor);
+    try {
+      const c = await api<{ ia_creadores: boolean }>('admin/config', { metodo: 'PATCH', datos: { ia_creadores: valor } });
+      setIaCreadores(c.ia_creadores);
+    } catch (e: any) {
+      setIaCreadores(!valor);
+      toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
     }
   };
 
@@ -165,6 +179,25 @@ export default function Admin() {
       <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-2">
         {pestana === 'personas' ? (
           <>
+            {iaCreadores !== null && (
+              <button
+                onClick={() => cambiarIaCreadores(!iaCreadores)}
+                className="w-full bg-card rounded-xl border border-border p-3 flex items-center gap-3 text-left mb-2 animate-in fade-in"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-muted-foreground">{t.admin_ia_title}</p>
+                  <p className="text-sm text-foreground">{t.admin_ia_creators}</p>
+                  <p className="text-[10px] text-muted-foreground">{t.admin_ia_creators_desc}</p>
+                </div>
+                {/* Interruptor propio (sin controles nativos) */}
+                <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${iaCreadores ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                  <span
+                    className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-background shadow-sm"
+                    style={{ transform: iaCreadores ? 'translateX(20px)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+                  />
+                </span>
+              </button>
+            )}
             {pendientes.length > 0 && <p className="text-[11px] font-semibold text-muted-foreground pt-1">{t.admin_pending_requests}</p>}
             {pendientes.map(tarjeta)}
             {resto.length > 0 && <p className="text-[11px] font-semibold text-muted-foreground pt-3">{t.admin_people}</p>}

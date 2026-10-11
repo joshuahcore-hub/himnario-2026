@@ -16,6 +16,8 @@ import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
+import PanelIA, { useEstadoIA } from '@/components/PanelIA';
+import type { LecturaMinuta } from '@/lib/leerMinuta';
 
 function hoy(): string {
   const d = new Date();
@@ -136,6 +138,10 @@ export default function EditorMinuta() {
   const [inicioBusqueda, setInicioBusqueda] = useState(0);
   const [guardando, setGuardando] = useState<null | 'guardar' | 'publicar'>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  // Crear: "Manual" o desde texto/foto ("Con IA"). Lo generado vuelve a Manual para revisarlo antes de guardar.
+  const [modo, setModo] = useState<'manual' | 'ia'>('manual');
+  const [textoOriginal, setTextoOriginal] = useState(borrador?.textoOriginal ?? '');
+  const { estado: estadoIA } = useEstadoIA(!id && puedeEditar);
 
   const numerados = renumerar(cantos) as Fila[]; // renumerar copia cada canto, conserva _k
 
@@ -227,7 +233,7 @@ export default function EditorMinuta() {
       fecha,
       cantos: renumerar(cantos).map(sinClave),
       ...(publicar ? { publicada: true } : id ? {} : { publicada: false }),
-      ...(borrador?.textoOriginal && !id ? { texto_original: borrador.textoOriginal } : {}),
+      ...(textoOriginal && !id ? { texto_original: textoOriginal } : {}),
     };
     try {
       const m = id
@@ -242,6 +248,15 @@ export default function EditorMinuta() {
     } finally {
       setGuardando(null);
     }
+  };
+
+  const usarLectura = (lectura: LecturaMinuta, texto: string) => {
+    setCantos(lectura.cantos.map(conClave));
+    if (lectura.fecha) setFecha(lectura.fecha);
+    setTextoOriginal(texto);
+    setModo('manual');
+    const total = lectura.cantos.filter(c => !esMarcador(c)).reduce((n, c) => n + (c.groupedWith ? 2 : 1), 0);
+    (lectura.noEncontrados ? toast.warning : toast.success)(t.ia_review(total, lectura.noEncontrados));
   };
 
   const filaCanto = (c: ParsedSong, pos: number) => (
@@ -265,8 +280,31 @@ export default function EditorMinuta() {
         )}
       </div>
 
+      {/* Crear: Manual | Con IA (o "Pegar texto" si la foto con IA no está habilitada para esta persona) */}
+      {!id && (
+        <div className="px-5 pb-2">
+          <div className="relative grid grid-cols-2 rounded-lg bg-muted p-1 text-xs font-medium">
+            <span
+              className="absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-md bg-background shadow-sm"
+              style={{ transform: modo === 'ia' ? 'translateX(100%)' : 'none', transition: 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+            />
+            <button onClick={() => setModo('manual')} className={`relative h-8 transition-colors ${modo === 'manual' ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {t.editor_mode_manual}
+            </button>
+            <button onClick={() => setModo('ia')} className={`relative h-8 transition-colors ${modo === 'ia' ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {estadoIA?.permitido ? t.editor_mode_ai : t.editor_mode_paste}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {modo === 'ia' && !id ? (
+        <div className="flex-1 overflow-y-auto px-5 pt-1 pb-4">
+          <PanelIA estado={estadoIA} onListo={usarLectura} />
+        </div>
+      ) : <>
       {/* pt-1: deja aire arriba para que el borde de los campos no quede cortado contra la lista. */}
-      <div className="flex-1 overflow-y-auto px-5 pt-1 pb-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 pt-1 pb-4 space-y-4 animate-in fade-in duration-200">
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder={t.editor_title_placeholder} className="h-10 text-sm" maxLength={80} />
           <SelectorFecha valor={fecha} onChange={setFecha} />
@@ -335,6 +373,7 @@ export default function EditorMinuta() {
           </Button>
         )}
       </div>
+      </>}
 
       {/* Salir con cambios sin guardar: descartar, guardar o seguir editando (tocar fuera = seguir editando). */}
       <Dialog open={!!salida.pendiente} onOpenChange={abierto => { if (!abierto) salida.cerrarPregunta(); }}>

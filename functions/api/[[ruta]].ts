@@ -8,6 +8,12 @@
 interface Env {
   DB: D1Database;
   ADMIN_KEY?: string;
+  /** Clave gratis de Google AI Studio (secreto). Sin ella, la lectura de fotos usa solo el PC de respaldo. */
+  GEMINI_API_KEY?: string;
+  /** Modelo de Gemini a usar (opcional; por defecto se prueban los de MODELOS_GEMINI). */
+  GEMINI_MODELO?: string;
+  /** Secreto compartido con el PC de respaldo (Ollama) para que pueda avisar que está en línea. */
+  PC_SECRET?: string;
 }
 
 interface Dispositivo {
@@ -67,11 +73,14 @@ function exigirAdmin(d: Dispositivo | null): Dispositivo {
   return d;
 }
 
-async function leerJson(request: Request): Promise<any> {
+async function leerJson(request: Request, maximo = 100_000): Promise<any> {
   const texto = await request.text();
-  if (texto.length > 100_000) throw new ErrorApi(413, 'Datos demasiado grandes.');
+  if (texto.length > maximo) throw new ErrorApi(413, 'Datos demasiado grandes.');
   try { return texto ? JSON.parse(texto) : {}; } catch { throw new ErrorApi(400, 'Datos inválidos.'); }
 }
+
+/** Para fotos (la app las achica antes de enviarlas; aquí se acepta hasta ~6 MB). */
+const leerJsonGrande = (request: Request) => leerJson(request, 6_000_000);
 
 function validarNombre(nombre: unknown): string {
   const n = typeof nombre === 'string' ? nombre.trim().replace(/\s+/g, ' ') : '';
@@ -327,6 +336,16 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
     return json({ ok: true });
   }
 
+  // Ajustes de la IA: permitir o no la lectura de fotos a los creadores.
+  if (seccion === 'config' && request.method === 'GET') {
+    return json({ ia_creadores: (await leerConfig(env, 'ia_creadores')) === '1' });
+  }
+  if (seccion === 'config' && request.method === 'PATCH') {
+    const body = await leerJson(request);
+    if (typeof body.ia_creadores === 'boolean') await guardarConfig(env, 'ia_creadores', body.ia_creadores ? '1' : '0');
+    return json({ ia_creadores: (await leerConfig(env, 'ia_creadores')) === '1' });
+  }
+
   if (seccion === 'historial' && request.method === 'GET') {
     const { results } = await env.DB.prepare(`
       SELECT h.id, h.minuta_id, h.accion, h.titulo, h.fecha, d.nombre, d.color,
@@ -349,6 +368,139 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
   throw new ErrorApi(404, 'Ruta no encontrada.');
 }
 
+// ---------- IA: leer fotos de minutas ----------
+// La IA SOLO transcribe el texto de la foto; el emparejamiento con el himnario lo hace la app (src/lib/leerMinuta.ts).
+// Primero Gemini (cupo gratis, clave en el secreto GEMINI_API_KEY); si falla o se agotó, el PC de respaldo (Ollama).
+
+const MODELOS_GEMINI = ['gemini-3.5-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+const LIMITE_FOTOS_CREADOR_DIA = 10;
+const PC_EN_LINEA_MS = 2.5 * 60_000; // el PC avisa cada minuto; si no avisa en 2,5 min se considera apagado
+const PAUSA_GEMINI_MS = 10 * 60_000;  // tras "demasiadas solicitudes", no reintentar Gemini por 10 min
+
+const INSTRUCCION_OCR = `Esta imagen es una minuta: la lista de cantos para un culto, escrita a mano o enviada por WhatsApp.
+Transcribe SOLO su contenido, una línea por renglón y en el mismo orden.
+Copia los números de himno tal como aparecen. Si dos cantos están en el mismo renglón, déjalos en el mismo renglón.
+Incluye las palabras Palabra, Predicación u Oración si aparecen, y la fecha si aparece.
+No agregues explicaciones, títulos ni comentarios: solo el texto.`;
+
+async function leerConfig(env: Env, clave: string): Promise<string | null> {
+  const f = await env.DB.prepare('SELECT valor FROM config WHERE clave = ?').bind(clave).first<{ valor: string }>();
+  return f?.valor ?? null;
+}
+
+const guardarConfig = (env: Env, clave: string, valor: string) =>
+  env.DB.prepare(`INSERT INTO config (clave, valor, actualizado) VALUES (?, ?, ?)
+                  ON CONFLICT (clave) DO UPDATE SET valor = excluded.valor, actualizado = excluded.actualizado`)
+    .bind(clave, valor, ahora()).run();
+
+async function estadoIa(env: Env, yo: Dispositivo | null) {
+  const admin = esAdmin(yo);
+  const paraCreadores = (await leerConfig(env, 'ia_creadores')) === '1';
+  const permitido = !!yo && yo.estado === 'aprobado' && (admin || paraCreadores);
+  const pausaGemini = Number((await leerConfig(env, 'gemini_pausa_hasta')) ?? 0);
+  const pcVisto = Number((await leerConfig(env, 'pc_visto')) ?? 0);
+  let restantes: number | null = null;
+  if (permitido && !admin) {
+    const usadas = await env.DB.prepare('SELECT COUNT(*) AS n FROM ia_uso WHERE dispositivo_id = ? AND fecha > ?')
+      .bind(yo!.id, haceHoras(24)).first<{ n: number }>();
+    restantes = Math.max(0, LIMITE_FOTOS_CREADOR_DIA - (usadas?.n ?? 0));
+  }
+  return {
+    permitido,
+    paraCreadores,
+    gemini: !!env.GEMINI_API_KEY && Date.now() > pausaGemini,
+    pc: Date.now() - pcVisto < PC_EN_LINEA_MS,
+    restantes,
+  };
+}
+
+async function ocrGemini(env: Env, imagen: string, mime: string): Promise<string> {
+  const modelos = env.GEMINI_MODELO ? [env.GEMINI_MODELO] : MODELOS_GEMINI;
+  let ultimo = '';
+  for (const modelo of modelos) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY! },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: INSTRUCCION_OCR }, { inline_data: { mime_type: mime, data: imagen } }] }],
+        generationConfig: { temperature: 0 },
+      }),
+    });
+    if (r.ok) {
+      const datos: any = await r.json();
+      const texto = (datos?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? '').join('\n').trim();
+      if (texto) return texto;
+      ultimo = 'sin texto';
+      continue;
+    }
+    ultimo = `${r.status}`;
+    if (r.status === 429) {
+      await guardarConfig(env, 'gemini_pausa_hasta', String(Date.now() + PAUSA_GEMINI_MS));
+      break; // cupo agotado: no tiene sentido probar otro modelo del mismo proyecto
+    }
+    if (r.status !== 404 && r.status !== 400) break; // 404/400: modelo no disponible → probar el siguiente
+  }
+  throw new Error(`Gemini: ${ultimo}`);
+}
+
+async function ocrPc(env: Env, imagen: string): Promise<string> {
+  const url = await leerConfig(env, 'pc_url');
+  if (!url || !env.PC_SECRET) throw new Error('PC no configurado');
+  const r = await fetch(`${url}/leer`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-pc-secreto': env.PC_SECRET },
+    body: JSON.stringify({ imagen, instruccion: INSTRUCCION_OCR }),
+  });
+  if (!r.ok) throw new Error(`PC: ${r.status}`);
+  const datos: any = await r.json();
+  if (!datos?.texto) throw new Error('PC: sin texto');
+  return String(datos.texto).trim();
+}
+
+async function rutasIa(request: Request, env: Env, partes: string[]): Promise<Response> {
+  const yo = await dispositivoActual(request, env);
+
+  if (partes[1] === 'estado' && request.method === 'GET') return json(await estadoIa(env, yo));
+
+  if (partes[1] === 'leer' && request.method === 'POST') {
+    const estado = await estadoIa(env, yo);
+    if (!estado.permitido) throw new ErrorApi(403, 'La lectura de fotos con IA no está habilitada para ti.');
+    if (estado.restantes === 0) throw new ErrorApi(429, `Llegaste al límite de ${LIMITE_FOTOS_CREADOR_DIA} fotos por día. Usa el modo manual o pega el texto.`);
+    const body = await leerJsonGrande(request);
+    const imagen = typeof body.imagen === 'string' ? body.imagen.replace(/^data:[^,]+,/, '') : '';
+    const mime = typeof body.mime === 'string' && /^image\/(jpeg|png|webp)$/.test(body.mime) ? body.mime : 'image/jpeg';
+    if (!imagen) throw new ErrorApi(400, 'Falta la imagen.');
+
+    let texto = '', fuente = '';
+    const errores: string[] = [];
+    if (estado.gemini) {
+      try { texto = await ocrGemini(env, imagen, mime); fuente = 'gemini'; } catch (e) { errores.push(String((e as Error).message)); }
+    }
+    if (!texto && estado.pc) {
+      try { texto = await ocrPc(env, imagen); fuente = 'pc'; } catch (e) { errores.push(String((e as Error).message)); }
+    }
+    if (!texto) {
+      console.error('IA sin resultado', errores);
+      throw new ErrorApi(503, 'La IA no está disponible ahora. Pega el texto o usa el modo manual.');
+    }
+    await env.DB.prepare('INSERT INTO ia_uso (dispositivo_id, fecha, fuente) VALUES (?, ?, ?)').bind(yo!.id, ahora(), fuente).run();
+    return json({ texto, fuente });
+  }
+
+  throw new ErrorApi(404, 'Ruta no encontrada.');
+}
+
+/** El PC de respaldo avisa que está en línea y en qué dirección (túnel), con el secreto compartido. */
+async function rutasPc(request: Request, env: Env, partes: string[]): Promise<Response> {
+  if (partes[1] !== 'latido' || request.method !== 'POST') throw new ErrorApi(404, 'Ruta no encontrada.');
+  if (!env.PC_SECRET || request.headers.get('x-pc-secreto') !== env.PC_SECRET) throw new ErrorApi(401, 'No autorizado.');
+  const body = await leerJson(request);
+  if (typeof body.url !== 'string' || !/^https:\/\/[a-z0-9.-]+$/i.test(body.url)) throw new ErrorApi(400, 'URL no válida.');
+  await guardarConfig(env, 'pc_url', body.url);
+  await guardarConfig(env, 'pc_visto', String(Date.now()));
+  return json({ ok: true });
+}
+
 // ---------- Entrada ----------
 
 export const onRequest: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -359,6 +511,8 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, params }) =>
       case 'minutas': return await rutasMinutas(request, env, partes);
       case 'acceso': return await rutasAcceso(request, env, partes, ip);
       case 'admin': return await rutasAdmin(request, env, partes, ip);
+      case 'ia': return await rutasIa(request, env, partes);
+      case 'pc': return await rutasPc(request, env, partes);
       case 'salud': return json({ ok: true });
       default: throw new ErrorApi(404, 'Ruta no encontrada.');
     }

@@ -116,6 +116,28 @@ export interface Translations {
 
   // Editor de minutas
   editor_title_edit: string;
+  editor_mode_manual: string;
+  editor_mode_ai: string;
+  editor_mode_paste: string;
+  ia_text_title_solo: string;
+  ia_checking: string;
+  ia_available_gemini: string;
+  ia_available_pc: string;
+  ia_unavailable: string;
+  ia_remaining: (n: number) => string;
+  ia_photo_title: string;
+  ia_camera: string;
+  ia_gallery: string;
+  ia_reading_photo: string;
+  ia_text_title: string;
+  ia_text_placeholder: string;
+  ia_generate: string;
+  ia_text_hint: string;
+  ia_nothing_found: string;
+  ia_review: (total: number, faltan: number) => string;
+  admin_ia_title: string;
+  admin_ia_creators: string;
+  admin_ia_creators_desc: string;
   editor_unsaved_title: string;
   editor_unsaved_text: string;
   editor_discard: string;
@@ -322,6 +344,30 @@ export const es: Translations = {
   minutas_pin: 'Fijar',
 
   editor_title_edit: 'Editar minuta',
+  editor_mode_manual: 'Manual',
+  editor_mode_ai: 'Con IA',
+  editor_mode_paste: 'Pegar texto',
+  ia_text_title_solo: 'Pega el texto de la minuta (por ejemplo, de WhatsApp)',
+  ia_checking: 'Revisando la IA…',
+  ia_available_gemini: 'IA disponible (Gemini)',
+  ia_available_pc: 'IA disponible (PC)',
+  ia_unavailable: 'IA no disponible: pega el texto o usa el modo manual',
+  ia_remaining: n => `${n} fotos hoy`,
+  ia_photo_title: 'Desde una foto',
+  ia_camera: 'Cámara',
+  ia_gallery: 'Galería',
+  ia_reading_photo: 'Leyendo la foto…',
+  ia_text_title: 'O pega el texto (por ejemplo, de WhatsApp)',
+  ia_text_placeholder: 'Ej.:\n1. 141 Inclino mi rostro\n2. Consejero\nPalabra\n3. 52 - Tu manera',
+  ia_generate: 'Generar minuta',
+  ia_text_hint: 'El texto lo lee la app, sin IA: funciona siempre, incluso sin internet.',
+  ia_nothing_found: 'No se encontraron cantos en ese texto.',
+  ia_review: (total, faltan) => faltan
+    ? `Revisa la minuta: ${total} cantos, ${faltan} sin encontrar (en rojo).`
+    : `Listo: ${total} cantos. Revísala y guarda.`,
+  admin_ia_title: 'IA para leer fotos',
+  admin_ia_creators: 'Permitir a los creadores',
+  admin_ia_creators_desc: 'Usan tu mismo cupo gratis de Gemini (máx. 10 fotos por persona al día).',
   editor_unsaved_title: '¿Salir sin guardar?',
   editor_unsaved_text: 'Hiciste cambios en esta minuta que todavía no están guardados.',
   editor_discard: 'Descartar cambios',
@@ -522,6 +568,30 @@ export const en: Translations = {
   minutas_pin: 'Pin',
 
   editor_title_edit: 'Edit service',
+  editor_mode_manual: 'Manual',
+  editor_mode_ai: 'With AI',
+  editor_mode_paste: 'Paste text',
+  ia_text_title_solo: 'Paste the service text (e.g. from WhatsApp)',
+  ia_checking: 'Checking AI…',
+  ia_available_gemini: 'AI available (Gemini)',
+  ia_available_pc: 'AI available (PC)',
+  ia_unavailable: 'AI unavailable: paste the text or use manual mode',
+  ia_remaining: n => `${n} photos today`,
+  ia_photo_title: 'From a photo',
+  ia_camera: 'Camera',
+  ia_gallery: 'Gallery',
+  ia_reading_photo: 'Reading the photo…',
+  ia_text_title: 'Or paste the text (e.g. from WhatsApp)',
+  ia_text_placeholder: 'E.g.:\n1. 141 Inclino mi rostro\n2. Consejero\nPalabra\n3. 52 - Tu manera',
+  ia_generate: 'Generate service',
+  ia_text_hint: 'The app reads the text itself, without AI: it always works, even offline.',
+  ia_nothing_found: 'No songs were found in that text.',
+  ia_review: (total, faltan) => faltan
+    ? `Review the service: ${total} songs, ${faltan} not found (in red).`
+    : `Done: ${total} songs. Review it and save.`,
+  admin_ia_title: 'AI for reading photos',
+  admin_ia_creators: 'Allow creators',
+  admin_ia_creators_desc: 'They use your same free Gemini quota (max. 10 photos per person per day).',
   editor_unsaved_title: 'Leave without saving?',
   editor_unsaved_text: 'You made changes to this service that are not saved yet.',
   editor_discard: 'Discard changes',
