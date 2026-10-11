@@ -175,7 +175,8 @@ export default function HymnDetail() {
   };
 
   return (
-    <div className="fixed inset-0 z-40 bg-white dark:bg-[#0E0D0C]" style={outerStyle}>
+    // bg-background: el mismo fondo que tienen ahora las imágenes de los himnos (sin recuadro visible).
+    <div className="fixed inset-0 z-40 bg-background" style={outerStyle}>
       <div className="absolute top-3 left-3 z-20">
         <button onClick={() => navigate('/hymnal')} className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
           <ArrowLeft size={20} />

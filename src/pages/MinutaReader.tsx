@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Share2 } from 'lucide-react';
+import { ArrowLeft, Maximize2, Minimize2, Share2 } from 'lucide-react';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
-import ZoomableImage from '@/components/ZoomableImage';
+import Zoomable from '@/components/Zoomable';
 import { getThemedHymnImageUrl, preloadHymnImageBoth, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
@@ -33,26 +33,31 @@ function SongPage({ song }: { song: ParsedSong }) {
   const cached = cache.get(hymnNumber);
   const imgUrl = cached?.complete ? cached.src : getThemedHymnImageUrl(hymnNumber, theme);
 
+  // Toda la página es una sola imagen: el número, el título y el tono arriba y la letra con acordes abajo,
+  // sobre el mismo fondo (las imágenes tienen el fondo exacto de la app). El zoom amplía todo junto.
   return (
-    <div className="w-full max-w-lg flex flex-col items-center gap-3">
-      <div className="text-center">
-        <p className="text-sm font-semibold text-hymn-number">#{hymnNumber}</p>
-        <h2 className="text-lg font-bold text-foreground">{song.title}</h2>
-        {song.key && <p translate="no" className="font-semibold text-hymn-key">{song.key}</p>}
-      </div>
-      {imgError ? (
-        <div className="w-full bg-card rounded-xl border border-border p-6 text-center space-y-2">
-          {song.firstLine && <p className="text-muted-foreground text-sm italic">{song.firstLine}</p>}
+    <Zoomable className="w-full h-full" reiniciarCon={hymnNumber}>
+      <div className="h-full w-full flex flex-col items-center px-2">
+        <div className="text-center shrink-0 pt-4">
+          <p className="text-sm font-semibold text-hymn-number">#{hymnNumber}</p>
+          <h2 className="text-lg font-bold text-foreground">{song.title}</h2>
+          {song.key && <p translate="no" className="font-semibold text-hymn-key">{song.key}</p>}
         </div>
-      ) : (
-        <ZoomableImage
-          src={imgUrl}
-          alt={`${song.title} - #${hymnNumber}`}
-          className="w-full rounded-lg shadow-sm"
-          onError={() => setImgError(true)}
-        />
-      )}
-    </div>
+        {imgError ? (
+          <div className="flex-1 flex items-center px-4 text-center">
+            {song.firstLine && <p className="text-muted-foreground text-sm italic">{song.firstLine}</p>}
+          </div>
+        ) : (
+          <img
+            src={imgUrl}
+            alt={`${song.title} - #${hymnNumber}`}
+            className="w-full max-w-lg flex-1 min-h-0 object-contain"
+            draggable={false}
+            onError={() => setImgError(true)}
+          />
+        )}
+      </div>
+    </Zoomable>
   );
 }
 
@@ -72,6 +77,27 @@ export default function MinutaReader() {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const touchStartRef = useRef(0);
+
+  // Pantalla completa: sin barra de arriba ni puntitos, el fondo cubre toda la pantalla.
+  // En Android también se ocultan la barra del sistema (hora/batería) y la de navegación.
+  const [pantallaCompleta, setPantallaCompleta] = useState(false);
+  const entrarPantallaCompleta = () => {
+    setPantallaCompleta(true);
+    document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
+  };
+  const salirPantallaCompleta = () => {
+    setPantallaCompleta(false);
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  };
+  useEffect(() => {
+    // Si se sale con el gesto "atrás" del sistema, la app también sale de pantalla completa.
+    const alCambiar = () => { if (!document.fullscreenElement) setPantallaCompleta(false); };
+    document.addEventListener('fullscreenchange', alCambiar);
+    return () => {
+      document.removeEventListener('fullscreenchange', alCambiar);
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -156,8 +182,12 @@ export default function MinutaReader() {
   const renderPage = (pageIdx: number, offset: number) => {
     if (pageIdx < 0 || pageIdx >= totalPages) return null;
     const item = itemAt(pageIdx);
+    const esCanto = !!item && !item.isPalabra && !item.isOracion;
     return (
-      <div className="absolute inset-0 flex items-center justify-center p-5 overflow-y-auto" style={{ transform: `translateX(${offset * 100}%)` }}>
+      <div
+        className={`absolute inset-0 flex items-center justify-center ${esCanto ? '' : 'p-5 overflow-y-auto'}`}
+        style={{ transform: `translateX(${offset * 100}%)` }}
+      >
         {pageIdx === 0 ? (
           <div className="w-full max-w-sm">
             <Portada date={minuta.fecha} songs={minuta.cantos} />
@@ -176,21 +206,35 @@ export default function MinutaReader() {
   const compartir = () => compartirPorWhatsApp(textoParaCompartir(minuta, window.location.origin));
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <div className="flex items-center gap-3 px-4 py-3 bg-card/80 backdrop-blur-sm border-b border-border z-10 relative"
-           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
-        <button onClick={() => navigate('/minutas')} className="tap-btn-overlay text-foreground p-1" aria-label={t.minutas_title}>
-          <ArrowLeft size={20} />
+    <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-hidden">
+      {pantallaCompleta ? (
+        <button
+          onClick={salirPantallaCompleta}
+          className="tap-btn fixed z-20 right-3 p-2.5 rounded-full bg-background/60 backdrop-blur-sm text-muted-foreground/80 border border-border/50 animate-in fade-in duration-300"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+          aria-label={t.minuta_exit_fullscreen}
+        >
+          <Minimize2 size={16} />
         </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold truncate">{tituloVisible(minuta)}</p>
-          <p className="text-[10px] text-muted-foreground">{currentPage + 1} / {totalPages}</p>
+      ) : (
+        <div className="flex items-center gap-3 px-4 py-3 bg-card/80 backdrop-blur-sm border-b border-border z-10 relative"
+             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
+          <button onClick={() => navigate('/minutas')} className="tap-btn-overlay text-foreground p-1" aria-label={t.minutas_title}>
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold truncate">{tituloVisible(minuta)}</p>
+            <p className="text-[10px] text-muted-foreground">{currentPage + 1} / {totalPages}</p>
+          </div>
+          <button onClick={entrarPantallaCompleta} className="tap-btn p-1.5 rounded-lg text-muted-foreground" aria-label={t.minuta_fullscreen}>
+            <Maximize2 size={16} />
+          </button>
+          <button onClick={compartir} className="tap-btn p-1.5 rounded-lg text-muted-foreground" aria-label={t.minuta_share}>
+            <Share2 size={16} />
+          </button>
+          {/* Editar se hace desde la lista de minutas (mantener presionada → lápiz), no desde aquí. */}
         </div>
-        <button onClick={compartir} className="tap-btn p-1.5 rounded-lg text-muted-foreground" aria-label={t.minuta_share}>
-          <Share2 size={16} />
-        </button>
-        {/* Editar se hace desde la lista de minutas (mantener presionada → lápiz), no desde aquí. */}
-      </div>
+      )}
 
       <div
         className="flex-1 relative overflow-hidden"
@@ -206,7 +250,7 @@ export default function MinutaReader() {
         </div>
       </div>
 
-      <div className="flex justify-center gap-1.5 pb-6 pt-2 flex-wrap px-4">
+      <div className={`flex justify-center gap-1.5 pb-6 pt-2 flex-wrap px-4 ${pantallaCompleta ? 'hidden' : ''}`}>
         {Array.from({ length: totalPages }, (_, i) => (
           <button
             key={i}

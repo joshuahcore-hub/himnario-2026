@@ -94,6 +94,8 @@ export interface Translations {
   minuta_editada_por: string;
   minuta_not_found: string;
   minuta_share: string;
+  minuta_fullscreen: string;
+  minuta_exit_fullscreen: string;
   minutas_refresh: string;
   minutas_offline: string;
   minutas_hint_select: string;
@@ -280,6 +282,8 @@ export const es: Translations = {
   minuta_editada_por: 'Editada por',
   minuta_not_found: 'No se encontró esta minuta. Ábrela una vez con internet para guardarla en el celular.',
   minuta_share: 'Compartir por WhatsApp',
+  minuta_fullscreen: 'Pantalla completa',
+  minuta_exit_fullscreen: 'Salir de pantalla completa',
   minutas_refresh: 'Actualizar',
   minutas_offline: 'Sin conexión: mostrando las minutas guardadas en este celular.',
   minutas_hint_select: 'Mantén presionada una minuta para seleccionarla, fijarla o borrarla.',
@@ -459,6 +463,8 @@ export const en: Translations = {
   minuta_editada_por: 'Edited by',
   minuta_not_found: 'Service not found. Open it once while online to save it on this phone.',
   minuta_share: 'Share on WhatsApp',
+  minuta_fullscreen: 'Full screen',
+  minuta_exit_fullscreen: 'Exit full screen',
   minutas_refresh: 'Refresh',
   minutas_offline: 'Offline: showing the services saved on this phone.',
   minutas_hint_select: 'Press and hold a service to select, pin or delete it.',
