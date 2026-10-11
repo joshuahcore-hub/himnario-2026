@@ -7,6 +7,11 @@ import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
 import ZoomableImage from '@/components/ZoomableImage';
 
+// Paso de un himno a otro amortiguado (como el carrusel de minutas): arranca rápido y se frena suave al llegar,
+// en vez de llegar y "chocar" (antes 250 ms ease-out).
+const DURACION_DESLIZAR = 420;
+const CURVA_DESLIZAR = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
 export default function HymnDetail() {
   const { number } = useParams<{ number: string }>();
   const navigate = useNavigate();
@@ -32,6 +37,8 @@ export default function HymnDetail() {
   const touchStartRef = useRef(0);
   const touchStartYRef = useRef(0);
   const isHorizontalRef = useRef<boolean | null>(null);
+  /** Completa ya el paso a otro himno que se está animando (null si no hay ninguno). */
+  const terminarPaso = useRef<null | (() => void)>(null);
 
   useEffect(() => {
     if (navNumbers.length === 0) return;
@@ -80,7 +87,10 @@ export default function HymnDetail() {
   }, [navNumbers, navigate]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (isAnimating || isDismissing) return;
+    // Si todavía se está frenando el paso anterior y se toca de nuevo, se completa al instante (pasar rápido varios).
+    if (terminarPaso.current) terminarPaso.current();
+    else if (isAnimating) return;
+    if (isDismissing) return;
     touchStartRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
     isHorizontalRef.current = null;
@@ -90,7 +100,7 @@ export default function HymnDetail() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || isAnimating || isDismissing) return;
+    if (!isDragging || isDismissing) return;
     const dx = e.touches[0].clientX - touchStartRef.current;
     const dy = e.touches[0].clientY - touchStartYRef.current;
     if (isHorizontalRef.current === null) {
@@ -112,14 +122,16 @@ export default function HymnDetail() {
     const threshold = window.innerWidth * 0.08;
     if (dragX < -threshold && currentIndex < navNumbers.length - 1) animateSlide(-1);
     else if (dragX > threshold && currentIndex > 0) animateSlide(1);
-    else { setIsAnimating(true); setDragX(0); setTimeout(() => setIsAnimating(false), 250); }
+    else { setIsAnimating(true); setDragX(0); setTimeout(() => setIsAnimating(false), DURACION_DESLIZAR); }
   };
 
   const animateSlide = (direction: number) => {
     const w = window.innerWidth;
     setIsAnimating(true);
     setDragX(direction * w);
-    setTimeout(() => { setIsAnimating(false); setDragX(0); goTo(currentIndex - direction); }, 250);
+    const terminar = () => { terminarPaso.current = null; setIsAnimating(false); setDragX(0); goTo(currentIndex - direction); };
+    const timer = setTimeout(terminar, DURACION_DESLIZAR);
+    terminarPaso.current = () => { clearTimeout(timer); terminar(); };
   };
 
   const currentNum = navNumbers[currentIndex];
@@ -162,7 +174,7 @@ export default function HymnDetail() {
   const translatePx = isDragging || isAnimating ? dragX : 0;
   const carouselStyle: React.CSSProperties = {
     transform: `translateX(${translatePx}px)`,
-    transition: isAnimating ? 'transform 250ms ease-out' : 'none',
+    transition: isAnimating ? `transform ${DURACION_DESLIZAR}ms ${CURVA_DESLIZAR}` : 'none',
     willChange: 'transform',
   };
 
