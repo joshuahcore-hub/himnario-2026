@@ -4,7 +4,8 @@ import type { Locale } from '@/lib/i18n/translations';
 import { useTheme, applyTheme } from '@/hooks/useTheme';
 import Desplegable from '@/components/Desplegable';
 import { useOffline } from '@/lib/offline';
-import SeccionAcceso from '@/components/SeccionAcceso';
+import { useRef } from 'react';
+import SeccionAcceso, { EVENTO_ACTIVAR_ADMIN } from '@/components/SeccionAcceso';
 import SeccionPdf from '@/components/SeccionPdf';
 
 const LANGUAGES: { code: Locale; label: string }[] = [
@@ -17,6 +18,15 @@ export default function SettingsPage() {
   const { theme } = useTheme();
   const dark = theme === 'dark';
   const offline = useOffline();
+  const toquesVersion = useRef<number[]>([]);
+  const tocarVersion = () => {
+    const ahora = Date.now();
+    toquesVersion.current = [...toquesVersion.current.filter(t => ahora - t < 3000), ahora];
+    if (toquesVersion.current.length >= 5) {
+      toquesVersion.current = [];
+      window.dispatchEvent(new Event(EVENTO_ACTIVAR_ADMIN));
+    }
+  };
 
   return (
     <div className="px-5 pt-4 pb-24 space-y-5 overflow-y-auto" style={{ height: 'calc(100dvh - 4rem)' }}>
@@ -78,7 +88,8 @@ export default function SettingsPage() {
 
       <SeccionPdf />
 
-      <p className="text-center text-[10px] text-muted-foreground/60">
+      {/* 5 toques seguidos en la versión: "Activar como administrador" (escondido; ver SeccionAcceso). */}
+      <p className="text-center text-[10px] text-muted-foreground/60 py-2" onClick={tocarVersion}>
         Himnario 2026 · {t.settings_version} {__APP_VERSION__}
       </p>
     </div>

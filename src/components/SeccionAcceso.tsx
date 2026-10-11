@@ -1,9 +1,12 @@
 // Tarjeta de Ajustes para pedir permiso de creador, ver el estado y (solo el admin) entrar a Administración.
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Clock, KeyRound, Loader2, PenLine, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
+import { Clock, Loader2, PenLine, RefreshCw, ShieldCheck, ShieldX } from 'lucide-react';
+
+/** Evento para abrir "Activar como administrador" (Ajustes lo lanza al tocar 5 veces la versión). */
+export const EVENTO_ACTIVAR_ADMIN = 'himnario-activar-admin';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -80,6 +83,12 @@ export default function SeccionAcceso() {
   const [dialogoSolicitud, setDialogoSolicitud] = useState(false);
   const [clave, setClave] = useState('');
   const tarjetaRef = useRef<HTMLDivElement>(null);
+  // "Activar como administrador" NO se muestra (Josué): se abre a escondidas tocando 5 veces la versión en Ajustes.
+  useEffect(() => {
+    const abrir = () => { if (!acceso.esAdmin) setDialogoAdmin(true); };
+    window.addEventListener(EVENTO_ACTIVAR_ADMIN, abrir);
+    return () => window.removeEventListener(EVENTO_ACTIVAR_ADMIN, abrir);
+  }, [acceso.esAdmin]);
   useAlTocarFuera(tarjetaRef, editandoPerfil, useCallback(() => setEditandoPerfil(false), []));
 
   const autor = acceso.nombre && acceso.color ? { nombre: acceso.nombre, color: acceso.color } : null;
@@ -150,11 +159,6 @@ export default function SeccionAcceso() {
         {contenido}
       </div>
 
-      {!acceso.esAdmin && (
-        <button onClick={() => setDialogoAdmin(true)} className="w-full text-center text-[10px] text-muted-foreground/60 flex items-center justify-center gap-1">
-          <KeyRound size={10} />{t.admin_activate}
-        </button>
-      )}
 
       {/* Pedir ser creador: nombre + color (tocar fuera cierra). */}
       <Dialog open={dialogoSolicitud} onOpenChange={setDialogoSolicitud}>
