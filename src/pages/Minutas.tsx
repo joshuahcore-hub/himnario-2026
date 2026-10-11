@@ -7,6 +7,8 @@ import type { MinutaData } from '@/lib/types';
 import { useMinutas, quitarMinutaLocal, guardarMinutaLocal, tomarParaEnfocar } from '@/lib/minutaCache';
 import { tituloVisible } from '@/lib/minutaUtils';
 import { api, ErrorDeRed } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 
@@ -48,17 +50,24 @@ export default function Minutas() {
 
   const salirSeleccion = () => { setSelectMode(false); setSelected(new Set()); };
 
+  // El basurero primero pregunta (Josué): "¿Eliminar…?" con Eliminar / Cancelar; tocar fuera cancela.
+  const [confirmarBorrar, setConfirmarBorrar] = useState(false);
+  const [borrando, setBorrando] = useState(false);
   const borrar = async () => {
     const ids = [...selected];
+    setBorrando(true);
     try {
       for (const id of ids) {
         await api(`minutas/${id}`, { metodo: 'DELETE' });
         quitarMinutaLocal(id);
       }
       toast.success(t.minutas_deleted(ids.length));
+      setConfirmarBorrar(false);
       salirSeleccion();
     } catch (e: any) {
-      toast.error(e.message || t.minutas_error_delete);
+      toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.minutas_error_delete));
+    } finally {
+      setBorrando(false);
     }
   };
 
@@ -106,7 +115,8 @@ export default function Minutas() {
   };
 
   return (
-    // Tocar en cualquier parte fuera de una minuta sale del modo selección (igual que la X).
+    <>
+    {/* Tocar en cualquier parte fuera de una minuta sale del modo selección (igual que la X). */}
     <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 4rem)', overscrollBehavior: 'none' }}
          onClick={() => { if (selectMode) salirSeleccion(); }}>
       <div className="flex items-center justify-between px-5 pt-4 gap-2">
@@ -245,7 +255,7 @@ export default function Minutas() {
             </button>
           )}
           <button
-            onClick={borrar}
+            onClick={() => setConfirmarBorrar(true)}
             disabled={selected.size === 0}
             className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-destructive disabled:opacity-30 transition-opacity"
             aria-label={t.minutas_delete}
@@ -255,5 +265,25 @@ export default function Minutas() {
         </div>
       )}
     </div>
+
+    {/* Confirmar eliminación. Fuera del contenedor: si no, tocar el diálogo saldría del modo selección. */}
+    <Dialog open={confirmarBorrar} onOpenChange={abierto => { if (!abierto && !borrando) setConfirmarBorrar(false); }}>
+      <DialogContent className="max-w-[320px] rounded-2xl gap-3">
+        <DialogHeader>
+          <DialogTitle className="text-base">{t.minutas_delete_confirm_title(selected.size)}</DialogTitle>
+          <DialogDescription className="text-xs">{t.minutas_delete_confirm_text}</DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2 pt-1">
+          <Button variant="outline" className="flex-1 h-10 text-sm" disabled={borrando} onClick={() => setConfirmarBorrar(false)}>
+            {t.minutas_cancel}
+          </Button>
+          <Button variant="destructive" className="flex-1 h-10 text-sm gap-1.5" disabled={borrando} onClick={borrar}>
+            {borrando ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            {t.minutas_delete}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

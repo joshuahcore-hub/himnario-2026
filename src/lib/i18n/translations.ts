@@ -39,6 +39,8 @@ export interface Translations {
   minutas_error_delete: string;
   minutas_error_rename: string;
   minutas_deleted: (n: number) => string;
+  minutas_delete_confirm_title: (n: number) => string;
+  minutas_delete_confirm_text: string;
   minutas_pinned: string;
   minutas_unpinned: string;
 
@@ -286,6 +288,8 @@ export const es: Translations = {
   minutas_error_delete: 'Error al eliminar',
   minutas_error_rename: 'Error al renombrar',
   minutas_deleted: (n) => `${n} minuta(s) eliminada(s)`,
+  minutas_delete_confirm_title: n => (n === 1 ? '¿Eliminar esta minuta?' : `¿Eliminar ${n} minutas?`),
+  minutas_delete_confirm_text: 'Se quitará para todos. El administrador puede recuperarla desde el historial.',
   minutas_pinned: 'Minuta fijada',
   minutas_unpinned: 'Minuta desfijada',
 
@@ -526,6 +530,8 @@ export const en: Translations = {
   minutas_error_delete: 'Error deleting',
   minutas_error_rename: 'Error renaming',
   minutas_deleted: (n) => `${n} service(s) deleted`,
+  minutas_delete_confirm_title: n => (n === 1 ? 'Delete this service?' : `Delete ${n} services?`),
+  minutas_delete_confirm_text: 'It will be removed for everyone. The administrator can restore it from the history.',
   minutas_pinned: 'Service pinned',
   minutas_unpinned: 'Service unpinned',
 
