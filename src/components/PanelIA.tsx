@@ -3,7 +3,7 @@
 // Indicador: verde = IA disponible (Gemini o PC); gris = no disponible (pegar texto sigue funcionando).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Camera, ImageIcon, Loader2, Sparkles } from 'lucide-react';
+import { Camera, ImageIcon, ListChecks, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { api, ErrorDeRed } from '@/lib/api';
@@ -91,20 +91,23 @@ export default function PanelIA({ estado, onListo }: {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-200">
-      {conFoto && <>
-      {/* Indicador de disponibilidad (tipo "en línea") */}
-      <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2">
-        <span className={`relative flex h-2.5 w-2.5 shrink-0`}>
-          {disponible && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-50" />}
-          <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${disponible ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
-        </span>
-        <span className="text-[11px] text-foreground">{etiqueta}</span>
-        {estado?.restantes != null && <span className="ml-auto text-[10px] text-muted-foreground">{t.ia_remaining(estado.restantes)}</span>}
-      </div>
-
-      {/* Foto */}
+      {/* Foto: lo único que usa IA (distintivo "IA" + indicador de disponibilidad tipo "en línea") */}
+      {conFoto && (
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-foreground">{t.ia_photo_title}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold text-foreground">{t.ia_photo_title}</p>
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+            <Sparkles size={9} />{t.ia_badge}
+          </span>
+          {estado?.restantes != null && <span className="ml-auto text-[10px] text-muted-foreground">{t.ia_remaining(estado.restantes)}</span>}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="relative flex h-2 w-2 shrink-0">
+            {disponible && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-50" />}
+            <span className={`relative inline-flex h-2 w-2 rounded-full transition-colors ${disponible ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+          </span>
+          <span className="text-[10px] text-muted-foreground">{etiqueta}</span>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" className="h-16 flex-col gap-1 text-xs" disabled={!disponible || leyendo} onClick={() => camara.current?.click()}>
             <Camera size={18} />{t.ia_camera}
@@ -121,11 +124,11 @@ export default function PanelIA({ estado, onListo }: {
         <input ref={camara} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => leerFoto(e.target.files?.[0])} />
         <input ref={galeria} type="file" accept="image/*" className="hidden" onChange={e => leerFoto(e.target.files?.[0])} />
       </div>
-      </>}
+      )}
 
       {/* Texto pegado (no usa IA: funciona siempre, incluso sin internet) */}
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-foreground">{conFoto ? t.ia_text_title : t.ia_text_title_solo}</p>
+        <p className="text-xs font-semibold text-foreground">{t.ia_text_title}</p>
         <Textarea
           value={texto}
           onChange={e => setTexto(e.target.value)}
@@ -133,7 +136,7 @@ export default function PanelIA({ estado, onListo }: {
           className="min-h-[140px] text-sm"
         />
         <Button className="w-full h-10 text-sm gap-1.5" disabled={!texto.trim() || leyendo} onClick={generarDesdeTexto}>
-          <Sparkles size={16} />{t.ia_generate}
+          <ListChecks size={16} />{t.ia_generate}
         </Button>
         <p className="text-[10px] text-muted-foreground/80 text-center">{t.ia_text_hint}</p>
       </div>

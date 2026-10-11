@@ -282,7 +282,7 @@ export default function EditorMinuta() {
         )}
       </div>
 
-      {/* Crear: Manual | Con IA (o "Pegar texto" si la foto con IA no está habilitada para esta persona) */}
+      {/* Crear: Manual | Automático (pegar texto, sin IA; y foto, con IA, si está habilitada para esta persona) */}
       {!id && (
         <div className="px-5 pb-2">
           <div className="relative grid grid-cols-2 rounded-lg bg-muted p-1 text-xs font-medium">
@@ -294,7 +294,7 @@ export default function EditorMinuta() {
               {t.editor_mode_manual}
             </button>
             <button onClick={() => setModo('ia')} className={`relative h-8 transition-colors ${modo === 'ia' ? 'text-foreground' : 'text-muted-foreground'}`}>
-              {estadoIA?.permitido ? t.editor_mode_ai : t.editor_mode_paste}
+              {t.editor_mode_ai}
             </button>
           </div>
         </div>

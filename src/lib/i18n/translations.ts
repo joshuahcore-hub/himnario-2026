@@ -118,8 +118,7 @@ export interface Translations {
   editor_title_edit: string;
   editor_mode_manual: string;
   editor_mode_ai: string;
-  editor_mode_paste: string;
-  ia_text_title_solo: string;
+  ia_badge: string;
   ia_checking: string;
   ia_available_gemini: string;
   ia_available_pc: string;
@@ -345,22 +344,21 @@ export const es: Translations = {
 
   editor_title_edit: 'Editar minuta',
   editor_mode_manual: 'Manual',
-  editor_mode_ai: 'Con IA',
-  editor_mode_paste: 'Pegar texto',
-  ia_text_title_solo: 'Pega el texto de la minuta (por ejemplo, de WhatsApp)',
+  editor_mode_ai: 'Automático',
+  ia_badge: 'IA',
   ia_checking: 'Revisando la IA…',
   ia_available_gemini: 'IA disponible (Gemini)',
   ia_available_pc: 'IA disponible (PC)',
-  ia_unavailable: 'IA no disponible: pega el texto o usa el modo manual',
+  ia_unavailable: 'IA no disponible: usa el texto o el modo manual',
   ia_remaining: n => `${n} fotos hoy`,
   ia_photo_title: 'Desde una foto',
   ia_camera: 'Cámara',
   ia_gallery: 'Galería',
   ia_reading_photo: 'Leyendo la foto…',
-  ia_text_title: 'O pega el texto (por ejemplo, de WhatsApp)',
+  ia_text_title: 'Desde texto (por ejemplo, de WhatsApp)',
   ia_text_placeholder: 'Ej.:\n1. 141 Inclino mi rostro\n2. Consejero\nPalabra\n3. 52 - Tu manera',
   ia_generate: 'Generar minuta',
-  ia_text_hint: 'El texto lo lee la app, sin IA: funciona siempre, incluso sin internet.',
+  ia_text_hint: 'Sin IA: lo lee la app, funciona siempre, incluso sin internet.',
   ia_nothing_found: 'No se encontraron cantos en ese texto.',
   ia_review: (total, faltan) => faltan
     ? `Revisa la minuta: ${total} cantos, ${faltan} sin encontrar (en rojo).`
@@ -569,22 +567,21 @@ export const en: Translations = {
 
   editor_title_edit: 'Edit service',
   editor_mode_manual: 'Manual',
-  editor_mode_ai: 'With AI',
-  editor_mode_paste: 'Paste text',
-  ia_text_title_solo: 'Paste the service text (e.g. from WhatsApp)',
+  editor_mode_ai: 'Automatic',
+  ia_badge: 'AI',
   ia_checking: 'Checking AI…',
   ia_available_gemini: 'AI available (Gemini)',
   ia_available_pc: 'AI available (PC)',
-  ia_unavailable: 'AI unavailable: paste the text or use manual mode',
+  ia_unavailable: 'AI unavailable: use text or manual mode',
   ia_remaining: n => `${n} photos today`,
   ia_photo_title: 'From a photo',
   ia_camera: 'Camera',
   ia_gallery: 'Gallery',
   ia_reading_photo: 'Reading the photo…',
-  ia_text_title: 'Or paste the text (e.g. from WhatsApp)',
+  ia_text_title: 'From text (e.g. from WhatsApp)',
   ia_text_placeholder: 'E.g.:\n1. 141 Inclino mi rostro\n2. Consejero\nPalabra\n3. 52 - Tu manera',
   ia_generate: 'Generate service',
-  ia_text_hint: 'The app reads the text itself, without AI: it always works, even offline.',
+  ia_text_hint: 'No AI: the app reads it itself, it always works, even offline.',
   ia_nothing_found: 'No songs were found in that text.',
   ia_review: (total, faltan) => faltan
     ? `Review the service: ${total} songs, ${faltan} not found (in red).`
