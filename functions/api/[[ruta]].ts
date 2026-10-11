@@ -393,6 +393,7 @@ const MODELOS_GEMINI = ['gemini-3.5-flash-lite', 'gemini-2.5-flash-lite', 'gemin
 const LIMITE_FOTOS_CREADOR_DIA = 10;
 const PC_EN_LINEA_MS = 2.5 * 60_000; // el PC avisa cada minuto; si no avisa en 2,5 min se considera apagado
 const PAUSA_GEMINI_MS = 10 * 60_000;  // tras "demasiadas solicitudes", no reintentar Gemini por 10 min
+const PAUSA_SATURADO_MS = 2 * 60_000; // tras "saturado" (500/503) aun con reintentos: gris por 2 min
 
 const INSTRUCCION_OCR = `Esta imagen es una minuta: la lista de cantos para un culto, escrita a mano o enviada por WhatsApp.
 Transcribe SOLO su contenido, una línea por renglón y en el mismo orden.
@@ -432,33 +433,56 @@ async function estadoIa(env: Env, yo: Dispositivo | null) {
   };
 }
 
+/** Error de Gemini con el motivo: 'cupo' (429), 'saturado' (500/503, pasa seguido en el plan gratis) u 'otro'. */
+class ErrorGemini extends Error {
+  constructor(public motivo: 'cupo' | 'saturado' | 'otro', detalle: string) { super(detalle); }
+}
+
 async function ocrGemini(env: Env, imagen: string, mime: string): Promise<string> {
   const modelos = env.GEMINI_MODELO ? [env.GEMINI_MODELO] : MODELOS_GEMINI;
-  let ultimo = '';
+  const detalles: string[] = [];
+  let saturado = false;
   for (const modelo of modelos) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY! },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: INSTRUCCION_OCR }, { inline_data: { mime_type: mime, data: imagen } }] }],
-        generationConfig: { temperature: 0 },
-      }),
-    });
-    if (r.ok) {
-      const datos: any = await r.json();
-      const texto = (datos?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? '').join('\n').trim();
-      if (texto) return texto;
-      ultimo = 'sin texto';
-      continue;
+    // "Saturado" (500/503) suele pasar en segundos: se reintenta el mismo modelo una vez antes de pasar al siguiente.
+    for (let intento = 0; intento < 2; intento++) {
+      let r: Response;
+      try {
+        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY! },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: INSTRUCCION_OCR }, { inline_data: { mime_type: mime, data: imagen } }] }],
+            generationConfig: { temperature: 0 },
+          }),
+        });
+      } catch (e) {
+        detalles.push(`${modelo}: red ${(e as Error).message}`);
+        saturado = true;
+        continue;
+      }
+      if (r.ok) {
+        const datos: any = await r.json();
+        const texto = (datos?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? '').join('\n').trim();
+        if (texto) return texto;
+        detalles.push(`${modelo}: sin texto (${datos?.candidates?.[0]?.finishReason ?? '?'})`);
+        break; // siguiente modelo
+      }
+      const cuerpo = (await r.text().catch(() => '')).slice(0, 160).replace(/\s+/g, ' ');
+      detalles.push(`${modelo}: ${r.status} ${cuerpo}`);
+      if (r.status === 429) {
+        await guardarConfig(env, 'gemini_pausa_hasta', String(Date.now() + PAUSA_GEMINI_MS));
+        throw new ErrorGemini('cupo', detalles.join(' | ')); // cupo agotado: otro modelo del mismo proyecto tampoco sirve
+      }
+      if (r.status === 401 || r.status === 403 || /API key not valid|API_KEY_INVALID/i.test(cuerpo)) {
+        // Clave inválida o revocada: ningún modelo va a servir; gris por 10 min (no decir "disponible").
+        await guardarConfig(env, 'gemini_pausa_hasta', String(Date.now() + PAUSA_GEMINI_MS));
+        throw new ErrorGemini('otro', detalles.join(' | '));
+      }
+      if (r.status >= 500) { saturado = true; await new Promise(ok => setTimeout(ok, 900)); continue; } // reintentar
+      break; // 400/404 (modelo no disponible) u otro: probar el siguiente modelo
     }
-    ultimo = `${r.status}`;
-    if (r.status === 429) {
-      await guardarConfig(env, 'gemini_pausa_hasta', String(Date.now() + PAUSA_GEMINI_MS));
-      break; // cupo agotado: no tiene sentido probar otro modelo del mismo proyecto
-    }
-    if (r.status !== 404 && r.status !== 400) break; // 404/400: modelo no disponible → probar el siguiente
   }
-  throw new Error(`Gemini: ${ultimo}`);
+  throw new ErrorGemini(saturado ? 'saturado' : 'otro', detalles.join(' | '));
 }
 
 async function ocrPc(env: Env, imagen: string): Promise<string> {
@@ -491,15 +515,27 @@ async function rutasIa(request: Request, env: Env, partes: string[]): Promise<Re
 
     let texto = '', fuente = '';
     const errores: string[] = [];
+    let motivo: ErrorGemini['motivo'] | null = null;
     if (estado.gemini) {
-      try { texto = await ocrGemini(env, imagen, mime); fuente = 'gemini'; } catch (e) { errores.push(String((e as Error).message)); }
+      try { texto = await ocrGemini(env, imagen, mime); fuente = 'gemini'; } catch (e) {
+        errores.push(String((e as Error).message));
+        motivo = e instanceof ErrorGemini ? e.motivo : 'otro';
+      }
     }
     if (!texto && estado.pc) {
       try { texto = await ocrPc(env, imagen); fuente = 'pc'; } catch (e) { errores.push(String((e as Error).message)); }
     }
     if (!texto) {
       console.error('IA sin resultado', errores);
-      throw new ErrorApi(503, 'La IA no está disponible ahora. Pega el texto o usa el modo manual.');
+      // Queda registrado el último error (para revisarlo desde el PC con wrangler d1 execute … "SELECT * FROM config").
+      await guardarConfig(env, 'ia_ultimo_error', `${ahora()} ${errores.join(' || ')}`.slice(0, 1500));
+      // Saturado: el indicador pasa a gris un par de minutos (que no diga "disponible" si no lo está).
+      if (motivo === 'saturado') await guardarConfig(env, 'gemini_pausa_hasta', String(Date.now() + PAUSA_SATURADO_MS));
+      throw new ErrorApi(503, motivo === 'cupo'
+        ? 'Se acabó por ahora el cupo gratis de la IA. Pega el texto o usa el modo manual; vuelve a estar disponible más tarde.'
+        : motivo === 'saturado'
+          ? 'La IA está saturada en este momento. Intenta de nuevo en un par de minutos, o pega el texto.'
+          : 'La IA no pudo leer la foto. Intenta con otra foto, o pega el texto.');
     }
     await env.DB.prepare('INSERT INTO ia_uso (dispositivo_id, fecha, fuente) VALUES (?, ?, ?)').bind(yo!.id, ahora(), fuente).run();
     return json({ texto, fuente });

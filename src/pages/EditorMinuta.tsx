@@ -141,7 +141,7 @@ export default function EditorMinuta() {
   // Crear: "Manual" o desde texto/foto ("Con IA"). Lo generado vuelve a Manual para revisarlo antes de guardar.
   const [modo, setModo] = useState<'manual' | 'ia'>('manual');
   const [textoOriginal, setTextoOriginal] = useState(borrador?.textoOriginal ?? '');
-  const { estado: estadoIA } = useEstadoIA(!id && puedeEditar);
+  const { estado: estadoIA, revisar: revisarIA } = useEstadoIA(!id && puedeEditar);
 
   const numerados = renumerar(cantos) as Fila[]; // renumerar copia cada canto, conserva _k
 
@@ -311,7 +311,7 @@ export default function EditorMinuta() {
             <button onClick={() => setModo('manual')} className={`relative h-8 transition-colors ${modo === 'manual' ? 'text-foreground' : 'text-muted-foreground'}`}>
               {t.editor_mode_manual}
             </button>
-            <button onClick={() => setModo('ia')} className={`relative h-8 transition-colors ${modo === 'ia' ? 'text-foreground' : 'text-muted-foreground'}`}>
+            <button onClick={() => { setModo('ia'); revisarIA(); }} className={`relative h-8 transition-colors ${modo === 'ia' ? 'text-foreground' : 'text-muted-foreground'}`}>
               {t.editor_mode_ai}
             </button>
           </div>
@@ -320,7 +320,7 @@ export default function EditorMinuta() {
 
       {modo === 'ia' && !id ? (
         <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-1 pb-4" style={{ overscrollBehavior: 'contain' }}>
-          <PanelIA estado={estadoIA} onListo={usarLectura} />
+          <PanelIA estado={estadoIA} onListo={usarLectura} onFallo={revisarIA} />
         </div>
       ) : <>
       {/* pt-1: deja aire arriba para que el borde de los campos no quede cortado contra la lista. */}

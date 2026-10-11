@@ -47,9 +47,11 @@ async function prepararFoto(archivo: File): Promise<string> {
   return btoa(binario);
 }
 
-export default function PanelIA({ estado, onListo }: {
+export default function PanelIA({ estado, onListo, onFallo }: {
   estado: EstadoIA | null;
   onListo: (lectura: LecturaMinuta, textoOriginal: string) => void;
+  /** Si la foto falla: volver a consultar el estado, para que el indicador no siga en verde si la IA no responde. */
+  onFallo?: () => void;
 }) {
   const { t } = useI18n();
   const [texto, setTexto] = useState('');
@@ -82,6 +84,7 @@ export default function PanelIA({ estado, onListo }: {
       onListo(lectura, r.texto);
     } catch (e: any) {
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.create_error_read_image));
+      onFallo?.();
     } finally {
       setLeyendo(false);
       if (camara.current) camara.current.value = '';
