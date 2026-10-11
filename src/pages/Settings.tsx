@@ -1,7 +1,8 @@
-import { Moon, Sun, Globe, Check, WifiOff, CheckCircle2 } from 'lucide-react';
+import { Moon, Sun, Globe, WifiOff, CheckCircle2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, applyTheme } from '@/hooks/useTheme';
+import Desplegable from '@/components/Desplegable';
 import { useOffline } from '@/lib/offline';
 import SeccionAcceso from '@/components/SeccionAcceso';
 import SeccionPdf from '@/components/SeccionPdf';
@@ -13,7 +14,7 @@ const LANGUAGES: { code: Locale; label: string }[] = [
 
 export default function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const dark = theme === 'dark';
   const offline = useOffline();
 
@@ -23,40 +24,25 @@ export default function SettingsPage() {
 
       <SeccionAcceso />
 
-      <div className="bg-card rounded-xl border border-border p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-foreground">{t.settings_theme}</span>
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent text-accent-foreground text-xs"
-          >
-            {dark ? <Sun size={12} /> : <Moon size={12} />}
-            {dark ? t.settings_theme_light : t.settings_theme_dark}
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-card rounded-xl border border-border p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Globe size={14} className="text-muted-foreground" />
-          <span className="text-xs font-medium text-foreground">{t.settings_language}</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {LANGUAGES.map(lang => (
-            <button
-              key={lang.code}
-              onClick={() => setLocale(lang.code)}
-              className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                locale === lang.code
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground hover:bg-accent'
-              }`}
-            >
-              {locale === lang.code && <Check size={12} />}
-              {lang.label}
-            </button>
-          ))}
-        </div>
+      {/* Idioma (izquierda) y Tema (derecha) en una fila; cada uno despliega sus opciones hacia abajo. */}
+      <div className="grid grid-cols-2 gap-3">
+        <Desplegable<Locale>
+          titulo={t.settings_language}
+          icono={<Globe size={13} className="text-muted-foreground" />}
+          valor={locale}
+          opciones={LANGUAGES.map(l => ({ valor: l.code, etiqueta: l.label }))}
+          onElegir={setLocale}
+        />
+        <Desplegable<'light' | 'dark'>
+          titulo={t.settings_theme}
+          icono={dark ? <Moon size={13} className="text-muted-foreground" /> : <Sun size={13} className="text-muted-foreground" />}
+          valor={theme}
+          opciones={[
+            { valor: 'light', etiqueta: t.theme_light_mode, icono: <Sun size={13} /> },
+            { valor: 'dark', etiqueta: t.theme_dark_mode, icono: <Moon size={13} /> },
+          ]}
+          onElegir={applyTheme}
+        />
       </div>
 
       <div className="bg-card rounded-xl border border-border p-4">

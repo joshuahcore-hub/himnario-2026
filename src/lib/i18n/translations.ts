@@ -73,6 +73,8 @@ export interface Translations {
   // Settings
   settings_title: string;
   settings_theme: string;
+  theme_light_mode: string;
+  theme_dark_mode: string;
   settings_theme_light: string;
   settings_theme_dark: string;
   settings_language: string;
@@ -275,6 +277,8 @@ export const es: Translations = {
 
   settings_title: 'Ajustes',
   settings_theme: 'Tema',
+  theme_light_mode: 'Modo claro',
+  theme_dark_mode: 'Modo oscuro',
   settings_theme_light: 'Claro',
   settings_theme_dark: 'Oscuro',
   settings_language: 'Idioma / Language',
@@ -469,6 +473,8 @@ export const en: Translations = {
 
   settings_title: 'Settings',
   settings_theme: 'Theme',
+  theme_light_mode: 'Light mode',
+  theme_dark_mode: 'Dark mode',
   settings_theme_light: 'Light',
   settings_theme_dark: 'Dark',
   settings_language: 'Language / Idioma',
