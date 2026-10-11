@@ -10,6 +10,7 @@ import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar, textoParaCompartir, compartirPorWhatsApp, tituloVisible } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
+import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
 
 function SongPage({ song }: { song: ParsedSong }) {
   const [imgError, setImgError] = useState(false);
@@ -77,6 +78,8 @@ export default function MinutaReader() {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const touchStartRef = useRef(0);
+  /** Completa ya el paso a otra página que se está animando (null si no hay ninguno). */
+  const terminarPaso = useRef<null | (() => void)>(null);
 
   // Pantalla completa: sin barra de arriba ni puntitos, el fondo cubre toda la pantalla.
   // En Android también se ocultan la barra del sistema (hora/batería) y la de navegación.
@@ -135,14 +138,16 @@ export default function MinutaReader() {
   }
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (isAnimating) return;
+    // Si todavía se está frenando el paso anterior y se toca de nuevo, se completa al instante (pasar varios rápido).
+    if (terminarPaso.current) terminarPaso.current();
+    else if (isAnimating) return;
     touchStartRef.current = e.touches[0].clientX;
     setIsDragging(true);
     setDragX(0);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || isAnimating) return;
+    if (!isDragging) return;
     const dx = e.touches[0].clientX - touchStartRef.current;
     const atEdge = (dx > 0 && currentPage === 0) || (dx < 0 && currentPage === totalPages - 1);
     setDragX(atEdge ? dx * 0.3 : dx);
@@ -151,11 +156,14 @@ export default function MinutaReader() {
   const animateSlide = (direction: number) => {
     setIsAnimating(true);
     setDragX(direction * window.innerWidth);
-    setTimeout(() => {
+    const terminar = () => {
+      terminarPaso.current = null;
       setIsAnimating(false);
       setDragX(0);
       setCurrentPage(p => p - direction);
-    }, 250);
+    };
+    const timer = setTimeout(terminar, DURACION_DESLIZAR);
+    terminarPaso.current = () => { clearTimeout(timer); terminar(); };
   };
 
   const handleTouchEnd = () => {
@@ -167,7 +175,7 @@ export default function MinutaReader() {
     else {
       setIsAnimating(true);
       setDragX(0);
-      setTimeout(() => setIsAnimating(false), 250);
+      setTimeout(() => setIsAnimating(false), DURACION_DESLIZAR);
     }
   };
 
@@ -175,7 +183,7 @@ export default function MinutaReader() {
 
   const carouselStyle: React.CSSProperties = {
     transform: `translateX(${isDragging || isAnimating ? dragX : 0}px)`,
-    transition: isAnimating ? 'transform 250ms ease-out' : 'none',
+    transition: isAnimating ? `transform ${DURACION_DESLIZAR}ms ${CURVA_DESLIZAR}` : 'none',
     willChange: 'transform',
   };
 

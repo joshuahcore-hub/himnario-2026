@@ -6,11 +6,7 @@ import { getFilteredNumbers } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
 import ZoomableImage from '@/components/ZoomableImage';
-
-// Paso de un himno a otro amortiguado (como el carrusel de minutas): arranca rápido y se frena suave al llegar,
-// en vez de llegar y "chocar" (antes 250 ms ease-out).
-const DURACION_DESLIZAR = 420;
-const CURVA_DESLIZAR = 'cubic-bezier(0.22, 1, 0.36, 1)';
+import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
 
 export default function HymnDetail() {
   const { number } = useParams<{ number: string }>();
