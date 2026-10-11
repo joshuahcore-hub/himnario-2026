@@ -5,7 +5,7 @@ import { useTheme, applyTheme } from '@/hooks/useTheme';
 import Desplegable from '@/components/Desplegable';
 import { useOffline } from '@/lib/offline';
 import { useRef } from 'react';
-import SeccionAcceso, { EVENTO_ACTIVAR_ADMIN } from '@/components/SeccionAcceso';
+import MenuAcceso, { EVENTO_ACTIVAR_ADMIN } from '@/components/SeccionAcceso';
 import SeccionPdf from '@/components/SeccionPdf';
 
 const LANGUAGES: { code: Locale; label: string }[] = [
@@ -30,9 +30,12 @@ export default function SettingsPage() {
 
   return (
     <div className="px-5 pt-4 pb-24 space-y-5 overflow-y-auto" style={{ height: 'calc(100dvh - 4rem)' }}>
-      <h1 className="text-xl font-bold text-foreground">{t.settings_title}</h1>
-
-      <SeccionAcceso />
+      {/* Título y, a la derecha, el menú ⋮ con las opciones avanzadas (creador, perfil, administración). */}
+      {/* relative z-30: el menú desplegado queda por encima de las tarjetas de abajo. */}
+      <div className="relative z-30 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-foreground">{t.settings_title}</h1>
+        <MenuAcceso />
+      </div>
 
       {/* Idioma (izquierda) y Tema (derecha) en una fila; cada uno despliega sus opciones hacia abajo. */}
       <div className="grid grid-cols-2 gap-3">

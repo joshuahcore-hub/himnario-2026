@@ -166,6 +166,10 @@ export interface Translations {
   access_intro: string;
   access_request: string;
   access_dialog_title: string;
+  access_my_request: string;
+  access_my_profile: string;
+  access_my_access: string;
+  settings_more: string;
   access_dialog_text: string;
   access_send: string;
   access_name_required: string;
@@ -407,6 +411,10 @@ export const es: Translations = {
   access_intro: 'Para crear o editar minutas, pide acceso de creador. El administrador lo aprobará.',
   access_request: 'Solicitar ser creador',
   access_dialog_title: 'Solicitar ser creador',
+  access_my_request: 'Mi solicitud',
+  access_my_profile: 'Mi perfil',
+  access_my_access: 'Mi acceso',
+  settings_more: 'Más opciones',
   access_dialog_text: 'Escribe tu nombre y elige un color: así se distinguen tus minutas.',
   access_send: 'Enviar solicitud',
   access_name_required: 'Escribe tu nombre.',
@@ -643,6 +651,10 @@ export const en: Translations = {
   access_intro: 'To create or edit services, request creator access. The administrator will approve it.',
   access_request: 'Request creator access',
   access_dialog_title: 'Request creator access',
+  access_my_request: 'My request',
+  access_my_profile: 'My profile',
+  access_my_access: 'My access',
+  settings_more: 'More options',
   access_dialog_text: 'Enter your name and pick a color: it identifies your services.',
   access_send: 'Send request',
   access_name_required: 'Enter your name.',
