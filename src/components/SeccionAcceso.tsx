@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Clock, EllipsisVertical, Loader2, PenLine, RefreshCw, Shield, ShieldCheck, ShieldX, UserRound, UserRoundPlus } from 'lucide-react';
+import { Check, Clock, EllipsisVertical, Loader2, PenLine, RefreshCw, Shield, ShieldCheck, ShieldX, UserRound, UserRoundPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -22,22 +22,22 @@ import { ChipAutor } from '@/components/Portada';
 /** Evento para abrir "Activar como administrador" (Ajustes lo lanza al tocar 5 veces la versión). */
 export const EVENTO_ACTIVAR_ADMIN = 'himnario-activar-admin';
 
+// Colores en una grilla pareja de 2 filas × 5 (antes 7 + 3 se veía desordenado), círculos chicos;
+// el elegido lleva un ✓ y un anillo suave.
 function SelectorColor({ valor, onChange }: { valor: string; onChange: (c: string) => void }) {
   return (
-    <div className="flex flex-wrap justify-center gap-2.5">
+    <div className="grid grid-cols-5 gap-3 w-fit mx-auto">
       {COLORES.map(c => (
         <button
           key={c}
           type="button"
           onClick={() => onChange(c)}
-          className="w-8 h-8 rounded-full transition-transform"
-          style={{
-            backgroundColor: c,
-            transform: valor === c ? 'scale(1.2)' : 'scale(1)',
-            boxShadow: valor === c ? `0 0 0 2px hsl(var(--background)), 0 0 0 4px ${c}` : 'none',
-          }}
+          className="w-7 h-7 rounded-full flex items-center justify-center transition-shadow duration-200"
+          style={{ backgroundColor: c, boxShadow: valor === c ? `0 0 0 2px hsl(var(--background)), 0 0 0 3.5px ${c}` : 'none' }}
           aria-label={c}
-        />
+        >
+          {valor === c && <Check size={14} strokeWidth={3} className="text-white drop-shadow animate-in zoom-in-50 duration-150" />}
+        </button>
       ))}
     </div>
   );
@@ -77,13 +77,14 @@ function FormNombreColor({ nombreInicial = '', colorInicial = COLORES[7], textoB
       <Input value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t.setup_name_placeholder} maxLength={40} className="h-10 text-sm" />
       <p className="text-[11px] text-muted-foreground text-center">{t.setup_color}</p>
       <SelectorColor valor={color} onChange={setColor} />
+      {/* Botones compactos a la derecha, como los de un aviso (Josué: a todo lo ancho se veían grandes). */}
       {(!soloSiCambia || cambio) && (
-        <div className="flex gap-2 animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex justify-end gap-2 pt-1 animate-in fade-in duration-200">
           {soloSiCambia && onCancelar && (
-            <Button variant="outline" onClick={onCancelar} disabled={enviando} className="flex-1 h-10 text-sm">{t.minutas_cancel}</Button>
+            <Button variant="ghost" onClick={onCancelar} disabled={enviando} className="h-9 px-4 text-sm text-muted-foreground">{t.minutas_cancel}</Button>
           )}
-          <Button onClick={enviar} disabled={enviando} className="flex-1 h-10 text-sm gap-2">
-            {enviando && <Loader2 size={16} className="animate-spin" />}
+          <Button onClick={enviar} disabled={enviando} className="h-9 px-4 text-sm gap-1.5">
+            {enviando && <Loader2 size={14} className="animate-spin" />}
             {textoBoton}
           </Button>
         </div>
