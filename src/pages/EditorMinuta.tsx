@@ -270,7 +270,9 @@ export default function EditorMinuta() {
   );
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100dvh - 4rem)' }}>
+    // La pantalla no se desplaza entera (como en Minutas): solo la zona de cantos, y solo si no cabe.
+    // min-h-0 en la zona flex-1: sin eso crece con su contenido y empuja la pantalla completa.
+    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 4rem)', overscrollBehavior: 'none' }}>
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <h1 className="text-xl font-bold text-foreground">{id ? t.editor_title_edit : t.create_title}</h1>
         {id && (
@@ -299,12 +301,12 @@ export default function EditorMinuta() {
       )}
 
       {modo === 'ia' && !id ? (
-        <div className="flex-1 overflow-y-auto px-5 pt-1 pb-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-1 pb-4" style={{ overscrollBehavior: 'contain' }}>
           <PanelIA estado={estadoIA} onListo={usarLectura} />
         </div>
       ) : <>
       {/* pt-1: deja aire arriba para que el borde de los campos no quede cortado contra la lista. */}
-      <div className="flex-1 overflow-y-auto px-5 pt-1 pb-4 space-y-4 animate-in fade-in duration-200">
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-1 pb-4 space-y-4 animate-in fade-in duration-200" style={{ overscrollBehavior: 'contain' }}>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder={t.editor_title_placeholder} className="h-10 text-sm" maxLength={80} />
           <SelectorFecha valor={fecha} onChange={setFecha} />
