@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,11 @@ export default function Admin() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { esAdmin } = useAcceso();
-  const [pestana, setPestana] = useState<'personas' | 'historial'>('personas');
+  // La pestaña va en la dirección (?ver=historial): al recargar se queda donde estaba (antes volvía a Personas).
+  const [parametros, setParametros] = useSearchParams();
+  const pestana: 'personas' | 'historial' = parametros.get('ver') === 'historial' ? 'historial' : 'personas';
+  const setPestana = (p: 'personas' | 'historial') =>
+    setParametros(p === 'historial' ? { ver: 'historial' } : {}, { replace: true });
   const [dispositivos, setDispositivos] = useState<DispositivoAdmin[]>([]);
   const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
   const [cargando, setCargando] = useState(false);

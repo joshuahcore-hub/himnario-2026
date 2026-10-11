@@ -35,6 +35,7 @@ export default function HymnDetail() {
   const isHorizontalRef = useRef<boolean | null>(null);
   /** Completa ya el paso a otro himno que se está animando (null si no hay ninguno). */
   const terminarPaso = useRef<null | (() => void)>(null);
+  const [indiceDestino, setIndiceDestino] = useState<number | null>(null);
 
   useEffect(() => {
     if (navNumbers.length === 0) return;
@@ -125,7 +126,10 @@ export default function HymnDetail() {
     const w = window.innerWidth;
     setIsAnimating(true);
     setDragX(direction * w);
-    const terminar = () => { terminarPaso.current = null; setIsAnimating(false); setDragX(0); goTo(currentIndex - direction); };
+    setIndiceDestino(currentIndex - direction); // el contador cambia al soltar, no al terminar la animación
+    const terminar = () => {
+      terminarPaso.current = null; setIsAnimating(false); setDragX(0); setIndiceDestino(null); goTo(currentIndex - direction);
+    };
     const timer = setTimeout(terminar, DURACION_DESLIZAR);
     terminarPaso.current = () => { clearTimeout(timer); terminar(); };
   };
@@ -203,7 +207,7 @@ export default function HymnDetail() {
       </div>
       {/* Contador justo encima de la barra de pestañas (h-16, z-50), que lo tapaba. */}
       <div className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(4rem + 0.5rem)' }}>
-        <p className="text-muted-foreground/40 text-xs">{currentIndex + 1} / {navNumbers.length}</p>
+        <p className="text-muted-foreground/40 text-xs">{(indiceDestino ?? currentIndex) + 1} / {navNumbers.length}</p>
       </div>
     </div>
   );

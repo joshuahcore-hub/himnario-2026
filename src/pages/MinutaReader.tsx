@@ -74,6 +74,8 @@ export default function MinutaReader() {
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  // Página hacia la que va la animación: el contador y los puntitos cambian en el instante de soltar, no al terminar.
+  const [paginaDestino, setPaginaDestino] = useState<number | null>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -156,10 +158,12 @@ export default function MinutaReader() {
   const animateSlide = (direction: number) => {
     setIsAnimating(true);
     setDragX(direction * window.innerWidth);
+    setPaginaDestino(currentPage - direction);
     const terminar = () => {
       terminarPaso.current = null;
       setIsAnimating(false);
       setDragX(0);
+      setPaginaDestino(null);
       setCurrentPage(p => p - direction);
     };
     const timer = setTimeout(terminar, DURACION_DESLIZAR);
@@ -179,6 +183,7 @@ export default function MinutaReader() {
     }
   };
 
+  const paginaVisible = paginaDestino ?? currentPage;
   const itemAt = (page: number) => (page > 0 && page < totalPages ? swipeItems[page - 1] : null);
 
   const carouselStyle: React.CSSProperties = {
@@ -232,7 +237,7 @@ export default function MinutaReader() {
           </button>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold truncate">{tituloVisible(minuta)}</p>
-            <p className="text-[10px] text-muted-foreground">{currentPage + 1} / {totalPages}</p>
+            <p className="text-[10px] text-muted-foreground">{paginaVisible + 1} / {totalPages}</p>
           </div>
           <button onClick={entrarPantallaCompleta} className="tap-btn p-1.5 rounded-lg text-muted-foreground" aria-label={t.minuta_fullscreen}>
             <Maximize2 size={16} />
@@ -263,7 +268,7 @@ export default function MinutaReader() {
           <button
             key={i}
             onClick={() => setCurrentPage(i)}
-            className={`w-2 h-2 rounded-full transition-all ${i === currentPage ? 'bg-foreground w-4' : 'bg-muted-foreground/30'}`}
+            className={`w-2 h-2 rounded-full transition-all ${i === paginaVisible ? 'bg-foreground w-4' : 'bg-muted-foreground/30'}`}
             aria-label={`${i + 1}`}
           />
         ))}
