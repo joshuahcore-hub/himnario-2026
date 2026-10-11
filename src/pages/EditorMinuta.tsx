@@ -270,7 +270,11 @@ export default function EditorMinuta() {
     setTextoOriginal(texto);
     setModo('manual');
     const total = lectura.cantos.filter(c => !esMarcador(c)).reduce((n, c) => n + (c.groupedWith ? 2 : 1), 0);
-    (lectura.noEncontrados ? toast.warning : toast.success)(t.ia_review(total, lectura.noEncontrados));
+    // Con la conclusión que sacó la app (p. ej. la raya = Oración porque es miércoles), para revisarla.
+    (lectura.noEncontrados ? toast.warning : toast.success)(t.ia_review(total, lectura.noEncontrados), {
+      description: lectura.notas.map(n => t.ia_note_separator(n.cual, n.dia, n.porCantos)).join(' ') || undefined,
+      duration: lectura.notas.length ? 7000 : undefined,
+    });
   };
 
   const filaCanto = (c: ParsedSong, pos: number) => (

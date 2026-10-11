@@ -138,6 +138,7 @@ export interface Translations {
   ia_text_hint: string;
   ia_nothing_found: string;
   ia_review: (total: number, faltan: number) => string;
+  ia_note_separator: (cual: 'palabra' | 'oracion', dia: 'miercoles' | 'domingo', porCantos: number | null) => string;
   admin_ia_title: string;
   admin_ia_creators: string;
   admin_ia_creators_desc: string;
@@ -372,6 +373,9 @@ export const es: Translations = {
   ia_review: (total, faltan) => faltan
     ? `Revisa la minuta: ${total} cantos, ${faltan} sin encontrar (en rojo).`
     : `Listo: ${total} cantos. Revísala y guarda.`,
+  ia_note_separator: (cual, dia, porCantos) =>
+    `La raya se tomó como ${cual === 'oracion' ? 'Oración' : 'Palabra'} (${dia === 'miercoles' ? 'miércoles' : 'domingo'}${
+      porCantos != null ? `, por tener ${porCantos} cantos` : ''}).`,
   admin_ia_title: 'IA para leer fotos',
   admin_ia_creators: 'Permitir a los creadores',
   admin_ia_creators_desc: 'Usan tu mismo cupo gratis de Gemini (máx. 10 fotos por persona al día).',
@@ -600,6 +604,9 @@ export const en: Translations = {
   ia_review: (total, faltan) => faltan
     ? `Review the service: ${total} songs, ${faltan} not found (in red).`
     : `Done: ${total} songs. Review it and save.`,
+  ia_note_separator: (cual, dia, porCantos) =>
+    `The line was read as ${cual === 'oracion' ? 'Prayer' : 'Word'} (${dia === 'miercoles' ? 'Wednesday' : 'Sunday'}${
+      porCantos != null ? `, since it has ${porCantos} songs` : ''}).`,
   admin_ia_title: 'AI for reading photos',
   admin_ia_creators: 'Allow creators',
   admin_ia_creators_desc: 'They use your same free Gemini quota (max. 10 photos per person per day).',

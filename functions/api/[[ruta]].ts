@@ -397,7 +397,8 @@ const PAUSA_GEMINI_MS = 10 * 60_000;  // tras "demasiadas solicitudes", no reint
 const INSTRUCCION_OCR = `Esta imagen es una minuta: la lista de cantos para un culto, escrita a mano o enviada por WhatsApp.
 Transcribe SOLO su contenido, una línea por renglón y en el mismo orden.
 Copia los números de himno tal como aparecen. Si dos cantos están en el mismo renglón, déjalos en el mismo renglón.
-Incluye las palabras Palabra, Predicación u Oración si aparecen, y la fecha si aparece.
+Incluye las palabras Palabra, Predicación u Oración si aparecen, y la fecha o el día (miércoles, domingo) si aparecen.
+Si hay una raya o línea horizontal dibujada entre cantos (un separador), escribe en su lugar un renglón con solo: ---
 No agregues explicaciones, títulos ni comentarios: solo el texto.`;
 
 async function leerConfig(env: Env, clave: string): Promise<string | null> {
