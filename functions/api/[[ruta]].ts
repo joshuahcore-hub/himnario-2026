@@ -218,8 +218,9 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     if (body.fijada !== undefined) { cambios.push('fijada = ?'); valores.push(body.fijada ? 1 : 0); }
     let cambioVisibilidad: 'publicada' | 'privada' | null = null;
     if (body.publicada !== undefined && !!body.publicada !== actual.publicada) {
-      // Publicar o volver a privada: solo quien la creó o el administrador.
-      if (!actual.mia && !esAdmin(yo)) throw new ErrorApi(403, 'Solo quien creó la minuta puede cambiar si es pública o privada. Si quieres una para ti, duplícala.');
+      // Publicar o volver a privada: SOLO quien la creó (tampoco el administrador: dejar privada una ajena la
+      // escondía para todos menos su autor). Si alguien quiere una para sí, la duplica.
+      if (!actual.mia) throw new ErrorApi(403, 'Solo quien creó la minuta puede cambiar si es pública o privada. Si quieres una para ti, duplícala.');
       cambios.push('publicada = ?');
       valores.push(body.publicada ? 1 : 0);
       cambioVisibilidad = body.publicada ? 'publicada' : 'privada';

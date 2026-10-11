@@ -62,9 +62,10 @@ export default function Minutas() {
     }
   };
 
-  // Publicar (la ven todos) o volver a privada (solo quien la creó). Quien la creó o el administrador.
+  // Publicar (la ven todos) o volver a privada (solo quien la creó): SOLO en las minutas propias, también para el
+  // administrador (Josué: en una ajena el candado la escondía para todos menos su autor, y era confuso).
   const unaSeleccionada = selected.size === 1 ? minutas.find(m => m.id === [...selected][0]) : undefined;
-  const puedeCambiarVisibilidad = !!unaSeleccionada && (unaSeleccionada.mia || esAdmin);
+  const puedeCambiarVisibilidad = !!unaSeleccionada?.mia;
   const cambiarVisibilidad = async () => {
     if (!unaSeleccionada) return;
     const publicar = !unaSeleccionada.publicada;
@@ -209,7 +210,8 @@ export default function Minutas() {
       )}
 
       {/* Acciones de la selección: abajo, al alcance del pulgar. Solo íconos. Con una sola minuta: lápiz = editar,
-          copiar = duplicar (copia privada propia), globo/candado = publicar/privada (quien la creó o el admin).
+          copiar = duplicar (copia privada propia), globo/candado = publicar/privada (solo en las propias: en
+          las ajenas ni se muestra).
           Basurero = borrar las seleccionadas. */}
       {selectMode && (
         <div
@@ -233,14 +235,15 @@ export default function Minutas() {
           >
             {duplicando ? <Loader2 size={22} className="animate-spin" /> : <Copy size={22} />}
           </button>
-          <button
-            onClick={cambiarVisibilidad}
-            disabled={!puedeCambiarVisibilidad}
-            className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
-            aria-label={unaSeleccionada?.publicada ? t.minuta_make_private : t.minuta_publish}
-          >
-            {unaSeleccionada?.publicada ? <Lock size={22} /> : <Globe size={22} className="text-green-600 dark:text-green-400" />}
-          </button>
+          {puedeCambiarVisibilidad && (
+            <button
+              onClick={cambiarVisibilidad}
+              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
+              aria-label={unaSeleccionada?.publicada ? t.minuta_make_private : t.minuta_publish}
+            >
+              {unaSeleccionada?.publicada ? <Lock size={22} /> : <Globe size={22} className="text-green-600 dark:text-green-400" />}
+            </button>
+          )}
           <button
             onClick={borrar}
             disabled={selected.size === 0}
