@@ -30,6 +30,8 @@ def es_negrita(linea) -> bool:
 def titulo_de(linea):
     return TITULO.match(linea["texto"]) or (es_negrita(linea) and TITULO_SIN_GUION.match(linea["texto"]))
 ENCABEZADO = re.compile(r"himnario para m", re.I)
+# Una nota verde a esta distancia (pt) o menos sobre un título es indicación de ese himno; más lejos, del anterior.
+SEPARACION_NOTA_TITULO = 12
 
 
 def es_rojo(color: int) -> bool:
@@ -105,11 +107,18 @@ def main():
             if m:
                 n = int(m.group(1))
                 titulo, autor, notas = limpiar_titulo(m.group(2))
+                anterior = actual
                 actual = himnos.setdefault(n, {"numero": n, "titulo": titulo, "autor": autor, "notas": notas,
                                                "pagina": impreso, "trozos": {}, "lineas": []})
-                # La nota verde justo antes del título es de ESTE himno (indicación para guitarra).
+                # Notas verdes antes de un título:
+                #  - PEGADAS al título (indicación para guitarra, p. ej. "C III" sobre el 12) → son de ESTE himno.
+                #  - Lejos del título o con "FIN" (final del himno anterior, p. ej. "FIN / G7 / C" bajo el 114,
+                #    a 42 pt del 115) → son del himno ANTERIOR.
+                es_final = any(re.search(r"\bfin\b", nota["texto"], re.I) for nota in notas_pendientes)
                 for nota in notas_pendientes:
-                    actual["trozos"].setdefault(indice, []).append(nota["caja"])
+                    pegada = l["caja"].y0 - nota["caja"].y1 <= SEPARACION_NOTA_TITULO
+                    destino = actual if (pegada and not es_final) or anterior is None else anterior
+                    destino["trozos"].setdefault(indice, []).append(nota["caja"])
             elif actual is not None:
                 # Una nota verde en medio de un himno (no antes de un título) es del himno actual.
                 for nota in notas_pendientes:
