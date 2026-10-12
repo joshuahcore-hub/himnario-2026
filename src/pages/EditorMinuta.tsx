@@ -41,6 +41,9 @@ export interface BorradorMinuta {
 }
 
 /** Buscador para añadir cantos: tocar uno lo marca (queda en verde); tocarlo de nuevo lo desmarca y lo quita. */
+/** Duración del cambio a verde al marcar un canto en el buscador. */
+const MARCAR_MS = 180;
+
 function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
   onAdd: (c: ParsedSong) => void;
   onRemove: (hymnNumber: number) => void;
@@ -85,13 +88,19 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
         {resultados.map(h => {
           const marcado = marcados.has(h.hymn_number);
           return (
+            // Marcar = UN solo cambio suave (Josué notaba "dos estados": el gris del toque y luego el verde, con el
+            // borde apareciendo de golpe). Sin gris al tocar; fondo, borde, círculo e ícono cambian juntos en 180 ms.
             <button
               key={h.id}
               onClick={() => (marcado ? onRemove(h.hymn_number) : onAdd(cantoDesdeHimno(h)))}
               aria-pressed={marcado}
-              className={`tap-btn flex items-center gap-2 py-2.5 px-2 rounded-lg w-full text-left transition-colors ${
-                marcado ? 'bg-green-600/15 ring-1 ring-green-600/40' : 'active:bg-accent'
-              }`}
+              className="flex items-center gap-2 py-2.5 px-2 rounded-lg w-full text-left"
+              style={{
+                WebkitTapHighlightColor: 'transparent',
+                backgroundColor: marcado ? 'rgb(22 163 74 / 0.15)' : 'transparent',
+                boxShadow: marcado ? 'inset 0 0 0 1px rgb(22 163 74 / 0.4)' : 'inset 0 0 0 1px transparent',
+                transition: `background-color ${MARCAR_MS}ms ease-out, box-shadow ${MARCAR_MS}ms ease-out`,
+              }}
             >
               <span className="text-hymn-number font-semibold text-xs w-7 shrink-0 text-center">{h.hymn_number}</span>
               <div className="flex-1 min-w-0">
@@ -99,10 +108,18 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
                 {h.first_line && <p className="text-muted-foreground text-[11px] truncate italic">{h.first_line}</p>}
               </div>
               {h.key && <span translate="no" className="text-hymn-key font-semibold text-xs w-7 text-center">{h.key}</span>}
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+              {/* Círculo: el color cambia con la misma transición y el + se funde en ✓ (los dos íconos superpuestos). */}
+              <span className={`relative w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
                 marcado ? 'bg-green-600 text-white' : 'bg-primary/10 text-primary'
-              }`}>
-                {marcado ? <Check size={14} /> : <Plus size={14} />}
+              }`} style={{ transition: `background-color ${MARCAR_MS}ms ease-out, color ${MARCAR_MS}ms ease-out` }}>
+                <Plus size={14} className="absolute" style={{
+                  opacity: marcado ? 0 : 1, transform: marcado ? 'scale(0.6) rotate(90deg)' : 'none',
+                  transition: `opacity ${MARCAR_MS}ms ease-out, transform ${MARCAR_MS}ms ease-out`,
+                }} />
+                <Check size={14} className="absolute" style={{
+                  opacity: marcado ? 1 : 0, transform: marcado ? 'none' : 'scale(0.6)',
+                  transition: `opacity ${MARCAR_MS}ms ease-out, transform ${MARCAR_MS}ms ease-out`,
+                }} />
               </span>
             </button>
           );
@@ -157,6 +174,11 @@ export default function EditorMinuta() {
   const yaPublicada = !!existente?.publicada;
   const algoNuevo = hayCambios || (!id && !!borrador); // un borrador traído de otra pantalla cuenta como nuevo
   const mostrarBotones = cantos.length > 0 && (algoNuevo || (!!id && !yaPublicada));
+  // Mientras la barra se va, los botones quedan como estaban (si no, al borrar la última alabanza "Guardar"
+  // desaparecía de golpe y "Publicar" se estiraba en plena animación: se veía quebrado).
+  const ultimoAlgoNuevo = useRef(algoNuevo);
+  if (mostrarBotones) ultimoAlgoNuevo.current = algoNuevo;
+  const guardarEnBarra = mostrarBotones ? algoNuevo : ultimoAlgoNuevo.current;
   const salida = useSalidaProtegida(hayCambios, () => {
     if (buscando) { setBuscando(false); return true; } // "atrás" en el buscador: solo cierra el buscador
     return false;
@@ -375,14 +397,18 @@ export default function EditorMinuta() {
         {cantos.length > 1 && <p className="text-[10px] text-muted-foreground/70 text-center">{t.editor_group_hint}</p>}
       </div>
 
-      {/* Guardar/Publicar aparecen SOLO cuando hay algo que guardar (regla de Josué): se despliegan con suavidad. */}
+      {/* Guardar/Publicar aparecen SOLO cuando hay algo que guardar (regla de Josué): se despliegan con suavidad y,
+          al irse, la barra baja deslizándose (translateY) mientras se cierra, en vez de recortarse. */}
       <div className="grid" style={{
         gridTemplateRows: mostrarBotones ? '1fr' : '0fr',
         opacity: mostrarBotones ? 1 : 0,
-        transition: 'grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease',
+        transition: 'grid-template-rows 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease',
       }} aria-hidden={!mostrarBotones}>
       <div className="overflow-hidden">
-      <div className="px-5 py-3 border-t border-border bg-background flex justify-center gap-2">
+      <div className="px-5 py-3 border-t border-border bg-background flex justify-center gap-2" style={{
+        transform: mostrarBotones ? 'translateY(0)' : 'translateY(100%)',
+        transition: 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+      }}>
         {yaPublicada ? (
           // Ya la ven todos: un solo botón, "Publicar cambios" (solo aparece si hubo cambios).
           <Button onClick={() => guardar(false)} disabled={!!guardando} className="flex-1 max-w-[260px] h-10 text-sm gap-1.5">
@@ -391,7 +417,7 @@ export default function EditorMinuta() {
           </Button>
         ) : <>
           {/* Guardar (queda privada) solo si hay algo nuevo; Publicar siempre (centrado si va solo). */}
-          {algoNuevo && (
+          {guardarEnBarra && (
             <Button onClick={() => guardar(false)} disabled={!!guardando} variant="outline"
               className="flex-1 max-w-[260px] h-10 text-sm gap-1.5 animate-in fade-in zoom-in-95 duration-200">
               {guardando === 'guardar' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
