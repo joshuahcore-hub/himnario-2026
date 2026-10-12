@@ -1,6 +1,9 @@
 import type { Config } from "tailwindcss";
 
 export default {
+  // hover: solo en dispositivos con mouse. En el celular el último botón tocado quedaba "marcado" (hover pegado)
+  // hasta tocar en otra parte, p. ej. Palabra/Oración en el editor (Josué, 1.4.6).
+  future: { hoverOnlyWhenSupported: true },
   darkMode: ["class"],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
