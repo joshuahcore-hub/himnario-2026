@@ -123,6 +123,8 @@ export default function HymnalPage() {
       className="px-5 pt-4 pb-4 overflow-y-auto"
       style={{ height: 'calc(100dvh - 4rem)' }}
     >
+      {/* Computador: más abierto que el celular pero sin llegar a los bordes (max-w-3xl) y la lista en 2 columnas. */}
+      <div className="max-w-3xl mx-auto">
       <h1 className="text-xl font-bold text-foreground mb-3">{t.hymnal_title}</h1>
 
       <div className="flex gap-2 mb-3">
@@ -204,7 +206,7 @@ export default function HymnalPage() {
         </div>
       )}
 
-      <div className="space-y-0.5">
+      <div className="space-y-0.5 md:space-y-0 md:grid md:grid-cols-2 md:gap-x-6 md:gap-y-0.5">
         {filtered.map(h => (
           <button
             key={h.id}
@@ -232,6 +234,7 @@ export default function HymnalPage() {
             {t.hymnal_no_results}
           </p>
         )}
+      </div>
       </div>
     </div>
   );

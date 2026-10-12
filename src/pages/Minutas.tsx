@@ -119,7 +119,7 @@ export default function Minutas() {
     {/* Tocar en cualquier parte fuera de una minuta sale del modo selección (igual que la X). */}
     <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 4rem)', overscrollBehavior: 'none' }}
          onClick={() => { if (selectMode) salirSeleccion(); }}>
-      <div className="flex items-center justify-between px-5 pt-4 gap-2">
+      <div className="flex items-center justify-between px-5 pt-4 gap-2 w-full max-w-5xl mx-auto">
         <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
         {/* Al seleccionar, esto y la ayuda de abajo se desvanecen SIN quitar su espacio: si se quitaran,
             la lista (centrada en la pantalla) saltaría hacia arriba justo al mantener presionada una minuta. */}
@@ -137,7 +137,7 @@ export default function Minutas() {
         </div>
       )}
       {puedeEditar && ordenadas.length > 0 && (
-        <p className={`px-5 pt-2 text-[10px] text-muted-foreground/70 transition-opacity duration-200 ${selectMode ? 'opacity-0' : ''}`}>
+        <p className={`px-5 pt-2 text-[10px] text-muted-foreground/70 transition-opacity duration-200 w-full max-w-5xl mx-auto ${selectMode ? 'opacity-0' : ''}`}>
           {t.minutas_hint_select}
         </p>
       )}
@@ -152,15 +152,17 @@ export default function Minutas() {
         <div className="flex-1 flex items-center overflow-hidden">
           <div
             ref={scrollRef}
-            className="flex gap-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory w-full py-4"
+            // Computador: a todo el ancho (se ven varias minutas a los lados) y tarjetas más grandes (340 px);
+            // la rueda del mouse las mueve hacia los lados. El relleno lateral deja la primera y la última al centro.
+            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory w-full py-4 px-[calc(50%-140px)] md:px-[calc(50%-170px)]"
             // Solo hacia los lados: sin desplazamiento vertical (antes se podía correr arriba/abajo sin sentido).
-            style={{
-              paddingLeft: 'calc(50% - 140px)', paddingRight: 'calc(50% - 140px)',
-              overflowY: 'hidden', touchAction: 'pan-x', overscrollBehavior: 'contain',
+            style={{ overflowY: 'hidden', touchAction: 'pan-x', overscrollBehavior: 'contain' }}
+            onWheel={e => {
+              if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollRef.current?.scrollBy({ left: e.deltaY, behavior: 'smooth' });
             }}
           >
             {ordenadas.map(m => (
-              <div key={m.id} data-minuta={m.id} className="snap-center shrink-0 w-[280px]" onContextMenu={e => e.preventDefault()} onClick={e => e.stopPropagation()}>
+              <div key={m.id} data-minuta={m.id} className="snap-center shrink-0 w-[280px] md:w-[340px]" onContextMenu={e => e.preventDefault()} onClick={e => e.stopPropagation()}>
                 <div className="mb-2 flex items-center justify-center gap-1.5 h-6">
                   {m.fijada && <Pin size={10} className="text-primary rotate-45" />}
                   <p className="text-xs font-semibold text-foreground/80 text-center truncate">{tituloVisible(m)}</p>

@@ -19,7 +19,7 @@ export const CELESTE_CLARO = '#7CC4F2';
 // Los nombres llevan versión: al cambiar el diseño se sube VERSION, así ningún celular ni navegador
 // puede seguir mostrando un ícono viejo guardado (lo guardan por nombre de archivo).
 // Si se cambia VERSION, actualizar también vite.config.ts e index.html (buscar "icono-v").
-const VERSION = 'v4';
+const VERSION = 'v5';
 for (const f of fs.readdirSync(PUBLIC)) if (/^(icon-|icono-v|apple-touch-icon|favicon)/.test(f)) fs.rmSync(path.join(PUBLIC, f));
 
 const guardar = async (archivo, buffer) => {
@@ -27,12 +27,21 @@ const guardar = async (archivo, buffer) => {
   console.log('  ', archivo);
 };
 
-// Ícono normal ("any"): diseño grande. iPhone y Android le redondean las esquinas solos.
+// iPhone (apple-touch-icon): cuadrado y diseño grande; el iPhone le redondea las esquinas solo
+// (si tuviera esquinas transparentes, el iPhone las pintaría de negro).
 const normal = await iconoConLogo(512, escala(1.2));
-await guardar(`icono-${VERSION}-512.png`, normal);
-await guardar(`icono-${VERSION}-192.png`, await sharp(normal).resize(192, 192).png().toBuffer());
 await guardar(`icono-${VERSION}-apple-180.png`, await sharp(normal).resize(180, 180).png().toBuffer());
-await guardar(`icono-${VERSION}-64.png`, await sharp(normal).resize(64, 64).png().toBuffer());
+
+// Ícono "any" (computador: escritorio, barra de tareas, menú Inicio; y la pestaña del navegador): con ESQUINAS
+// REDONDEADAS y fondo transparente fuera de ellas, como las demás aplicaciones (opción A elegida por Josué,
+// 11-10-2026: el cuadrado completo se veía tosco en Windows). El dibujo va un poco más chico (escala 1.1)
+// para que las esquinas no lo corten.
+const esquinasEscritorio = Buffer.from('<svg width="512" height="512"><rect width="512" height="512" rx="112" ry="112"/></svg>');
+const escritorio = await sharp(await iconoConLogo(512, escala(1.1))).ensureAlpha()
+  .composite([{ input: esquinasEscritorio, blend: 'dest-in' }]).png().toBuffer();
+await guardar(`icono-${VERSION}-512.png`, escritorio);
+await guardar(`icono-${VERSION}-192.png`, await sharp(escritorio).resize(192, 192).png().toBuffer());
+await guardar(`icono-${VERSION}-64.png`, await sharp(escritorio).resize(64, 64).png().toBuffer());
 
 // Android "maskable": el celular puede recortarlo en círculo; el dibujo debe caber en el 80 % central.
 // También es el que muestra Android en su apertura (dentro de un círculo).

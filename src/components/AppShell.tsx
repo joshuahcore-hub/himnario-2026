@@ -24,9 +24,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <div className="flex flex-col min-h-screen bg-background">
       {/* Safe area top padding instead of header bar */}
       <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
-      {/* En pantallas anchas (computador) el contenido va en una columna centrada del mismo ancho que la barra de
-          abajo, como en el celular: si no, los botones y tarjetas se estiraban de lado a lado (Josué, 1.4.7). */}
-      <main className="flex-1 overflow-hidden w-full max-w-lg mx-auto">
+      {/* Computador: cada pantalla decide su ancho (Josué, 1.4.8). Ajustes, Crear y Administración en una columna
+          (max-w-lg); el himnario algo más abierto (max-w-3xl); las minutas a todo el ancho, para ver varias. */}
+      <main className="flex-1 overflow-hidden w-full">
         {children}
       </main>
 
