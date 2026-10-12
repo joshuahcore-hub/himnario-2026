@@ -168,9 +168,9 @@ export interface Translations {
   access_intro: string;
   access_request: string;
   access_dialog_title: string;
-  access_my_request: string;
+  access_viewer: string;
+  access_want_create: string;
   access_my_profile: string;
-  access_my_access: string;
   settings_more: string;
   access_dialog_text: string;
   access_send: string;
@@ -415,17 +415,17 @@ export const es: Translations = {
   access_intro: 'Para crear o editar minutas, pide acceso de creador. El administrador lo aprobará.',
   access_request: 'Solicitar ser creador',
   access_dialog_title: 'Solicitar ser creador',
-  access_my_request: 'Mi solicitud',
+  access_viewer: 'Eres visor: puedes ver el himnario y las minutas publicadas, incluso sin internet.',
+  access_want_create: '¿Quieres crear minutas?',
   access_my_profile: 'Mi perfil',
-  access_my_access: 'Mi acceso',
   settings_more: 'Más opciones',
   access_dialog_text: 'Escribe tu nombre y elige un color: así se distinguen tus minutas.',
   access_send: 'Enviar solicitud',
   access_name_required: 'Escribe tu nombre.',
-  access_pending: 'Solicitud enviada. Espera a que el administrador la apruebe.',
+  access_pending: 'Tu solicitud está enviada. Espera a que el administrador la apruebe.',
   access_check: 'Revisar estado',
   access_approved: 'Eres creador: puedes crear, editar y borrar minutas.',
-  access_admin: 'Este celular es el administrador.',
+  access_admin: 'Eres administrador: puedes crear, editar y borrar minutas, y aprobar creadores.',
   access_rejected: 'Tu solicitud anterior fue rechazada. Puedes volver a solicitarlo.',
   access_disabled: 'El administrador deshabilitó el acceso de este celular.',
   access_edit_profile: 'Cambiar nombre o color',
@@ -657,17 +657,17 @@ export const en: Translations = {
   access_intro: 'To create or edit services, request creator access. The administrator will approve it.',
   access_request: 'Request creator access',
   access_dialog_title: 'Request creator access',
-  access_my_request: 'My request',
+  access_viewer: 'You are a viewer: you can see the hymnal and published services, even offline.',
+  access_want_create: 'Want to create services?',
   access_my_profile: 'My profile',
-  access_my_access: 'My access',
   settings_more: 'More options',
   access_dialog_text: 'Enter your name and pick a color: it identifies your services.',
   access_send: 'Send request',
   access_name_required: 'Enter your name.',
-  access_pending: 'Request sent. Wait for the administrator to approve it.',
+  access_pending: 'Your request has been sent. Wait for the administrator to approve it.',
   access_check: 'Check status',
   access_approved: 'You are a creator: you can create, edit and delete services.',
-  access_admin: 'This phone is the administrator.',
+  access_admin: 'You are the administrator: you can create, edit and delete services, and approve creators.',
   access_rejected: 'Your previous request was rejected. You can request access again.',
   access_disabled: 'The administrator disabled access for this phone.',
   access_edit_profile: 'Change name or color',

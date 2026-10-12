@@ -1,15 +1,15 @@
 // Menú "⋮" arriba a la derecha de Ajustes con las opciones avanzadas de acceso (Josué, 1.4.0: no deben estar a la
-// vista en Ajustes). Según quién sea:
-//   visor (o rechazado) → "Solicitar ser creador" (panel de nombre y color)
-//   solicitud enviada   → "Mi solicitud" (estado + Revisar estado)
-//   creador aprobado    → "Mi perfil" (nombre y color; se pueden cambiar)
-//   administrador       → "Mi perfil" y "Administración"
-//   deshabilitado       → "Mi acceso" (aviso)
+// vista en Ajustes). El menú es igual para todos: "Mi perfil" (y "Administración" solo el admin). Mi perfil muestra:
+//   visor (o rechazado) → "Eres visor: …" + botón "Solicitar ser creador" (panel de nombre y color)
+//   solicitud enviada   → aviso de espera + "Revisar estado"
+//   creador aprobado    → "Eres creador: …" + nombre y color (se pueden cambiar)
+//   administrador       → "Eres administrador…" + nombre y color
+//   deshabilitado       → aviso
 // "Activar como administrador" no aparece en ningún lado: se abre tocando 5 veces la versión en Ajustes.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Check, Clock, EllipsisVertical, Loader2, PenLine, RefreshCw, Shield, ShieldCheck, ShieldX, UserRound, UserRoundPlus } from 'lucide-react';
+import { Check, Clock, EllipsisVertical, Eye, Loader2, PenLine, RefreshCw, Shield, ShieldCheck, ShieldX, UserRound, UserRoundPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -122,24 +122,35 @@ export default function MenuAcceso() {
   const abrir = (d: 'solicitud' | 'perfil') => { setMenuAbierto(false); setEditandoPerfil(false); setDialogo(d); };
   const cerrarDialogo = () => { setDialogo(null); setEditandoPerfil(false); setClave(''); };
 
-  const opciones: React.ReactNode[] = [];
-  if (acceso.estado === 'ninguno' || acceso.estado === 'rechazado') {
-    opciones.push(<OpcionMenu key="sol" icono={<UserRoundPlus size={16} />} texto={t.access_request} onClick={() => abrir('solicitud')} />);
-  } else if (acceso.estado === 'pendiente') {
-    opciones.push(<OpcionMenu key="sol" icono={<Clock size={16} />} texto={t.access_my_request} onClick={() => abrir('perfil')} />);
-  } else if (acceso.estado === 'deshabilitado') {
-    opciones.push(<OpcionMenu key="acc" icono={<ShieldX size={16} />} texto={t.access_my_access} onClick={() => abrir('perfil')} />);
-  } else {
-    opciones.push(<OpcionMenu key="perfil" icono={<UserRound size={16} />} texto={t.access_my_profile} onClick={() => abrir('perfil')} />);
-    if (acceso.esAdmin) {
-      opciones.push(<OpcionMenu key="admin" icono={<Shield size={16} />} texto={t.admin_title}
-        onClick={() => { setMenuAbierto(false); navigate('/admin'); }} />);
-    }
+  // Menú igual para todos (Josué: "mientras menos enredo, mejor"): "Mi perfil" siempre; "Administración" solo el admin.
+  const opciones: React.ReactNode[] = [
+    <OpcionMenu key="perfil" icono={<UserRound size={16} />} texto={t.access_my_profile} onClick={() => abrir('perfil')} />,
+  ];
+  if (acceso.esAdmin) {
+    opciones.push(<OpcionMenu key="admin" icono={<Shield size={16} />} texto={t.admin_title}
+      onClick={() => { setMenuAbierto(false); navigate('/admin'); }} />);
   }
 
-  // Contenido del panel "Mi solicitud / Mi perfil / Mi acceso".
+  // Contenido de "Mi perfil" según quién sea.
   let perfil: React.ReactNode = null;
-  if (acceso.estado === 'pendiente') {
+  if (acceso.estado === 'ninguno' || acceso.estado === 'rechazado') {
+    // Visor: qué puede hacer y, como paso siguiente, pedir ser creador.
+    perfil = (
+      <div className="space-y-3">
+        <p className="text-xs text-foreground flex items-start gap-1.5">
+          <Eye size={14} className="text-muted-foreground shrink-0 mt-px" />{t.access_viewer}
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          {acceso.estado === 'rechazado' ? t.access_rejected : t.access_want_create}
+        </p>
+        <div className="flex justify-end">
+          <Button className="h-9 px-4 text-sm gap-1.5" onClick={() => setDialogo('solicitud')}>
+            <UserRoundPlus size={14} />{t.access_request}
+          </Button>
+        </div>
+      </div>
+    );
+  } else if (acceso.estado === 'pendiente') {
     perfil = (
       <div className="space-y-3">
         <p className="text-xs text-foreground flex items-start gap-1.5">
@@ -183,8 +194,6 @@ export default function MenuAcceso() {
     );
   }
 
-  const tituloPerfil = acceso.estado === 'pendiente' ? t.access_my_request
-    : acceso.estado === 'deshabilitado' ? t.access_my_access : t.access_my_profile;
 
   return (
     <>
@@ -222,7 +231,7 @@ export default function MenuAcceso() {
       <Dialog open={dialogo === 'perfil'} onOpenChange={o => { if (!o) cerrarDialogo(); }}>
         <DialogContent className="max-w-[340px] rounded-2xl" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle className="text-sm">{tituloPerfil}</DialogTitle>
+            <DialogTitle className="text-sm">{t.access_my_profile}</DialogTitle>
           </DialogHeader>
           {perfil}
         </DialogContent>
