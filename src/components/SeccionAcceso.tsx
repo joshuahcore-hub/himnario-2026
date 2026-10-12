@@ -77,18 +77,25 @@ function FormNombreColor({ nombreInicial = '', colorInicial = COLORES[7], textoB
       <Input value={nombre} onChange={e => setNombre(e.target.value)} placeholder={t.setup_name_placeholder} maxLength={40} className="h-10 text-sm" />
       <p className="text-[11px] text-muted-foreground text-center">{t.setup_color}</p>
       <SelectorColor valor={color} onChange={setColor} />
-      {/* Botones compactos a la derecha, como los de un aviso (Josué: a todo lo ancho se veían grandes). */}
-      {(!soloSiCambia || cambio) && (
-        <div className="flex justify-end gap-2 pt-1 animate-in fade-in duration-200">
-          {soloSiCambia && onCancelar && (
-            <Button variant="ghost" onClick={onCancelar} disabled={enviando} className="h-9 px-4 text-sm text-muted-foreground">{t.minutas_cancel}</Button>
-          )}
-          <Button onClick={enviar} disabled={enviando} className="h-9 px-4 text-sm gap-1.5">
-            {enviando && <Loader2 size={14} className="animate-spin" />}
-            {textoBoton}
-          </Button>
-        </div>
-      )}
+      {/* Botones compactos a la derecha, como los de un aviso (Josué: a todo lo ancho se veían grandes).
+          Con soloSiCambia el espacio queda SIEMPRE reservado y los botones solo se desvanecen: si aparecieran de la
+          nada, el panel (centrado en la pantalla) crecería y se movería bajo el dedo mientras se elige el color. */}
+      {(() => {
+        const visibles = !soloSiCambia || cambio;
+        return (
+          <div className={`flex justify-end gap-2 pt-1 transition-opacity duration-200 ${visibles ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+               aria-hidden={!visibles}>
+            {soloSiCambia && onCancelar && (
+              <Button variant="ghost" onClick={onCancelar} disabled={enviando || !visibles} tabIndex={visibles ? 0 : -1}
+                className="h-9 px-4 text-sm text-muted-foreground">{t.minutas_cancel}</Button>
+            )}
+            <Button onClick={enviar} disabled={enviando || !visibles} tabIndex={visibles ? 0 : -1} className="h-9 px-4 text-sm gap-1.5">
+              {enviando && <Loader2 size={14} className="animate-spin" />}
+              {textoBoton}
+            </Button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
