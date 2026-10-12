@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { getHymns, preloadHymnImageBoth, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
@@ -7,6 +7,70 @@ import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
 import ZoomableImage from '@/components/ZoomableImage';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
+/**
+ * Barra para saltar a cualquier himno sin pasar uno por uno (pedido de Josué): se arrastra el círculo (o se toca un
+ * punto de la barra) y, al soltar, se salta a ese himno. Mientras se arrastra, una burbuja muestra número y título.
+ * Recorre la misma lista que el carrusel (si hay filtros, solo los filtrados).
+ */
+function BarraHimnos({ total, indice, etiqueta, onVistaPrevia, onElegir }: {
+  total: number;
+  indice: number;
+  etiqueta: (i: number) => string;
+  onVistaPrevia: (i: number | null) => void;
+  onElegir: (i: number) => void;
+}) {
+  const pista = useRef<HTMLDivElement>(null);
+  const [arrastre, setArrastre] = useState<number | null>(null); // 0..1 mientras se arrastra
+  const ultimo = Math.max(1, total - 1);
+  const ratioDe = (x: number) => {
+    const r = pista.current!.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (x - r.left) / r.width));
+  };
+  const mover = (ratio: number) => { setArrastre(ratio); onVistaPrevia(Math.round(ratio * ultimo)); };
+  const soltar = () => {
+    if (arrastre === null) return;
+    const i = Math.round(arrastre * ultimo);
+    setArrastre(null);
+    onVistaPrevia(null);
+    onElegir(i);
+  };
+
+  const ratio = arrastre ?? (total > 1 ? indice / ultimo : 0);
+  const elegido = arrastre !== null ? Math.round(arrastre * ultimo) : null;
+
+  return (
+    <div
+      className="relative h-10 flex items-center px-8 w-full max-w-lg mx-auto"
+      style={{ touchAction: 'none' }}
+      onPointerDown={e => { e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId); mover(ratioDe(e.clientX)); }}
+      onPointerMove={e => { if (arrastre !== null) mover(ratioDe(e.clientX)); }}
+      onPointerUp={soltar}
+      onPointerCancel={() => { setArrastre(null); onVistaPrevia(null); }}
+    >
+      <div ref={pista} className="relative w-full h-1 rounded-full bg-foreground/10">
+        {/* Parte recorrida */}
+        <div className="absolute left-0 top-0 h-full rounded-full bg-primary/40"
+             style={{ width: `${ratio * 100}%`, transition: arrastre !== null ? 'none' : 'width 220ms ease-out' }} />
+        {/* Círculo: sigue el dedo; al soltar se queda donde quedó el himno elegido */}
+        <div className="absolute top-1/2 rounded-full bg-primary shadow-md"
+             style={{
+               left: `${ratio * 100}%`,
+               width: arrastre !== null ? 22 : 16, height: arrastre !== null ? 22 : 16,
+               transform: 'translate(-50%, -50%)',
+               transition: arrastre !== null ? 'width 150ms ease-out, height 150ms ease-out' : 'left 220ms ease-out, width 150ms ease-out, height 150ms ease-out',
+             }} />
+        {/* Burbuja con el himno al que se va a saltar */}
+        {elegido !== null && (
+          <div className="absolute bottom-full mb-4 -translate-x-1/2 max-w-[70vw] truncate rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground shadow-lg pointer-events-none animate-in fade-in zoom-in-95 duration-150"
+               style={{ left: `${ratio * 100}%` }}>
+            {etiqueta(elegido)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function HymnDetail() {
   const { number } = useParams<{ number: string }>();
   const navigate = useNavigate();
@@ -35,6 +99,9 @@ export default function HymnDetail() {
   /** Completa ya el paso a otro himno que se está animando (null si no hay ninguno). */
   const terminarPaso = useRef<null | (() => void)>(null);
   const [indiceDestino, setIndiceDestino] = useState<number | null>(null);
+  // Himno que se está eligiendo en la barra (el contador lo muestra mientras se arrastra).
+  const [vistaPrevia, setVistaPrevia] = useState<number | null>(null);
+  const tituloDe = useMemo(() => new Map(initial.hymns.map(h => [h.hymn_number, h.title])), [initial]);
 
   useEffect(() => {
     if (navNumbers.length === 0) return;
@@ -204,9 +271,21 @@ export default function HymnDetail() {
           {renderSlide(nextNum, 1)}
         </div>
       </div>
-      {/* Contador justo encima de la barra de pestañas (h-16, z-50), que lo tapaba. */}
-      <div className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(4rem + 0.5rem)' }}>
-        <p className="text-muted-foreground/40 text-xs">{(indiceDestino ?? currentIndex) + 1} / {navNumbers.length}</p>
+      {/* Contador y, debajo, la barra para saltar a cualquier himno; todo encima de la barra de pestañas (h-16, z-50). */}
+      <div className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(4rem + 2.75rem)' }}>
+        <p className="text-muted-foreground/40 text-xs">{(vistaPrevia ?? indiceDestino ?? currentIndex) + 1} / {navNumbers.length}</p>
+      </div>
+      <div className="absolute left-0 right-0 z-20" style={{ bottom: 'calc(4rem + 0.25rem)' }}>
+        <BarraHimnos
+          total={navNumbers.length}
+          indice={indiceDestino ?? currentIndex}
+          etiqueta={i => `${navNumbers[i]} · ${tituloDe.get(navNumbers[i]) ?? ''}`}
+          onVistaPrevia={setVistaPrevia}
+          onElegir={i => {
+            if (terminarPaso.current) terminarPaso.current();
+            if (i !== currentIndex) goTo(i);
+          }}
+        />
       </div>
     </div>
   );
