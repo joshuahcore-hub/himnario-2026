@@ -52,6 +52,9 @@ export default function Minutas() {
 
   // El basurero primero pregunta (Josué): "¿Eliminar…?" con Eliminar / Cancelar; tocar fuera cancela.
   const [confirmarBorrar, setConfirmarBorrar] = useState(false);
+  // Cantidad fijada al abrir el aviso: al eliminar se vacía la selección y, si no, el título cambiaría a
+  // "¿Eliminar 0 minutas?" justo mientras el aviso se desvanece.
+  const [cantidadABorrar, setCantidadABorrar] = useState(0);
   const [borrando, setBorrando] = useState(false);
   const borrar = async () => {
     const ids = [...selected];
@@ -257,7 +260,7 @@ export default function Minutas() {
             </button>
           )}
           <button
-            onClick={() => setConfirmarBorrar(true)}
+            onClick={() => { setCantidadABorrar(selected.size); setConfirmarBorrar(true); }}
             disabled={selected.size === 0}
             className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-destructive disabled:opacity-30 transition-opacity"
             aria-label={t.minutas_delete}
@@ -272,7 +275,7 @@ export default function Minutas() {
     <Dialog open={confirmarBorrar} onOpenChange={abierto => { if (!abierto && !borrando) setConfirmarBorrar(false); }}>
       <DialogContent className="max-w-[320px] rounded-2xl gap-3">
         <DialogHeader>
-          <DialogTitle className="text-base">{t.minutas_delete_confirm_title(selected.size)}</DialogTitle>
+          <DialogTitle className="text-base">{t.minutas_delete_confirm_title(cantidadABorrar)}</DialogTitle>
           <DialogDescription className="text-xs">{t.minutas_delete_confirm_text}</DialogDescription>
         </DialogHeader>
         <div className="flex gap-2 pt-1">

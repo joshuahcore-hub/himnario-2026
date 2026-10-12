@@ -113,21 +113,26 @@ export default function MenuAcceso() {
   const navigate = useNavigate();
   const acceso = useAcceso();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const [dialogo, setDialogo] = useState<null | 'solicitud' | 'perfil' | 'admin'>(null);
+  const [dialogo, setDialogo] = useState<null | 'perfil' | 'admin'>(null);
   const [editandoPerfil, setEditandoPerfil] = useState(false);
   const [clave, setClave] = useState('');
+  // Visor pidiendo ser creador: el MISMO panel "Mi perfil" cambia a nombre + color (antes se cerraba un panel y
+  // se abría otro, y por un instante se juntaban los dos fondos oscuros).
+  const [pidiendo, setPidiendo] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useAlTocarFuera(menuRef, menuAbierto, useCallback(() => setMenuAbierto(false), []));
 
   useEffect(() => {
-    const abrir = () => { if (!acceso.esAdmin) setDialogo('admin'); };
+    const abrir = () => { if (!acceso.esAdmin) { setClave(''); setDialogo('admin'); } };
     window.addEventListener(EVENTO_ACTIVAR_ADMIN, abrir);
     return () => window.removeEventListener(EVENTO_ACTIVAR_ADMIN, abrir);
   }, [acceso.esAdmin]);
 
   const autor = acceso.nombre && acceso.color ? { nombre: acceso.nombre, color: acceso.color } : null;
-  const abrir = (d: 'solicitud' | 'perfil') => { setMenuAbierto(false); setEditandoPerfil(false); setDialogo(d); };
-  const cerrarDialogo = () => { setDialogo(null); setEditandoPerfil(false); setClave(''); };
+  // Los paneles se reinician al ABRIR, nunca al cerrar: si se reiniciaran al cerrar, durante el desvanecimiento se
+  // vería por un instante la pantalla anterior (p. ej. "Mi perfil" al tocar fuera mientras se elige color; Josué).
+  const abrir = (d: 'perfil') => { setMenuAbierto(false); setEditandoPerfil(false); setPidiendo(false); setDialogo(d); };
+  const cerrarDialogo = () => setDialogo(null);
 
   // Menú igual para todos (Josué: "mientras menos enredo, mejor"): "Mi perfil" siempre; "Administración" solo el admin.
   const opciones: React.ReactNode[] = [
@@ -140,7 +145,20 @@ export default function MenuAcceso() {
 
   // Contenido de "Mi perfil" según quién sea.
   let perfil: React.ReactNode = null;
-  if (acceso.estado === 'ninguno' || acceso.estado === 'rechazado') {
+  if ((acceso.estado === 'ninguno' || acceso.estado === 'rechazado') && pidiendo) {
+    // Pedir ser creador: nombre + color. Al enviar, el panel pasa solo a "Tu solicitud está enviada".
+    perfil = (
+      <div className="space-y-3">
+        <p className="text-[11px] text-muted-foreground">{t.access_dialog_text}</p>
+        <FormNombreColor
+          nombreInicial={acceso.nombre}
+          colorInicial={acceso.color}
+          textoBoton={t.access_send}
+          onEnviar={async (nombre, color) => { await acceso.solicitar(nombre, color); setPidiendo(false); }}
+        />
+      </div>
+    );
+  } else if (acceso.estado === 'ninguno' || acceso.estado === 'rechazado') {
     // Visor: qué puede hacer y, como paso siguiente, pedir ser creador.
     perfil = (
       <div className="space-y-3">
@@ -151,7 +169,7 @@ export default function MenuAcceso() {
           {acceso.estado === 'rechazado' ? t.access_rejected : t.access_want_create}
         </p>
         <div className="flex justify-end">
-          <Button className="h-9 px-4 text-sm gap-1.5" onClick={() => setDialogo('solicitud')}>
+          <Button className="h-9 px-4 text-sm gap-1.5" onClick={() => setPidiendo(true)}>
             <UserRoundPlus size={14} />{t.access_request}
           </Button>
         </div>
@@ -163,10 +181,12 @@ export default function MenuAcceso() {
         <p className="text-xs text-foreground flex items-start gap-1.5">
           <Clock size={14} className="text-amber-500 shrink-0 mt-px" />{t.access_pending}
         </p>
-        {autor && <ChipAutor autor={autor} />}
-        <Button variant="outline" className="w-full h-10 gap-1.5 text-sm" onClick={() => acceso.recargar()}>
-          <RefreshCw size={14} />{t.access_check}
-        </Button>
+        <div className="flex items-center justify-between">
+          {autor && <ChipAutor autor={autor} />}
+          <Button variant="outline" className="h-9 px-4 gap-1.5 text-sm" onClick={() => acceso.recargar()}>
+            <RefreshCw size={14} />{t.access_check}
+          </Button>
+        </div>
       </div>
     );
   } else if (acceso.estado === 'deshabilitado') {
@@ -216,29 +236,13 @@ export default function MenuAcceso() {
         )}
       </div>
 
-      {/* Pedir ser creador: nombre + color (tocar fuera cierra; sin foco automático: no abrir el teclado solo). */}
-      <Dialog open={dialogo === 'solicitud'} onOpenChange={o => { if (!o) cerrarDialogo(); }}>
-        <DialogContent className="max-w-[340px] rounded-2xl" onOpenAutoFocus={e => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="text-sm">{t.access_dialog_title}</DialogTitle>
-            <DialogDescription className="text-[11px]">
-              {acceso.estado === 'rechazado' ? t.access_rejected : t.access_dialog_text}
-            </DialogDescription>
-          </DialogHeader>
-          <FormNombreColor
-            nombreInicial={acceso.nombre}
-            colorInicial={acceso.color}
-            textoBoton={t.access_send}
-            onEnviar={async (nombre, color) => { await acceso.solicitar(nombre, color); cerrarDialogo(); }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Mi solicitud / Mi perfil / Mi acceso. */}
+      {/* Mi perfil (y, para el visor, pedir ser creador en el mismo panel). Tocar fuera cierra; sin foco
+          automático: el teclado no se abre solo. */}
       <Dialog open={dialogo === 'perfil'} onOpenChange={o => { if (!o) cerrarDialogo(); }}>
         <DialogContent className="max-w-[340px] rounded-2xl" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle className="text-sm">{t.access_my_profile}</DialogTitle>
+            <DialogTitle className="text-sm">{pidiendo ? t.access_dialog_title : t.access_my_profile}</DialogTitle>
+            <DialogDescription className="sr-only">{t.access_my_profile}</DialogDescription>
           </DialogHeader>
           {perfil}
         </DialogContent>
