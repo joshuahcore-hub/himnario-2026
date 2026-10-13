@@ -200,6 +200,15 @@ export default function EditorMinuta() {
       </div>
     );
   }
+  // Solo quien creó la minuta puede editarla (también el administrador; 1.5.4). Las ajenas se duplican.
+  if (id && existente && !existente.mia) {
+    return (
+      <div className="flex flex-col items-center justify-center px-6 text-center gap-3" style={{ height: 'calc(100dvh - 4rem)' }}>
+        <p className="text-sm text-muted-foreground">{t.minuta_not_yours}</p>
+        <Button variant="outline" className="h-10 px-5 text-sm" onClick={() => navigate('/minutas')}>{t.minutas_title}</Button>
+      </div>
+    );
+  }
   if (id && !existente) {
     return (
       <div className="flex items-center justify-center px-6 text-center" style={{ height: 'calc(100dvh - 4rem)' }}>

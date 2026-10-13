@@ -96,6 +96,7 @@ export interface Translations {
   // Minutas en línea
   minuta_creada_por: string;
   minuta_duplicada_por: string;
+  minuta_not_yours: string;
   minuta_duplicate: string;
   minuta_duplicated_toast: string;
   minuta_publish_changes: string;
@@ -341,6 +342,7 @@ export const es: Translations = {
 
   minuta_creada_por: 'Creada por',
   minuta_duplicada_por: 'Duplicada por',
+  minuta_not_yours: 'Esta minuta es de otra persona: solo puedes verla o duplicarla. Tu copia sí la puedes editar.',
   minuta_duplicate: 'Duplicar',
   minuta_duplicated_toast: 'Minuta duplicada: la copia es tuya y queda solo para ti.',
   minuta_publish_changes: 'Publicar cambios',
@@ -583,6 +585,7 @@ export const en: Translations = {
 
   minuta_creada_por: 'Created by',
   minuta_duplicada_por: 'Duplicated by',
+  minuta_not_yours: 'This service belongs to someone else: you can only view or duplicate it. You can edit your copy.',
   minuta_duplicate: 'Duplicate',
   minuta_duplicated_toast: 'Service duplicated: the copy is yours and only you can see it.',
   minuta_publish_changes: 'Publish changes',

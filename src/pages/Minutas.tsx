@@ -78,6 +78,9 @@ export default function Minutas() {
   // administrador (Josué: en una ajena el candado la escondía para todos menos su autor, y era confuso).
   const unaSeleccionada = selected.size === 1 ? minutas.find(m => m.id === [...selected][0]) : undefined;
   const puedeCambiarVisibilidad = !!unaSeleccionada?.mia;
+  // Editar y borrar SOLO las propias, también el administrador (Josué, 1.5.4). En las ajenas: ver y duplicar.
+  const puedeEditar1 = !!unaSeleccionada?.mia;
+  const todasPropias = selected.size > 0 && [...selected].every(id => minutas.find(m => m.id === id)?.mia);
   const cambiarVisibilidad = async () => {
     if (!unaSeleccionada) return;
     const publicar = !unaSeleccionada.publicada;
@@ -203,7 +206,8 @@ export default function Minutas() {
                       }`}>
                         {selected.has(m.id) && <span className="text-xs">✓</span>}
                       </div>
-                      <button
+                      {/* Fijar: solo en las propias. */}
+                      {m.mia && <button
                         className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center ${
                           m.fijada ? 'bg-primary text-primary-foreground' : 'bg-card/80 border border-border text-muted-foreground'
                         }`}
@@ -211,7 +215,7 @@ export default function Minutas() {
                         aria-label={t.minutas_pin}
                       >
                         <Pin size={10} />
-                      </button>
+                      </button>}
                     </>
                   )}
                   {/* Quién la creó/editó: solo el administrador, y solo aquí en la lista (no dentro de la minuta). */}
@@ -224,24 +228,24 @@ export default function Minutas() {
         </div>
       )}
 
-      {/* Acciones de la selección: abajo, al alcance del pulgar. Solo íconos. Con una sola minuta: lápiz = editar,
-          copiar = duplicar (copia privada propia), globo/candado = publicar/privada (solo en las propias: en
-          las ajenas ni se muestra).
-          Basurero = borrar las seleccionadas. */}
+      {/* Acciones de la selección: abajo, al alcance del pulgar. Solo íconos. Copiar = duplicar (copia privada
+          propia; con una sola minuta, propia o ajena). Lápiz (editar), globo/candado (publicar/privada) y basurero
+          SOLO si son propias: en las ajenas ni aparecen, tampoco para el administrador (1.5.4). */}
       {selectMode && (
         <div
           className="fixed left-0 right-0 z-40 flex justify-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-200"
           style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)' }}
           onClick={e => e.stopPropagation()}
         >
-          <button
-            onClick={() => { const [id] = [...selected]; salirSeleccion(); navigate(`/editar/${id}`); }}
-            disabled={selected.size !== 1}
-            className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
-            aria-label={t.create_edit}
-          >
-            <Pencil size={22} />
-          </button>
+          {puedeEditar1 && (
+            <button
+              onClick={() => { const [id] = [...selected]; salirSeleccion(); navigate(`/editar/${id}`); }}
+              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
+              aria-label={t.create_edit}
+            >
+              <Pencil size={22} />
+            </button>
+          )}
           <button
             onClick={duplicar}
             disabled={selected.size !== 1 || duplicando}
@@ -259,14 +263,15 @@ export default function Minutas() {
               {unaSeleccionada?.publicada ? <Lock size={22} /> : <Globe size={22} className="text-green-600 dark:text-green-400" />}
             </button>
           )}
-          <button
-            onClick={() => { setCantidadABorrar(selected.size); setConfirmarBorrar(true); }}
-            disabled={selected.size === 0}
-            className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-destructive disabled:opacity-30 transition-opacity"
-            aria-label={t.minutas_delete}
-          >
-            <Trash2 size={22} />
-          </button>
+          {todasPropias && (
+            <button
+              onClick={() => { setCantidadABorrar(selected.size); setConfirmarBorrar(true); }}
+              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-destructive animate-in fade-in zoom-in-95 duration-200"
+              aria-label={t.minutas_delete}
+            >
+              <Trash2 size={22} />
+            </button>
+          )}
         </div>
       )}
     </div>

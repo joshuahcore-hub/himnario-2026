@@ -209,6 +209,9 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
 
   if (metodo === 'PATCH' && id) {
     const actual = await obtenerMinuta(env, id, conAutores, yo.id);
+    // Editar (y fijar, publicar o dejar privada) SOLO quien la creó: tampoco el administrador (Josué, 1.5.4).
+    // En una minuta ajena se puede solo ver y duplicar; la copia es de quien duplica.
+    if (!actual.mia) throw new ErrorApi(403, 'Esta minuta es de otra persona: solo puedes duplicarla y editar tu copia.');
     const body = await leerJson(request);
     const cambios: string[] = [];
     const valores: unknown[] = [];
@@ -240,8 +243,10 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
   }
 
   if (metodo === 'DELETE' && id) {
+    // Borrar SOLO quien la creó (tampoco el administrador).
     // Se marca como borrada (no se pierde): el administrador puede restaurarla.
     const actual = await obtenerMinuta(env, id, conAutores, yo.id);
+    if (!actual.mia) throw new ErrorApi(403, 'Esta minuta es de otra persona: solo puedes duplicarla y editar tu copia.');
     await env.DB.batch([
       env.DB.prepare('UPDATE minutas SET borrada = 1, editada_por = ?, actualizada = ? WHERE id = ?').bind(yo.id, ahora(), id),
       registrar(env, id, yo.id, 'borrada', actual.titulo),
