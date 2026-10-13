@@ -129,7 +129,7 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
       {/* "Listo" flotando abajo, al alcance del pulgar */}
       <div className="absolute left-0 right-0 bottom-0 px-5 pt-6 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none"
            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
-        <Button onClick={onClose} className="w-full h-12 text-base gap-2 shadow-lg pointer-events-auto rounded-xl">
+        <Button onClick={onClose} className="mx-auto flex h-11 px-8 text-sm gap-2 shadow-lg pointer-events-auto rounded-full">
           <Check size={18} />
           {t.editor_done}{seleccionados.length > 0 ? ` (${seleccionados.length})` : ''}
         </Button>
@@ -411,7 +411,7 @@ export default function EditorMinuta() {
       }}>
         {yaPublicada ? (
           // Ya la ven todos: un solo botón, "Publicar cambios" (solo aparece si hubo cambios).
-          <Button onClick={() => guardar(false)} disabled={!!guardando} className="flex-1 max-w-[260px] h-10 text-sm gap-1.5">
+          <Button onClick={() => guardar(false)} disabled={!!guardando} className="h-10 min-w-[120px] px-5 text-sm gap-1.5">
             {guardando ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
             {t.minuta_publish_changes}
           </Button>
@@ -419,12 +419,12 @@ export default function EditorMinuta() {
           {/* Guardar (queda privada) solo si hay algo nuevo; Publicar siempre (centrado si va solo). */}
           {guardarEnBarra && (
             <Button onClick={() => guardar(false)} disabled={!!guardando} variant="outline"
-              className="flex-1 max-w-[260px] h-10 text-sm gap-1.5 animate-in fade-in zoom-in-95 duration-200">
+              className="h-10 min-w-[120px] px-5 text-sm gap-1.5 animate-in fade-in zoom-in-95 duration-200">
               {guardando === 'guardar' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
               {t.minutas_save}
             </Button>
           )}
-          <Button onClick={() => guardar(true)} disabled={!!guardando} className="flex-1 max-w-[260px] h-10 text-sm gap-1.5">
+          <Button onClick={() => guardar(true)} disabled={!!guardando} className="h-10 min-w-[120px] px-5 text-sm gap-1.5">
             {guardando === 'publicar' ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
             {t.minuta_publish}
           </Button>

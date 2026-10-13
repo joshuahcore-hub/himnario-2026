@@ -149,9 +149,12 @@ export default function PanelIA({ estado, onListo, onFallo }: {
           onChange={e => setTexto(e.target.value)}
           className="min-h-[140px] text-sm"
         />
-        <Button className="w-full h-10 text-sm gap-1.5" disabled={!texto.trim() || leyendo} onClick={generarDesdeTexto}>
-          <ListChecks size={16} />{t.ia_generate}
-        </Button>
+        {/* Botón del ancho de su texto, a la derecha (Josué: a todo lo ancho se veía raro). */}
+        <div className="flex justify-end">
+          <Button className="h-10 px-5 text-sm gap-1.5" disabled={!texto.trim() || leyendo} onClick={generarDesdeTexto}>
+            <ListChecks size={16} />{t.ia_generate}
+          </Button>
+        </div>
         <p className="text-[10px] text-muted-foreground/80 text-center">{t.ia_text_hint}</p>
       </div>
     </div>

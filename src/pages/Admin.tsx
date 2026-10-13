@@ -141,18 +141,18 @@ export default function Admin() {
         {d.yo && ` · ${t.admin_this_device}`}
       </p>
       {!d.yo && (
-        <div className="flex gap-2">
+        <div className="flex justify-end gap-2">
           {d.estado === 'pendiente' && (
             <>
-              <Button size="sm" className="flex-1 h-8 text-xs" onClick={() => cambiarEstado(d, 'aprobado')}>{t.admin_approve}</Button>
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => cambiarEstado(d, 'rechazado')}>{t.admin_reject}</Button>
+              <Button size="sm" className="h-8 px-4 text-xs" onClick={() => cambiarEstado(d, 'aprobado')}>{t.admin_approve}</Button>
+              <Button size="sm" variant="outline" className="h-8 px-4 text-xs" onClick={() => cambiarEstado(d, 'rechazado')}>{t.admin_reject}</Button>
             </>
           )}
           {d.estado === 'aprobado' && (
-            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs text-destructive" onClick={() => cambiarEstado(d, 'deshabilitado')}>{t.admin_disable}</Button>
+            <Button size="sm" variant="outline" className="h-8 px-4 text-xs text-destructive" onClick={() => cambiarEstado(d, 'deshabilitado')}>{t.admin_disable}</Button>
           )}
           {(d.estado === 'deshabilitado' || d.estado === 'rechazado') && (
-            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => cambiarEstado(d, 'aprobado')}>{t.admin_enable}</Button>
+            <Button size="sm" variant="outline" className="h-8 px-4 text-xs" onClick={() => cambiarEstado(d, 'aprobado')}>{t.admin_enable}</Button>
           )}
         </div>
       )}

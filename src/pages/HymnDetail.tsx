@@ -60,9 +60,12 @@ function BarraHimnos({ total, indice, etiqueta, onVistaPrevia, onElegir }: {
                transition: arrastre !== null ? 'width 150ms ease-out, height 150ms ease-out' : 'left 220ms ease-out, width 150ms ease-out, height 150ms ease-out',
              }} />
         {/* Burbuja con el himno al que se va a saltar */}
+        {/* Va SIEMPRE pegada al círculo: sin transición en su posición (la clase duration-150 hacía que "left" se
+            animara y la burbuja se quedaba atrás al mover rápido). En los extremos se corre hacia adentro para no
+            salirse de la pantalla (translateX de 0 % a -100 % según la posición). */}
         {elegido !== null && (
-          <div className="absolute bottom-full mb-4 -translate-x-1/2 max-w-[70vw] truncate rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground shadow-lg pointer-events-none animate-in fade-in zoom-in-95 duration-150"
-               style={{ left: `${ratio * 100}%` }}>
+          <div className="absolute bottom-full mb-4 max-w-[70vw] truncate rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground shadow-lg pointer-events-none"
+               style={{ left: `${ratio * 100}%`, transform: `translateX(-${ratio * 100}%)`, transition: 'none' }}>
             {etiqueta(elegido)}
           </div>
         )}

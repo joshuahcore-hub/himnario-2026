@@ -72,11 +72,18 @@ export function useReordenar(onMover: (desde: number, hasta: number) => void) {
         if (t.clientY < r.top + 50) desplazable.scrollTop -= 10;
         else if (t.clientY > r.bottom - 50) desplazable.scrollTop += 10;
       }
-      const dy = t.clientY - d.inicioY + ((desplazable?.scrollTop ?? 0) - d.inicioScroll);
+      // Tope: la fila no pasa más arriba del primer lugar ni más abajo del último. Sin tope, al arrastrarla hacia el
+      // final la lista "crecía" (el desplazamiento la seguía) y bajaba infinitamente (Josué, 1.5.1).
+      const ultimo = d.tops.length - 1;
+      const minDy = d.tops[0] - d.tops[d.desde];
+      const maxDy = d.tops[ultimo] + d.altos[ultimo] - (d.tops[d.desde] + d.altos[d.desde]);
+      const dy = Math.min(maxDy, Math.max(minDy,
+        t.clientY - d.inicioY + ((desplazable?.scrollTop ?? 0) - d.inicioScroll)));
       const centro = d.centros[d.desde] + dy;
       let hasta = d.desde;
-      for (let j = d.desde + 1; j < d.centros.length; j++) if (centro > d.centros[j]) hasta = j;
-      for (let j = d.desde - 1; j >= 0; j--) if (centro < d.centros[j]) hasta = j;
+      // >= / <=: en el tope (primer o último lugar) el centro queda justo sobre el de esa fila y debe contar.
+      for (let j = d.desde + 1; j < d.centros.length; j++) if (centro >= d.centros[j]) hasta = j;
+      for (let j = d.desde - 1; j >= 0; j--) if (centro <= d.centros[j]) hasta = j;
       d.hasta = hasta;
       setArrastre({ desde: d.desde, hasta, dy, alto: d.altos[d.desde], soltando: false });
     };

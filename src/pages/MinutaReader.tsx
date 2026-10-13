@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Maximize2, Minimize2, Share2 } from 'lucide-react';
+import { ArrowLeft, Maximize2, Share2 } from 'lucide-react';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
 import Zoomable from '@/components/Zoomable';
@@ -82,26 +82,20 @@ export default function MinutaReader() {
   /** Completa ya el paso a otra página que se está animando (null si no hay ninguno). */
   const terminarPaso = useRef<null | (() => void)>(null);
 
-  // Pantalla completa: sin barra de arriba ni puntitos, el fondo cubre toda la pantalla.
-  // En Android también se ocultan la barra del sistema (hora/batería) y la de navegación.
+  // Pantalla completa: sin barra de arriba ni puntitos; solo las canciones. Se sale con "atrás" del celular (o Esc).
+  // Sin la Fullscreen API del navegador (1.5.1): esa mostraba el aviso de Android "desliza para salir de pantalla
+  // completa", que Josué no quería; y tampoco hay botón para salir (pidió salir solo con "atrás").
   const [pantallaCompleta, setPantallaCompleta] = useState(false);
   const entrarPantallaCompleta = () => {
+    history.pushState({ pantallaCompleta: true }, '');
     setPantallaCompleta(true);
-    document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
-  };
-  const salirPantallaCompleta = () => {
-    setPantallaCompleta(false);
-    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   };
   useEffect(() => {
-    // Si se sale con el gesto "atrás" del sistema, la app también sale de pantalla completa.
-    const alCambiar = () => { if (!document.fullscreenElement) setPantallaCompleta(false); };
-    document.addEventListener('fullscreenchange', alCambiar);
-    return () => {
-      document.removeEventListener('fullscreenchange', alCambiar);
-      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-    };
-  }, []);
+    if (!pantallaCompleta) return;
+    const alVolver = () => setPantallaCompleta(false);
+    window.addEventListener('popstate', alVolver);
+    return () => window.removeEventListener('popstate', alVolver);
+  }, [pantallaCompleta]);
 
   useEffect(() => {
     if (!id) return;
@@ -121,11 +115,11 @@ export default function MinutaReader() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' && currentPage < totalPages - 1) setCurrentPage(p => p + 1);
       else if (e.key === 'ArrowLeft' && currentPage > 0) setCurrentPage(p => p - 1);
-      else if (e.key === 'Escape') navigate('/minutas');
+      else if (e.key === 'Escape') { if (pantallaCompleta) history.back(); else navigate('/minutas'); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPage, totalPages, navigate]);
+  }, [currentPage, totalPages, navigate, pantallaCompleta]);
 
   if (!minuta) {
     return (
@@ -201,8 +195,9 @@ export default function MinutaReader() {
         style={{ transform: `translateX(${offset * 100}%)` }}
       >
         {pageIdx === 0 ? (
+          // Portada sin recuadro, directo sobre el fondo, como las páginas de las canciones (Josué, 1.5.1).
           <div className="w-full max-w-sm">
-            <Portada date={minuta.fecha} songs={minuta.cantos} />
+            <Portada date={minuta.fecha} songs={minuta.cantos} plano />
           </div>
         ) : item?.isPalabra ? (
           <span className="text-3xl font-bold text-palabra">{t.portada_palabra}</span>
@@ -220,14 +215,7 @@ export default function MinutaReader() {
   return (
     <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-hidden">
       {pantallaCompleta ? (
-        <button
-          onClick={salirPantallaCompleta}
-          className="tap-btn fixed z-20 right-3 p-2.5 rounded-full bg-background/60 backdrop-blur-sm text-muted-foreground/80 border border-border/50 animate-in fade-in duration-300"
-          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
-          aria-label={t.minuta_exit_fullscreen}
-        >
-          <Minimize2 size={16} />
-        </button>
+        <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
       ) : (
         <div className="flex items-center gap-3 px-4 py-3 bg-card/80 backdrop-blur-sm border-b border-border z-10 relative"
              style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>

@@ -10,6 +10,8 @@ interface PortadaProps {
   editor?: Autor | null;
   /** La minuta es una copia: el chip dice "Duplicada por" en vez de "Creada por". */
   duplicada?: boolean;
+  /** Sin recuadro (bg/borde): escrita directo sobre el fondo, como en el lector de minutas. */
+  plano?: boolean;
 }
 
 export function ChipAutor({ autor, etiqueta }: { autor: Autor; etiqueta?: string }) {
@@ -22,7 +24,7 @@ export function ChipAutor({ autor, etiqueta }: { autor: Autor; etiqueta?: string
   );
 }
 
-export default function Portada({ date, songs, compact = false, creador, editor, duplicada = false }: PortadaProps) {
+export default function Portada({ date, songs, compact = false, creador, editor, duplicada = false, plano = false }: PortadaProps) {
   const { t } = useI18n();
   const numerados = renumerar(songs);
 
@@ -37,7 +39,8 @@ export default function Portada({ date, songs, compact = false, creador, editor,
   );
 
   return (
-    <div className={`bg-card rounded-xl border border-border shadow-sm ${compact ? 'p-3' : 'p-5'}`}>
+    // plano: sin recuadro, escrita directo sobre el fondo (en el lector, como las páginas de las canciones).
+    <div className={plano ? 'px-2' : `bg-card rounded-xl border border-border shadow-sm ${compact ? 'p-3' : 'p-5'}`}>
       <div className="flex items-start justify-between mb-4">
         <h2 className={`font-bold text-foreground ${compact ? 'text-base' : 'text-xl'}`}>{t.portada_title}</h2>
         <span className={`font-medium text-muted-foreground ${compact ? 'text-xs' : 'text-sm'}`}>{formatearFecha(date)}</span>
