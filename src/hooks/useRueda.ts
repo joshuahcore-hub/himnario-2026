@@ -56,10 +56,14 @@ export function useRueda({ cantidad, indice, onCambio, tamano, eje, deshabilitad
       t0.eje = Math.abs(delta) >= Math.abs(otra(e) - t0.otroEje);
     }
     if (!t0.eje) return; // (el desplazamiento de la página lo frena touch-action en el contenedor)
-    // Más allá de los extremos, resistencia elástica.
+    // Más allá del primer/último valor: tope elástico. La rueda cede cada vez menos y nunca pasa de ~media opción
+    // (Josué, 1.5.2: antes la resistencia era proporcional y, si seguía deslizando, la rueda se iba lejos).
     const posicion = indice + delta / tamano;
-    const exceso = posicion < 0 ? posicion : posicion > cantidad - 1 ? posicion - (cantidad - 1) : 0;
-    setArrastre(delta - exceso * tamano * 0.6);
+    const tope = Math.max(0, Math.min(cantidad - 1, posicion));
+    const excesoPx = (posicion - tope) * tamano;
+    const maximo = tamano * 0.55;
+    const elastico = Math.sign(excesoPx) * maximo * Math.abs(excesoPx) / (Math.abs(excesoPx) + maximo);
+    setArrastre((tope - indice) * tamano + elastico);
     t0.ultimos = [...t0.ultimos.slice(-4), { p, t: performance.now() }];
   }, [eje, indice, tamano, cantidad]);
 
