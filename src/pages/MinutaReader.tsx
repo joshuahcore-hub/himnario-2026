@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { flushSync } from 'react-dom';
 import { ArrowLeft, Maximize2, Share2 } from 'lucide-react';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
@@ -75,9 +76,18 @@ export default function MinutaReader() {
   const [currentPage, setCurrentPage] = useState(0);
   // Página hacia la que va la animación: el contador y los puntitos cambian en el instante de soltar, no al terminar.
   const [paginaDestino, setPaginaDestino] = useState<number | null>(null);
-  const [dragX, setDragX] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  // El deslizamiento mueve la tira DIRECTAMENTE (style), sin estado de React: no se redibujan las páginas en cada
+  // movimiento del dedo y se ve fluido (Josué, 1.5.3).
+  const carruselRef = useRef<HTMLDivElement>(null);
+  const arrastrando = useRef(false);
+  const animando = useRef(false);
+  const dragXRef = useRef(0);
+  const moverCarrusel = (px: number, animar: boolean) => {
+    const el = carruselRef.current;
+    if (!el) return;
+    el.style.transition = animar ? `transform ${DURACION_DESLIZAR}ms ${CURVA_DESLIZAR}` : 'none';
+    el.style.transform = `translateX(${px}px)`;
+  };
   const touchStartRef = useRef(0);
   /** Completa ya el paso a otra página que se está animando (null si no hay ninguno). */
   const terminarPaso = useRef<null | (() => void)>(null);
@@ -135,55 +145,54 @@ export default function MinutaReader() {
   const handleTouchStart = (e: React.TouchEvent) => {
     // Si todavía se está frenando el paso anterior y se toca de nuevo, se completa al instante (pasar varios rápido).
     if (terminarPaso.current) terminarPaso.current();
-    else if (isAnimating) return;
+    else if (animando.current) return;
     touchStartRef.current = e.touches[0].clientX;
-    setIsDragging(true);
-    setDragX(0);
+    arrastrando.current = true;
+    dragXRef.current = 0;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
+    if (!arrastrando.current) return;
     const dx = e.touches[0].clientX - touchStartRef.current;
     const atEdge = (dx > 0 && currentPage === 0) || (dx < 0 && currentPage === totalPages - 1);
-    setDragX(atEdge ? dx * 0.3 : dx);
+    dragXRef.current = atEdge ? dx * 0.3 : dx;
+    moverCarrusel(dragXRef.current, false);
   };
 
   const animateSlide = (direction: number) => {
-    setIsAnimating(true);
-    setDragX(direction * window.innerWidth);
+    animando.current = true;
+    moverCarrusel(direction * window.innerWidth, true);
     setPaginaDestino(currentPage - direction);
     const terminar = () => {
       terminarPaso.current = null;
-      setIsAnimating(false);
-      setDragX(0);
-      setPaginaDestino(null);
-      setCurrentPage(p => p - direction);
+      animando.current = false;
+      dragXRef.current = 0;
+      // La página nueva queda dibujada al centro y la tira vuelve a 0 en el mismo instante (sin parpadeo).
+      flushSync(() => { setPaginaDestino(null); setCurrentPage(p => p - direction); });
+      moverCarrusel(0, false);
     };
     const timer = setTimeout(terminar, DURACION_DESLIZAR);
     terminarPaso.current = () => { clearTimeout(timer); terminar(); };
   };
 
   const handleTouchEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
+    if (!arrastrando.current) return;
+    arrastrando.current = false;
+    const dragX = dragXRef.current;
     const threshold = window.innerWidth * 0.08;
     if (dragX < -threshold && currentPage < totalPages - 1) animateSlide(-1);
     else if (dragX > threshold && currentPage > 0) animateSlide(1);
-    else {
-      setIsAnimating(true);
-      setDragX(0);
-      setTimeout(() => setIsAnimating(false), DURACION_DESLIZAR);
+    else if (dragX !== 0) {
+      dragXRef.current = 0;
+      animando.current = true;
+      moverCarrusel(0, true);
+      setTimeout(() => { animando.current = false; }, DURACION_DESLIZAR);
     }
   };
 
   const paginaVisible = paginaDestino ?? currentPage;
   const itemAt = (page: number) => (page > 0 && page < totalPages ? swipeItems[page - 1] : null);
 
-  const carouselStyle: React.CSSProperties = {
-    transform: `translateX(${isDragging || isAnimating ? dragX : 0}px)`,
-    transition: isAnimating ? `transform ${DURACION_DESLIZAR}ms ${CURVA_DESLIZAR}` : 'none',
-    willChange: 'transform',
-  };
 
   const renderPage = (pageIdx: number, offset: number) => {
     if (pageIdx < 0 || pageIdx >= totalPages) return null;
@@ -243,7 +252,7 @@ export default function MinutaReader() {
         onTouchEnd={handleTouchEnd}
         style={{ touchAction: 'pan-y' }}
       >
-        <div className="absolute inset-0" style={carouselStyle}>
+        <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderPage(currentPage - 1, -1)}
           {renderPage(currentPage, 0)}
           {renderPage(currentPage + 1, 1)}

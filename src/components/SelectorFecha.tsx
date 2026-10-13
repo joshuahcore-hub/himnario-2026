@@ -5,6 +5,7 @@
 // ESPACIO px); al deslizar se ve asomar el mes vecino y la tira sigue el dedo. El nombre del mes
 // y las flechas de arriba no se mueven. Todos los meses con 6 filas: la tira es pareja.
 import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -36,9 +37,16 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   const [elegida, setElegida] = useState<Date>(() => aFecha(valor));
   const [mes, setMes] = useState<Date>(() => aFecha(valor));
 
-  // dx = desplazamiento de la tira respecto del mes actual; animando = con transición suave.
-  const [dx, setDx] = useState(0);
-  const [animando, setAnimando] = useState(false);
+  // La tira de meses se mueve DIRECTAMENTE (style.transform), sin estado de React: así, mientras el dedo se
+  // mueve, no se redibujan los tres calendarios en cada movimiento (eso se veía a saltos, "tac, tac"; Josué 1.5.3).
+  // Solo al terminar se cambia el mes (un render) y la tira vuelve al centro en el mismo instante (flushSync).
+  const tira = useRef<HTMLDivElement>(null);
+  const moverTira = (px: number, animar: boolean) => {
+    const el = tira.current;
+    if (!el) return;
+    el.style.transition = animar ? `transform ${DURACION}ms cubic-bezier(0.22, 1, 0.36, 1)` : 'none';
+    el.style.transform = `translateX(${-PASO + px}px)`;
+  };
   const toque = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null);
   const ocupado = useRef(false);
   const ignorarClick = useRef(false);
@@ -47,8 +55,6 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
     const f = aFecha(valor);
     setElegida(f);
     setMes(f);
-    setDx(0);
-    setAnimando(false);
     ocupado.current = false;
     setAbierto(true);
   };
@@ -62,12 +68,10 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   const cambiarMes = (dir: 1 | -1) => {
     if (ocupado.current) return;
     ocupado.current = true;
-    setAnimando(true);
-    setDx(-dir * PASO);
+    moverTira(-dir * PASO, true);
     setTimeout(() => {
-      setAnimando(false);
-      setMes(m => addMonths(m, dir));
-      setDx(0);
+      flushSync(() => setMes(m => addMonths(m, dir))); // el mes nuevo queda dibujado…
+      moverTira(0, false);                              // …y la tira vuelve al centro en el mismo instante
       ocupado.current = false;
     }, DURACION);
   };
@@ -83,10 +87,7 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
     const mx = e.touches[0].clientX - t0.x;
     const my = e.touches[0].clientY - t0.y;
     if (t0.horizontal === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) t0.horizontal = Math.abs(mx) > Math.abs(my);
-    if (t0.horizontal) {
-      setAnimando(false);
-      setDx(Math.max(-PASO, Math.min(PASO, mx)));
-    }
+    if (t0.horizontal) moverTira(Math.max(-PASO, Math.min(PASO, mx)), false);
   };
 
   const alSoltar = (e: React.TouchEvent) => {
@@ -98,7 +99,7 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
     setTimeout(() => { ignorarClick.current = false; }, 350);
     const mx = e.changedTouches[0].clientX - t0.x;
     if (Math.abs(mx) > 60) cambiarMes(mx < 0 ? 1 : -1);
-    else { setAnimando(true); setDx(0); setTimeout(() => setAnimando(false), DURACION); }
+    else moverTira(0, true);
   };
 
   const panel = (m: Date) => (
@@ -166,12 +167,9 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
             <div className="overflow-hidden" style={{ touchAction: 'pan-y' }}
                  onTouchStart={alTocar} onTouchMove={alMover} onTouchEnd={alSoltar} onTouchCancel={alSoltar}>
               <div
+                ref={tira}
                 className="flex"
-                style={{
-                  gap: ESPACIO,
-                  transform: `translateX(${-PASO + dx}px)`,
-                  transition: animando ? `transform ${DURACION}ms cubic-bezier(0.22, 1, 0.36, 1)` : 'none',
-                }}
+                style={{ gap: ESPACIO, transform: `translateX(${-PASO}px)`, willChange: 'transform' }}
               >
                 {panel(addMonths(mes, -1))}
                 {panel(mes)}

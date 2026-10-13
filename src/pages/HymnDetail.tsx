@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { flushSync } from 'react-dom';
 import { ArrowLeft } from 'lucide-react';
 import { getHymns, preloadHymnImageBoth, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { getFilteredNumbers } from '@/lib/hymnalState';
@@ -91,11 +92,37 @@ export default function HymnDetail() {
     const idx = navNumbers.indexOf(hymnNumber);
     return idx >= 0 ? idx : 0;
   });
-  const [dragX, setDragX] = useState(0);
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [isDismissing, setIsDismissing] = useState(false);
+  // Deslizar (cambiar de himno) y cerrar (arriba/abajo) mueven la pantalla DIRECTAMENTE (style), sin estado de
+  // React: así no se redibuja todo en cada movimiento del dedo y el arrastre es fluido (Josué, 1.5.3).
+  const carruselRef = useRef<HTMLDivElement>(null);
+  const exteriorRef = useRef<HTMLDivElement>(null);
+  const arrastrando = useRef(false);
+  const animando = useRef(false);
+  const saliendo = useRef(false);
+  const dragXRef = useRef(0);
+  const dragYRef = useRef(0);
+  const moverCarrusel = (px: number, animar: boolean) => {
+    const el = carruselRef.current;
+    if (!el) return;
+    el.style.transition = animar ? `transform ${DURACION_DESLIZAR}ms ${CURVA_DESLIZAR}` : 'none';
+    el.style.transform = `translateX(${px}px)`;
+  };
+  /** Arrastre vertical para cerrar: sigue el dedo; al soltar vuelve o sale por ese lado. */
+  const moverVertical = (dy: number, modo: 'arrastre' | 'volver' | 'salir') => {
+    const el = exteriorRef.current;
+    if (!el) return;
+    const d = Math.abs(dy);
+    el.style.transition = modo === 'arrastre' ? 'none' : 'all 280ms ease-out';
+    if (modo === 'salir') {
+      el.style.transform = `translateY(${dy < 0 ? '-' : ''}100vh) scale(0.85)`;
+      el.style.opacity = '0';
+      el.style.borderRadius = '16px';
+      return;
+    }
+    el.style.transform = d > 0 ? `translateY(${dy}px) scale(${Math.max(0.88, 1 - d / 2000)})` : 'none';
+    el.style.opacity = String(d > 0 ? Math.max(0.3, 1 - d / 300) : 1);
+    el.style.borderRadius = d > 0 ? '16px' : '0';
+  };
   const touchStartRef = useRef(0);
   const touchStartYRef = useRef(0);
   const isHorizontalRef = useRef<boolean | null>(null);
@@ -155,18 +182,18 @@ export default function HymnDetail() {
   const handleTouchStart = (e: React.TouchEvent) => {
     // Si todavía se está frenando el paso anterior y se toca de nuevo, se completa al instante (pasar rápido varios).
     if (terminarPaso.current) terminarPaso.current();
-    else if (isAnimating) return;
-    if (isDismissing) return;
+    else if (animando.current) return;
+    if (saliendo.current) return;
     touchStartRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
     isHorizontalRef.current = null;
-    setIsDragging(true);
-    setDragX(0);
-    setDragY(0);
+    arrastrando.current = true;
+    dragXRef.current = 0;
+    dragYRef.current = 0;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || isDismissing) return;
+    if (!arrastrando.current || saliendo.current) return;
     const dx = e.touches[0].clientX - touchStartRef.current;
     const dy = e.touches[0].clientY - touchStartYRef.current;
     if (isHorizontalRef.current === null) {
@@ -174,30 +201,42 @@ export default function HymnDetail() {
       return;
     }
     // Vertical: hacia abajo o hacia arriba, la imagen sigue al dedo y al soltar sale (vuelve al himnario).
-    if (!isHorizontalRef.current) { setDragY(dy); return; }
+    if (!isHorizontalRef.current) { dragYRef.current = dy; moverVertical(dy, 'arrastre'); return; }
     e.preventDefault();
     const atEdge = (dx > 0 && currentIndex === 0) || (dx < 0 && currentIndex === navNumbers.length - 1);
-    setDragX(atEdge ? dx * 0.3 : dx);
+    dragXRef.current = atEdge ? dx * 0.3 : dx;
+    moverCarrusel(dragXRef.current, false);
   };
 
   const handleTouchEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    if (Math.abs(dragY) > 80) { setIsDismissing(true); setTimeout(() => navigate('/hymnal'), 280); return; }
-    if (dragY !== 0) { setDragY(0); return; }
+    if (!arrastrando.current) return;
+    arrastrando.current = false;
+    const dragX = dragXRef.current, dragY = dragYRef.current;
+    if (Math.abs(dragY) > 80) { saliendo.current = true; moverVertical(dragY, 'salir'); setTimeout(() => navigate('/hymnal'), 280); return; }
+    if (dragY !== 0) { dragYRef.current = 0; moverVertical(0, 'volver'); return; }
     const threshold = window.innerWidth * 0.08;
     if (dragX < -threshold && currentIndex < navNumbers.length - 1) animateSlide(-1);
     else if (dragX > threshold && currentIndex > 0) animateSlide(1);
-    else { setIsAnimating(true); setDragX(0); setTimeout(() => setIsAnimating(false), DURACION_DESLIZAR); }
+    else if (dragX !== 0) {
+      dragXRef.current = 0;
+      animando.current = true;
+      moverCarrusel(0, true);
+      setTimeout(() => { animando.current = false; }, DURACION_DESLIZAR);
+    }
   };
 
   const animateSlide = (direction: number) => {
     const w = window.innerWidth;
-    setIsAnimating(true);
-    setDragX(direction * w);
+    animando.current = true;
+    moverCarrusel(direction * w, true);
     setIndiceDestino(currentIndex - direction); // el contador cambia al soltar, no al terminar la animación
     const terminar = () => {
-      terminarPaso.current = null; setIsAnimating(false); setDragX(0); setIndiceDestino(null); goTo(currentIndex - direction);
+      terminarPaso.current = null;
+      animando.current = false;
+      dragXRef.current = 0;
+      // El himno nuevo queda dibujado al centro y la tira vuelve a 0 en el mismo instante (sin parpadeo).
+      flushSync(() => { setIndiceDestino(null); goTo(currentIndex - direction); });
+      moverCarrusel(0, false);
     };
     const timer = setTimeout(terminar, DURACION_DESLIZAR);
     terminarPaso.current = () => { clearTimeout(timer); terminar(); };
@@ -240,35 +279,17 @@ export default function HymnDetail() {
     );
   }
 
-  const translatePx = isDragging || isAnimating ? dragX : 0;
-  const carouselStyle: React.CSSProperties = {
-    transform: `translateX(${translatePx}px)`,
-    transition: isAnimating ? `transform ${DURACION_DESLIZAR}ms ${CURVA_DESLIZAR}` : 'none',
-    willChange: 'transform',
-  };
-
-  // Al salir, se va por el lado hacia donde se deslizó (abajo o arriba).
-  const distancia = Math.abs(dragY);
-  const dismissProgress = isDismissing ? 1 : distancia / 300;
-  const outerStyle: React.CSSProperties = {
-    transform: isDismissing ? `translateY(${dragY < 0 ? '-' : ''}100vh) scale(0.85)`
-      : distancia > 0 ? `translateY(${dragY}px) scale(${Math.max(0.88, 1 - distancia / 2000)})` : 'none',
-    opacity: isDismissing ? 0 : distancia > 0 ? Math.max(0.3, 1 - dismissProgress) : 1,
-    transition: !isDragging || isDismissing ? 'all 280ms ease-out' : 'none',
-    borderRadius: distancia > 0 || isDismissing ? '16px' : '0',
-    overflow: 'hidden',
-  };
 
   return (
     // bg-background: el mismo fondo que tienen ahora las imágenes de los himnos (sin recuadro visible).
-    <div className="fixed inset-0 z-40 bg-background" style={outerStyle}>
+    <div ref={exteriorRef} className="fixed inset-0 z-40 bg-background" style={{ overflow: 'hidden', willChange: 'transform' }}>
       <div className="absolute top-3 left-3 z-20">
         <button onClick={() => navigate('/hymnal')} className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
           <ArrowLeft size={20} />
         </button>
       </div>
       <div className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: 'none' }}>
-        <div className="absolute inset-0" style={carouselStyle}>
+        <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderSlide(prevNum, -1)}
           {renderSlide(currentNum, 0)}
           {renderSlide(nextNum, 1)}
