@@ -180,7 +180,12 @@ export default function EditorMinuta() {
   //  - Editar una publicada: sin cambios → nada; con cambios → solo "Publicar cambios".
   const yaPublicada = !!existente?.publicada;
   const algoNuevo = hayCambios || (!id && !!borrador); // un borrador traído de otra pantalla cuenta como nuevo
-  const mostrarBotones = cantos.length > 0 && (algoNuevo || (!!id && !yaPublicada));
+  const mostrarBotonesAhora = cantos.length > 0 && (algoNuevo || (!!id && !yaPublicada));
+  // Mientras el buscador está abierto la barra queda como estaba antes de abrirlo: lo marcado ahí aún no está
+  // confirmado (solo cuenta con "Listo"). Si no, al volver sin "Listo" la barra asomaba un instante (Josué, 1.5.8).
+  const barraAntesDeBuscar = useRef(mostrarBotonesAhora);
+  if (!buscando) barraAntesDeBuscar.current = mostrarBotonesAhora;
+  const mostrarBotones = buscando ? barraAntesDeBuscar.current : mostrarBotonesAhora;
   // Mientras la barra se va, los botones quedan como estaban (si no, al borrar la última alabanza "Guardar"
   // desaparecía de golpe y "Publicar" se estiraba en plena animación: se veía quebrado).
   const ultimoAlgoNuevo = useRef(algoNuevo);
