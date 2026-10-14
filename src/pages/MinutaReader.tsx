@@ -13,7 +13,7 @@ import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
-import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
+import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, UMBRAL_LADO } from '@/lib/deslizar';
 function SongPage({ song, horizontal }: { song: ParsedSong; horizontal: boolean }) {
   const [imgError, setImgError] = useState(false);
   const { theme } = useTheme();
@@ -97,6 +97,7 @@ export default function MinutaReader() {
   // El deslizamiento mueve la tira DIRECTAMENTE (style), sin estado de React: no se redibujan las páginas en cada
   // movimiento del dedo y se ve fluido (Josué, 1.5.3).
   const carruselRef = useRef<HTMLDivElement>(null);
+  const areaRef = useRef<HTMLDivElement>(null);
   const arrastrando = useRef(false);
   const animando = useRef(false);
   const dragXRef = useRef(0);
@@ -107,12 +108,26 @@ export default function MinutaReader() {
     el.style.transform = `translateX(${px}px)`;
   };
   const touchStartRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  /** null: aún no se sabe; true: cambiar de página; false: recorrer hacia abajo (la página no se mueve al lado). */
+  const lateralRef = useRef<boolean | null>(null);
   /** Completa ya el paso a otra página que se está animando (null si no hay ninguno). */
   const terminarPaso = useRef<null | (() => void)>(null);
 
   // Siempre a pantalla completa (Josué, 1.5.6): sin barra de arriba, ni compartir, ni puntitos; solo las canciones.
   // Se sale con "atrás" del celular (o Esc), que vuelve a la lista. Sin Fullscreen API (mostraba un aviso de Android).
   const pantallaCompleta = true;
+
+  // En cuanto el gesto es lateral se bloquea el desplazamiento nativo hacia abajo: si no, el celular reparte el
+  // gesto y la página se mueve "con cortes" (Josué, 1.6.3). Escucha nativa no pasiva (la de React no puede bloquear).
+  const hayMinuta = !!minuta;
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const bloquear = (e: TouchEvent) => { if (arrastrando.current && lateralRef.current === true && e.cancelable) e.preventDefault(); };
+    el.addEventListener('touchmove', bloquear, { passive: false });
+    return () => el.removeEventListener('touchmove', bloquear);
+  }, [hayMinuta]);
 
   useEffect(() => {
     if (!id) return;
@@ -154,13 +169,24 @@ export default function MinutaReader() {
     if (terminarPaso.current) terminarPaso.current();
     else if (animando.current) return;
     touchStartRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    lateralRef.current = null;
     arrastrando.current = true;
     dragXRef.current = 0;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!arrastrando.current) return;
-    const dx = e.touches[0].clientX - touchStartRef.current;
+    let dx = e.touches[0].clientX - touchStartRef.current;
+    if (lateralRef.current === null) {
+      // Solo un gesto CLARAMENTE lateral cambia de página; si va hacia abajo, queda fijo así hasta soltar (1.6.3).
+      const dir = direccionFirme(dx, e.touches[0].clientY - touchStartYRef.current);
+      if (dir === null) return;
+      lateralRef.current = dir;
+      touchStartRef.current += Math.sign(dx) * UMBRAL_LADO; // arranca desde 0, sin salto
+      dx = e.touches[0].clientX - touchStartRef.current;
+    }
+    if (!lateralRef.current) return;
     const atEdge = (dx > 0 && currentPage === 0) || (dx < 0 && currentPage === totalPages - 1);
     dragXRef.current = atEdge ? dx * 0.3 : dx;
     moverCarrusel(dragXRef.current, false);
@@ -240,6 +266,7 @@ export default function MinutaReader() {
       <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
       <div
+        ref={areaRef}
         className="flex-1 relative overflow-hidden"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

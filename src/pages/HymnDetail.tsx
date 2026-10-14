@@ -10,7 +10,7 @@ import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal'
 import ZoomableImage from '@/components/ZoomableImage';
 import Zoomable from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
-import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
+import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, UMBRAL_LADO } from '@/lib/deslizar';
 /**
  * Barra para saltar a cualquier himno sin pasar uno por uno (pedido de Josué): se arrastra el círculo (o se toca un
  * punto de la barra) y, al soltar, se salta a ese himno. Mientras se arrastra, una burbuja muestra número y título.
@@ -100,6 +100,7 @@ export default function HymnDetail() {
   // Deslizar (cambiar de himno) y cerrar (arriba/abajo) mueven la pantalla DIRECTAMENTE (style), sin estado de
   // React: así no se redibuja todo en cada movimiento del dedo y el arrastre es fluido (Josué, 1.5.3).
   const carruselRef = useRef<HTMLDivElement>(null);
+  const areaRef = useRef<HTMLDivElement>(null);
   const exteriorRef = useRef<HTMLDivElement>(null);
   const arrastrando = useRef(false);
   const animando = useRef(false);
@@ -137,6 +138,17 @@ export default function HymnDetail() {
   // Himno que se está eligiendo en la barra (el contador lo muestra mientras se arrastra).
   const [vistaPrevia, setVistaPrevia] = useState<number | null>(null);
   const tituloDe = useMemo(() => new Map(initial.hymns.map(h => [h.hymn_number, h.title])), [initial]);
+
+  // Girado (touch-action pan-y): en cuanto el gesto es lateral se bloquea el desplazamiento nativo hacia abajo; si no,
+  // el celular reparte el gesto y entrega el movimiento a saltos ("con cortes", Josué 1.6.3). Escucha nativa no
+  // pasiva: la de React es pasiva y no puede bloquear.
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const bloquear = (e: TouchEvent) => { if (arrastrando.current && isHorizontalRef.current === true && e.cancelable) e.preventDefault(); };
+    el.addEventListener('touchmove', bloquear, { passive: false });
+    return () => el.removeEventListener('touchmove', bloquear);
+  }, [navNumbers.length]);
 
   useEffect(() => {
     if (navNumbers.length === 0) return;
@@ -202,7 +214,14 @@ export default function HymnDetail() {
     const dx = e.touches[0].clientX - touchStartRef.current;
     const dy = e.touches[0].clientY - touchStartYRef.current;
     if (isHorizontalRef.current === null) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) isHorizontalRef.current = Math.abs(dx) > Math.abs(dy);
+      if (horizontal) {
+        // Girado se recorre mucho hacia abajo: el paso al lado exige un gesto CLARAMENTE lateral; si no, queda fijo
+        // en vertical hasta soltar y la página no se mece hacia los lados (Josué, 1.6.3).
+        const dir = direccionFirme(dx, dy);
+        if (dir === null) return;
+        isHorizontalRef.current = dir;
+        touchStartRef.current += Math.sign(dx) * UMBRAL_LADO; // arranca desde 0, sin salto
+      } else if (Math.abs(dx) > 8 || Math.abs(dy) > 8) isHorizontalRef.current = Math.abs(dx) > Math.abs(dy);
       return;
     }
     // Vertical: hacia abajo o hacia arriba, la imagen sigue al dedo y al soltar sale (vuelve al himnario).
@@ -318,7 +337,7 @@ export default function HymnDetail() {
           </button>
         </div>
       )}
-      <div className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
+      <div ref={areaRef} className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderSlide(prevNum, -1)}
           {renderSlide(currentNum, 0)}
