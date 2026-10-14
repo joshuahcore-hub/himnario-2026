@@ -41,14 +41,9 @@ function SongPage({ song, horizontal }: { song: ParsedSong; horizontal: boolean 
   // Celular girado: la letra a todo el ancho; la página se recorre hacia abajo.
   if (horizontal) {
     return (
-      // Encabezado en una sola línea (número · título · tono) para dejarle el alto a la letra.
+      // Sin encabezado (Josué, 1.6.2): la imagen ya trae número y título; todo el alto para la letra.
       <Zoomable className="w-full m-auto" reiniciarCon={hymnNumber}>
-        <div className="w-full flex flex-col items-center">
-          <p className="text-center pt-3 pb-1 px-4 text-base">
-            <span className="font-semibold text-hymn-number">#{hymnNumber}</span>
-            <span className="ml-2 font-bold text-foreground">{song.title}</span>
-            {song.key && <span translate="no" className="ml-2 font-semibold text-hymn-key">{song.key}</span>}
-          </p>
+        <div className="w-full flex flex-col items-center pt-3">
           {imgError ? (
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (
