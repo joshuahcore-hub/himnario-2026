@@ -213,14 +213,15 @@ export default function Minutas() {
                         {selected.has(m.id) && <span className="text-xs">✓</span>}
                       </div>
                       {/* Fijar: solo en las propias. */}
+                      {/* Alfiler ARRIBA del recuadro (misma esquina izquierda): así no tapa "Minuta" (Josué, 1.5.7). */}
                       {m.mia && <button
-                        className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center ${
+                        className={`absolute -top-8 left-1 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-sm animate-in fade-in zoom-in-95 duration-150 ${
                           m.fijada ? 'bg-primary text-primary-foreground' : 'bg-card/80 border border-border text-muted-foreground'
                         }`}
                         onClick={e => { e.stopPropagation(); fijar(m); }}
                         aria-label={t.minutas_pin}
                       >
-                        <Pin size={10} />
+                        <Pin size={13} />
                       </button>}
                     </>
                   )}
