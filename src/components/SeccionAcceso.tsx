@@ -18,6 +18,7 @@ import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { ChipAutor } from '@/components/Portada';
+import { usePendientes } from '@/hooks/usePendientes';
 
 /** Evento para abrir "Activar como administrador" (Ajustes lo lanza al tocar 5 veces la versión). */
 export const EVENTO_ACTIVAR_ADMIN = 'himnario-activar-admin';
@@ -100,10 +101,12 @@ function FormNombreColor({ nombreInicial = '', colorInicial = COLORES[7], textoB
   );
 }
 
-function OpcionMenu({ icono, texto, onClick }: { icono: React.ReactNode; texto: string; onClick: () => void }) {
+function OpcionMenu({ icono, texto, onClick, aviso = 0 }: { icono: React.ReactNode; texto: string; onClick: () => void; aviso?: number }) {
   return (
     <button onClick={onClick} className="w-full flex items-center gap-2.5 px-3 h-10 text-sm text-foreground rounded-lg hover:bg-muted active:bg-muted transition-colors text-left">
-      <span className="text-muted-foreground shrink-0">{icono}</span>{texto}
+      <span className="text-muted-foreground shrink-0">{icono}</span>
+      <span className="flex-1">{texto}</span>
+      {aviso > 0 && <span className="min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center">{aviso}</span>}
     </button>
   );
 }
@@ -112,6 +115,7 @@ export default function MenuAcceso() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const acceso = useAcceso();
+  const pendientes = usePendientes();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [dialogo, setDialogo] = useState<null | 'perfil' | 'admin'>(null);
   const [editandoPerfil, setEditandoPerfil] = useState(false);
@@ -139,7 +143,7 @@ export default function MenuAcceso() {
     <OpcionMenu key="perfil" icono={<UserRound size={16} />} texto={t.access_my_profile} onClick={() => abrir('perfil')} />,
   ];
   if (acceso.esAdmin) {
-    opciones.push(<OpcionMenu key="admin" icono={<Shield size={16} />} texto={t.admin_title}
+    opciones.push(<OpcionMenu key="admin" icono={<Shield size={16} />} texto={t.admin_title} aviso={pendientes}
       onClick={() => { setMenuAbierto(false); navigate('/admin'); }} />);
   }
 
@@ -226,8 +230,9 @@ export default function MenuAcceso() {
     <>
       {/* ⋮ y su menú desplegable (tocar fuera lo cierra). */}
       <div ref={menuRef} className="relative">
-        <button onClick={() => setMenuAbierto(a => !a)} className="tap-btn p-2 -mr-2 text-muted-foreground" aria-label={t.settings_more}>
+        <button onClick={() => setMenuAbierto(a => !a)} className="tap-btn relative p-2 -mr-2 text-muted-foreground" aria-label={t.settings_more}>
           <EllipsisVertical size={20} />
+          {pendientes > 0 && <span className="absolute top-1.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-background" />}
         </button>
         {menuAbierto && (
           <div className="absolute right-0 top-full mt-1 z-30 min-w-[210px] rounded-xl border border-border bg-card p-1 shadow-xl origin-top-right animate-in fade-in zoom-in-95 duration-150">

@@ -26,7 +26,8 @@ export default function Minutas() {
 
   // Fijadas primero; el resto por fecha. Se abre mostrando la más reciente (a la derecha).
   const ordenadas = useMemo(
-    () => [...minutas.filter(m => m.fijada), ...minutas.filter(m => !m.fijada)],
+    // Fijadas AL FRENTE: al final de la lista (derecha), donde se abre; las más antiguas quedan a la izquierda.
+    () => [...minutas.filter(m => !m.fijada), ...minutas.filter(m => m.fijada)],
     [minutas],
   );
 
@@ -115,6 +116,10 @@ export default function Minutas() {
     try {
       guardarMinutaLocal(await api<MinutaData>(`minutas/${m.id}`, { metodo: 'PATCH', datos: { fijada: !m.fijada } }));
       toast.success(m.fijada ? t.minutas_unpinned : t.minutas_pinned);
+      salirSeleccion(); // fijar es una acción completa: sale de la selección
+      // Queda a la vista donde quedó (las fijadas van al frente, a la derecha).
+      setTimeout(() => scrollRef.current?.querySelector(`[data-minuta="${m.id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }), 80);
     } catch (e: any) {
       toast.error(e.message || t.minutas_error_rename);
     }
@@ -162,9 +167,10 @@ export default function Minutas() {
             // la rueda del mouse las mueve hacia los lados. El relleno lateral deja la primera y la última al centro.
             className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory w-full py-4 px-[calc(50%-140px)] md:px-[calc(50%-170px)]"
             // Solo hacia los lados: sin desplazamiento vertical (antes se podía correr arriba/abajo sin sentido).
-            style={{ overflowY: 'hidden', touchAction: 'pan-x', overscrollBehavior: 'contain' }}
+            // Con una minuta seleccionada la lista queda quieta: no se desliza a los lados (Josué, 1.5.6).
+            style={{ overflowY: 'hidden', overflowX: selectMode ? 'hidden' : 'auto', touchAction: selectMode ? 'none' : 'pan-x', overscrollBehavior: 'contain' }}
             onWheel={e => {
-              if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollRef.current?.scrollBy({ left: e.deltaY, behavior: 'smooth' });
+              if (!selectMode && Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollRef.current?.scrollBy({ left: e.deltaY, behavior: 'smooth' });
             }}
           >
             {ordenadas.map(m => (

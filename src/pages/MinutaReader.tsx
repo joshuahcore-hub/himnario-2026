@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, Maximize2, Share2 } from 'lucide-react';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
 import Zoomable from '@/components/Zoomable';
 import { getThemedHymnImageUrl, preloadHymnImageBoth, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
-import { renumerar, textoParaCompartir, compartirPorWhatsApp, tituloVisible } from '@/lib/minutaUtils';
+import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
@@ -92,20 +91,9 @@ export default function MinutaReader() {
   /** Completa ya el paso a otra página que se está animando (null si no hay ninguno). */
   const terminarPaso = useRef<null | (() => void)>(null);
 
-  // Pantalla completa: sin barra de arriba ni puntitos; solo las canciones. Se sale con "atrás" del celular (o Esc).
-  // Sin la Fullscreen API del navegador (1.5.1): esa mostraba el aviso de Android "desliza para salir de pantalla
-  // completa", que Josué no quería; y tampoco hay botón para salir (pidió salir solo con "atrás").
-  const [pantallaCompleta, setPantallaCompleta] = useState(false);
-  const entrarPantallaCompleta = () => {
-    history.pushState({ pantallaCompleta: true }, '');
-    setPantallaCompleta(true);
-  };
-  useEffect(() => {
-    if (!pantallaCompleta) return;
-    const alVolver = () => setPantallaCompleta(false);
-    window.addEventListener('popstate', alVolver);
-    return () => window.removeEventListener('popstate', alVolver);
-  }, [pantallaCompleta]);
+  // Siempre a pantalla completa (Josué, 1.5.6): sin barra de arriba, ni compartir, ni puntitos; solo las canciones.
+  // Se sale con "atrás" del celular (o Esc), que vuelve a la lista. Sin Fullscreen API (mostraba un aviso de Android).
+  const pantallaCompleta = true;
 
   useEffect(() => {
     if (!id) return;
@@ -125,7 +113,7 @@ export default function MinutaReader() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' && currentPage < totalPages - 1) setCurrentPage(p => p + 1);
       else if (e.key === 'ArrowLeft' && currentPage > 0) setCurrentPage(p => p - 1);
-      else if (e.key === 'Escape') { if (pantallaCompleta) history.back(); else navigate('/minutas'); }
+      else if (e.key === 'Escape') navigate('/minutas');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -219,31 +207,9 @@ export default function MinutaReader() {
     );
   };
 
-  const compartir = () => compartirPorWhatsApp(textoParaCompartir(minuta, window.location.origin));
-
   return (
     <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-hidden">
-      {pantallaCompleta ? (
-        <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
-      ) : (
-        <div className="flex items-center gap-3 px-4 py-3 bg-card/80 backdrop-blur-sm border-b border-border z-10 relative"
-             style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}>
-          <button onClick={() => navigate('/minutas')} className="tap-btn-overlay text-foreground p-1" aria-label={t.minutas_title}>
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold truncate">{tituloVisible(minuta)}</p>
-            <p className="text-[10px] text-muted-foreground">{paginaVisible + 1} / {totalPages}</p>
-          </div>
-          <button onClick={entrarPantallaCompleta} className="tap-btn p-1.5 rounded-lg text-muted-foreground" aria-label={t.minuta_fullscreen}>
-            <Maximize2 size={16} />
-          </button>
-          <button onClick={compartir} className="tap-btn p-1.5 rounded-lg text-muted-foreground" aria-label={t.minuta_share}>
-            <Share2 size={16} />
-          </button>
-          {/* Editar se hace desde la lista de minutas (mantener presionada → lápiz), no desde aquí. */}
-        </div>
-      )}
+      <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
       <div
         className="flex-1 relative overflow-hidden"

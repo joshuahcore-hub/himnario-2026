@@ -8,6 +8,7 @@ import { api, ErrorDeRed } from '@/lib/api';
 import { refrescarMinutas } from '@/lib/minutaCache';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
+import { revisarPendientes } from '@/hooks/usePendientes';
 
 interface DispositivoAdmin {
   id: string;
@@ -72,6 +73,7 @@ export default function Admin() {
     try {
       await api(`admin/dispositivos/${d.id}`, { metodo: 'PATCH', datos: { estado } });
       setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, estado } : x)));
+      revisarPendientes(); // actualiza el punto de aviso de Ajustes
     } catch (e: any) {
       toast.error(e.message);
     }

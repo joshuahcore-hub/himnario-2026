@@ -44,10 +44,12 @@ export interface BorradorMinuta {
 /** Duración del cambio a verde al marcar un canto en el buscador. */
 const MARCAR_MS = 180;
 
-function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
+function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados }: {
   onAdd: (c: ParsedSong) => void;
   onRemove: (hymnNumber: number) => void;
   onClose: () => void;
+  /** Salir sin "Listo": se descarta lo marcado en esta búsqueda. */
+  onCancel: () => void;
   seleccionados: number[];
 }) {
   const { t } = useI18n();
@@ -80,7 +82,7 @@ function BuscadorCantos({ onAdd, onRemove, onClose, seleccionados }: {
             inputMode="search"
           />
         </div>
-        <button onClick={onClose} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_cancel}>
+        <button onClick={onCancel} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_cancel}>
           <X size={20} />
         </button>
       </div>
@@ -153,6 +155,11 @@ export default function EditorMinuta() {
   const [buscando, setBuscando] = useState(false);
   // Posición de la lista desde donde empiezan los cantos añadidos en la búsqueda abierta (se pueden desmarcar ahí mismo).
   const [inicioBusqueda, setInicioBusqueda] = useState(0);
+  // Lo marcado en el buscador solo queda si se toca "Listo" (Josué, 1.5.6). Con X o "atrás" se quitan las
+  // alabanzas añadidas en ESTA búsqueda; las que ya estaban antes no se tocan.
+  const inicioRef = useRef(0);
+  inicioRef.current = inicioBusqueda;
+  const cancelarBusqueda = () => { setCantos(prev => prev.slice(0, inicioRef.current)); setBuscando(false); };
   const [guardando, setGuardando] = useState<null | 'guardar' | 'publicar'>(null);
   const finRef = useRef<HTMLDivElement>(null);
   // Crear: "Manual" o desde texto/foto ("Con IA"). Lo generado vuelve a Manual para revisarlo antes de guardar.
@@ -180,7 +187,7 @@ export default function EditorMinuta() {
   if (mostrarBotones) ultimoAlgoNuevo.current = algoNuevo;
   const guardarEnBarra = mostrarBotones ? algoNuevo : ultimoAlgoNuevo.current;
   const salida = useSalidaProtegida(hayCambios, () => {
-    if (buscando) { setBuscando(false); return true; } // "atrás" en el buscador: solo cierra el buscador
+    if (buscando) { cancelarBusqueda(); return true; } // "atrás" en el buscador: lo descarta (no se tocó "Listo")
     return false;
   });
 
@@ -480,6 +487,7 @@ export default function EditorMinuta() {
           onAdd={agregar}
           onRemove={desmarcar}
           onClose={() => setBuscando(false)}
+          onCancel={cancelarBusqueda}
         />
       )}
     </div>
