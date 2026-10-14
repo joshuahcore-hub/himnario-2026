@@ -220,7 +220,7 @@ export default function Minutas() {
                   )}
                   {/* Quién la creó/editó: solo el administrador, y solo aquí en la lista (no dentro de la minuta). */}
                   <Portada date={m.fecha} songs={m.cantos} compact
-                    creador={esAdmin ? m.creador : null} editor={esAdmin ? m.editor : null} duplicada={esAdmin && !!m.duplicada} />
+                    creador={m.creador} editor={m.editor} duplicada={!!m.duplicada} />
                 </div>
               </div>
             ))}

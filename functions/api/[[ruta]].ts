@@ -160,7 +160,7 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
   const metodo = request.method;
   const id = partes[1];
   const quien = await dispositivoActual(request, env);
-  const conAutores = esAdmin(quien);
+  const conAutores = true; // (1.5.5, Josué) "Creada por" lo ven todos, no solo el administrador.
   const quienId = quien?.estado === 'aprobado' ? quien.id : null;
 
   if (metodo === 'GET' && !id) {
