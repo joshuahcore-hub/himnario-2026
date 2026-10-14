@@ -16,7 +16,7 @@ const manifiesto: Partial<ManifestOptions> = {
   start_url: "/",
   scope: "/",
   display: "standalone",
-  orientation: "portrait",
+  orientation: "any", // se puede girar solo en el himno abierto y el lector (ver src/hooks/useHorizontal.ts)
   background_color: "#ffffff",
   theme_color: "#ffffff",
   icons: [

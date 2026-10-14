@@ -4,14 +4,16 @@ import { flushSync } from 'react-dom';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
 import Zoomable from '@/components/Zoomable';
+import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, preloadHymnImageBoth, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
+import { useHorizontal } from '@/hooks/useHorizontal';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
-function SongPage({ song }: { song: ParsedSong }) {
+function SongPage({ song, horizontal }: { song: ParsedSong; horizontal: boolean }) {
   const [imgError, setImgError] = useState(false);
   const { theme } = useTheme();
   const { t } = useI18n();
@@ -35,6 +37,26 @@ function SongPage({ song }: { song: ParsedSong }) {
 
   // Toda la página es una sola imagen: el número, el título y el tono arriba y la letra con acordes abajo,
   // sobre el mismo fondo (las imágenes tienen el fondo exacto de la app). El zoom amplía todo junto.
+  // Celular girado: la letra a todo el ancho; la página se recorre hacia abajo.
+  if (horizontal) {
+    return (
+      // Encabezado en una sola línea (número · título · tono) para dejarle el alto a la letra.
+      <Zoomable className="w-full m-auto" reiniciarCon={hymnNumber}>
+        <div className="w-full flex flex-col items-center">
+          <p className="text-center pt-3 pb-1 px-4 text-base">
+            <span className="font-semibold text-hymn-number">#{hymnNumber}</span>
+            <span className="ml-2 font-bold text-foreground">{song.title}</span>
+            {song.key && <span translate="no" className="ml-2 font-semibold text-hymn-key">{song.key}</span>}
+          </p>
+          {imgError ? (
+            song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
+          ) : (
+            <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)} />
+          )}
+        </div>
+      </Zoomable>
+    );
+  }
   return (
     <Zoomable className="w-full h-full" reiniciarCon={hymnNumber}>
       <div className="h-full w-full flex flex-col items-center px-2">
@@ -70,6 +92,7 @@ export default function MinutaReader() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const horizontal = useHorizontal();
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -186,22 +209,31 @@ export default function MinutaReader() {
     if (pageIdx < 0 || pageIdx >= totalPages) return null;
     const item = itemAt(pageIdx);
     const esCanto = !!item && !item.isPalabra && !item.isOracion;
+    // key: cada página con su propio nodo (en horizontal cada una guarda su desplazamiento y empieza arriba).
+    const clase = horizontal
+      ? `absolute inset-0 flex overflow-y-auto overflow-x-hidden ${esCanto ? 'pb-6' : 'p-5'}`
+      : `absolute inset-0 flex items-center justify-center ${esCanto ? '' : 'p-5 overflow-y-auto'}`;
     return (
       <div
-        className={`absolute inset-0 flex items-center justify-center ${esCanto ? '' : 'p-5 overflow-y-auto'}`}
-        style={{ transform: `translateX(${offset * 100}%)` }}
+        key={pageIdx}
+        className={clase}
+        style={{
+          transform: `translateX(${offset * 100}%)`,
+          ...(horizontal && { overscrollBehavior: 'contain', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }),
+        }}
       >
         {pageIdx === 0 ? (
           // Portada sin recuadro, directo sobre el fondo, como las páginas de las canciones (Josué, 1.5.1).
-          <div className="w-full max-w-sm">
+          // m-auto: centrada, y si no cabe (horizontal) empieza arriba en vez de cortarse.
+          <div className="w-full max-w-sm m-auto">
             <Portada date={minuta.fecha} songs={minuta.cantos} plano />
           </div>
         ) : item?.isPalabra ? (
-          <span className="text-3xl font-bold text-palabra">{t.portada_palabra}</span>
+          <span className="m-auto text-3xl font-bold text-palabra">{t.portada_palabra}</span>
         ) : item?.isOracion ? (
-          <span className="text-3xl font-bold text-oracion">{t.portada_oracion}</span>
+          <span className="m-auto text-3xl font-bold text-oracion">{t.portada_oracion}</span>
         ) : item ? (
-          <SongPage song={item} />
+          <SongPage song={item} horizontal={horizontal} />
         ) : null}
       </div>
     );

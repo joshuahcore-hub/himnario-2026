@@ -2,6 +2,10 @@ import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App.tsx";
 import "./index.css";
+import { fijarVertical } from "@/hooks/useHorizontal";
+
+// La app va en vertical; solo el himno abierto y el lector de minutas permiten girar (useHorizontal).
+fijarVertical();
 
 // Service worker: guarda la app y los himnos para usarlos sin internet.
 // Actualizaciones sin interrumpir: la versión nueva se descarga en silencio y queda en espera;

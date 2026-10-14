@@ -6,7 +6,10 @@ import { getHymns, preloadHymnImageBoth, getThemedHymnImageUrl, imageCache, imag
 import { getFilteredNumbers } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
+import { useHorizontal } from '@/hooks/useHorizontal';
 import ZoomableImage from '@/components/ZoomableImage';
+import Zoomable from '@/components/Zoomable';
+import HimnoRecortado from '@/components/HimnoRecortado';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR } from '@/lib/deslizar';
 /**
  * Barra para saltar a cualquier himno sin pasar uno por uno (pedido de Josué): se arrastra el círculo (o se toca un
@@ -81,6 +84,8 @@ export default function HymnDetail() {
   const hymnNumber = Number(number);
   const { t } = useI18n();
   const { theme } = useTheme();
+  // Celular girado: la letra a todo el ancho y se recorre hacia abajo (deslizar arriba/abajo ya no cierra).
+  const horizontal = useHorizontal();
 
   const initial = getHymns();
   const [navNumbers, setNavNumbers] = useState<number[]>(() => {
@@ -201,6 +206,8 @@ export default function HymnDetail() {
       return;
     }
     // Vertical: hacia abajo o hacia arriba, la imagen sigue al dedo y al soltar sale (vuelve al himnario).
+    // En horizontal el gesto vertical recorre la letra (desplazamiento nativo).
+    if (!isHorizontalRef.current && horizontal) return;
     if (!isHorizontalRef.current) { dragYRef.current = dy; moverVertical(dy, 'arrastre'); return; }
     e.preventDefault();
     const atEdge = (dx > 0 && currentIndex === 0) || (dx < 0 && currentIndex === navNumbers.length - 1);
@@ -259,8 +266,21 @@ export default function HymnDetail() {
     const cache = theme === 'dark' ? imageCacheDark : imageCache;
     const cached = cache.get(num);
     const src = cached?.complete ? cached.src : getThemedHymnImageUrl(num, theme);
+    // key: cada himno con su propia página (en horizontal cada uno guarda su desplazamiento y empieza arriba).
+    if (horizontal) {
+      return (
+        // Solo la franja con letra (sin el fondo vacío del lienzo); si cabe queda centrada, si no se recorre.
+        <div key={num} className="absolute inset-0 flex overflow-y-auto overflow-x-hidden"
+             style={{ transform: `translateX(${offset * 100}%)`, overscrollBehavior: 'contain',
+                      padding: '3.25rem env(safe-area-inset-right, 0px) 1rem env(safe-area-inset-left, 0px)' }}>
+          <Zoomable className="w-full m-auto" reiniciarCon={num}>
+            <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`} />
+          </Zoomable>
+        </div>
+      );
+    }
     return (
-      <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{ transform: `translateX(${offset * 100}%)` }}>
+      <div key={num} className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{ transform: `translateX(${offset * 100}%)` }}>
         <ZoomableImage
           src={src}
           alt={`${t.hymn_alt}${num}`}
@@ -282,20 +302,23 @@ export default function HymnDetail() {
 
   return (
     // bg-background: el mismo fondo que tienen ahora las imágenes de los himnos (sin recuadro visible).
-    <div ref={exteriorRef} className="fixed inset-0 z-40 bg-background" style={{ overflow: 'hidden', willChange: 'transform' }}>
+    // En horizontal tapa también la barra de pestañas (z-50): toda la pantalla para la letra.
+    <div ref={exteriorRef} className={`fixed inset-0 ${horizontal ? 'z-[55]' : 'z-40'} bg-background`} style={{ overflow: 'hidden', willChange: 'transform' }}>
       <div className="absolute top-3 left-3 z-20">
         <button onClick={() => navigate('/hymnal')} className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
           <ArrowLeft size={20} />
         </button>
       </div>
-      <div className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: 'none' }}>
+      <div className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderSlide(prevNum, -1)}
           {renderSlide(currentNum, 0)}
           {renderSlide(nextNum, 1)}
         </div>
       </div>
-      {/* Contador y, debajo, la barra para saltar a cualquier himno; todo encima de la barra de pestañas (h-16, z-50). */}
+      {/* Contador y, debajo, la barra para saltar a cualquier himno; todo encima de la barra de pestañas (h-16, z-50).
+          En horizontal no se muestran: tapaban la letra. */}
+      {!horizontal && <>
       <div className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(4rem + 2.75rem)' }}>
         <p className="text-muted-foreground/40 text-xs">{(vistaPrevia ?? indiceDestino ?? currentIndex) + 1} / {navNumbers.length}</p>
       </div>
@@ -311,6 +334,7 @@ export default function HymnDetail() {
           }}
         />
       </div>
+      </>}
     </div>
   );
 }
