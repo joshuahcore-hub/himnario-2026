@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, RotateCwSquare } from 'lucide-react';
 import { getHymns, preloadHymnImageBoth, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { getFilteredNumbers } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
-import { useHorizontal } from '@/hooks/useHorizontal';
+import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
 import ZoomableImage from '@/components/ZoomableImage';
 import Zoomable from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
@@ -309,6 +309,15 @@ export default function HymnDetail() {
           <ArrowLeft size={20} />
         </button>
       </div>
+      {/* Girar a horizontal (o volver a vertical) con un toque, sin tener que girar el celular (Josué, 1.6.1). */}
+      {puedeGirar && (
+        <div className="absolute top-3 right-3 z-20">
+          <button onClick={() => girarPantalla(horizontal)} aria-label="Girar"
+                  className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
+            <RotateCwSquare size={20} />
+          </button>
+        </div>
+      )}
       <div className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderSlide(prevNum, -1)}

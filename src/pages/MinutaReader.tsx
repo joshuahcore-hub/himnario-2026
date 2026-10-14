@@ -7,7 +7,8 @@ import Zoomable from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, preloadHymnImageBoth, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
-import { useHorizontal } from '@/hooks/useHorizontal';
+import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
+import { RotateCwSquare } from 'lucide-react';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
@@ -255,6 +256,13 @@ export default function MinutaReader() {
           {renderPage(currentPage, 0)}
           {renderPage(currentPage + 1, 1)}
         </div>
+        {/* Girar a horizontal (o volver a vertical) con un toque (Josué, 1.6.1). Discreto, para no tapar la letra. */}
+        {puedeGirar && (
+          <button onClick={() => girarPantalla(horizontal)} onTouchStart={e => e.stopPropagation()} aria-label="Girar"
+                  className="tap-btn-overlay absolute top-2 right-2 z-20 p-2 rounded-full bg-card/70 backdrop-blur-sm border border-border text-foreground/70">
+            <RotateCwSquare size={18} />
+          </button>
+        )}
       </div>
 
       <div className={`flex justify-center gap-1.5 pb-6 pt-2 flex-wrap px-4 ${pantallaCompleta ? 'hidden' : ''}`}>
