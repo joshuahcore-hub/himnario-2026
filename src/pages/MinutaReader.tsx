@@ -232,9 +232,11 @@ export default function MinutaReader() {
     const item = itemAt(pageIdx);
     const esCanto = !!item && !item.isPalabra && !item.isOracion;
     // key: cada página con su propio nodo (en horizontal cada una guarda su desplazamiento y empieza arriba).
+    // La portada lleva su margen DENTRO del zoom: si no, al ampliarla se recortaba 20 px antes del borde (1.6.5).
+    const portada = pageIdx === 0;
     const clase = horizontal
-      ? `absolute inset-0 flex overflow-y-auto overflow-x-hidden ${esCanto ? 'pb-6' : 'p-5'}`
-      : `absolute inset-0 flex items-center justify-center ${esCanto ? '' : 'p-5 overflow-y-auto'}`;
+      ? `absolute inset-0 flex overflow-y-auto overflow-x-hidden ${esCanto ? 'pb-6' : portada ? '' : 'p-5'}`
+      : `absolute inset-0 flex items-center justify-center ${esCanto || portada ? '' : 'p-5 overflow-y-auto'}`;
     return (
       <div
         key={pageIdx}
@@ -249,7 +251,7 @@ export default function MinutaReader() {
           // m-auto: centrada, y si no cabe (horizontal) empieza arriba en vez de cortarse.
           // Con zoom como las canciones (Josué, 1.6.4): pellizcar o doble toque; el zoom ocupa toda la página.
           <Zoomable className="w-full h-full" reiniciarCon={minuta.id}>
-            <div className="h-full w-full flex overflow-y-auto">
+            <div className="h-full w-full flex overflow-y-auto p-5">
               <div className="w-full max-w-sm m-auto">
                 <Portada date={minuta.fecha} songs={minuta.cantos} plano />
               </div>
