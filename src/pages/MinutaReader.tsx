@@ -247,9 +247,14 @@ export default function MinutaReader() {
         {pageIdx === 0 ? (
           // Portada sin recuadro, directo sobre el fondo, como las páginas de las canciones (Josué, 1.5.1).
           // m-auto: centrada, y si no cabe (horizontal) empieza arriba en vez de cortarse.
-          <div className="w-full max-w-sm m-auto">
-            <Portada date={minuta.fecha} songs={minuta.cantos} plano />
-          </div>
+          // Con zoom como las canciones (Josué, 1.6.4): pellizcar o doble toque; el zoom ocupa toda la página.
+          <Zoomable className="w-full h-full" reiniciarCon={minuta.id}>
+            <div className="h-full w-full flex overflow-y-auto">
+              <div className="w-full max-w-sm m-auto">
+                <Portada date={minuta.fecha} songs={minuta.cantos} plano />
+              </div>
+            </div>
+          </Zoomable>
         ) : item?.isPalabra ? (
           <span className="m-auto text-3xl font-bold text-palabra">{t.portada_palabra}</span>
         ) : item?.isOracion ? (
