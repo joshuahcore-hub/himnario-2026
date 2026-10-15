@@ -34,6 +34,20 @@ export function setScrollTop(v: number) {
   _scrollTop = v;
 }
 
+// Último himno visto en el himno abierto (1.7.6): al volver a la lista, queda a su altura.
+let _ultimoHimno: number | null = null;
+
+export function marcarUltimoHimno(n: number) {
+  _ultimoHimno = n;
+}
+
+/** Lo entrega una sola vez (solo al volver del himno abierto). */
+export function tomarUltimoHimno(): number | null {
+  const n = _ultimoHimno;
+  _ultimoHimno = null;
+  return n;
+}
+
 export function getFilteredNumbers() {
   return _filteredNumbers;
 }

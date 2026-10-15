@@ -5,7 +5,7 @@ import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { getHymns, preloadHymnImageBoth, normalizar } from '@/lib/hymnCache';
 import {
   getFilters, setFilters as saveFilters,
-  getScrollTop, setScrollTop as saveScrollTop,
+  getScrollTop, setScrollTop as saveScrollTop, tomarUltimoHimno,
   setFilteredNumbers,
   type TempoFilter,
 } from '@/lib/hymnalState';
@@ -73,9 +73,20 @@ export default function HymnalPage() {
 
   // Vuelve justo donde estaba (Josué, 1.7.6): la posición se guarda al desplazar (no solo al abrir un himno), así
   // que ir a Minutas o Crear y volver la conserva. useLayoutEffect: se pone ANTES de dibujar, sin verse arriba primero.
+  // Al volver del himno abierto, a la altura del ÚLTIMO himno visto (si se pasó a otros); si ya se ve, no se mueve.
   useLayoutEffect(() => {
+    const lista = scrollRef.current;
+    if (!lista) return;
     const savedScroll = getScrollTop();
-    if (savedScroll > 0 && scrollRef.current) scrollRef.current.scrollTop = savedScroll;
+    if (savedScroll > 0) lista.scrollTop = savedScroll;
+    const ultimo = tomarUltimoHimno();
+    const fila = ultimo !== null ? lista.querySelector<HTMLElement>(`[data-himno="${ultimo}"]`) : null;
+    if (fila) {
+      const caja = lista.getBoundingClientRect(), r = fila.getBoundingClientRect();
+      const visible = r.top >= caja.top + 8 && r.bottom <= caja.bottom - 8;
+      if (!visible) lista.scrollTop += r.top - caja.top - (caja.height - r.height) / 2;
+      saveScrollTop(lista.scrollTop);
+    }
   }, [ready]);
 
   const [tappedId, setTappedId] = useState<string | null>(null);
@@ -210,6 +221,7 @@ export default function HymnalPage() {
         {filtered.map(h => (
           <button
             key={h.id}
+            data-himno={h.hymn_number}
             onClick={() => handleClick(h.hymn_number, h.id)}
             className={`tap-btn flex items-center gap-2 py-2 px-2.5 rounded-lg transition-colors duration-100 w-full text-left ${
               tappedId === h.id ? 'bg-accent' : ''

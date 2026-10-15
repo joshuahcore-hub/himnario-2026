@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { ArrowLeft, RotateCwSquare } from 'lucide-react';
 import { getHymns, precargarHimno, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
-import { getFilteredNumbers } from '@/lib/hymnalState';
+import { getFilteredNumbers, marcarUltimoHimno } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
@@ -286,6 +286,8 @@ export default function HymnDetail() {
   };
 
   const currentNum = navNumbers[currentIndex];
+  // Al salir, la lista del himnario queda a la altura del último himno visto (Josué, 1.7.6).
+  useEffect(() => { if (currentNum) marcarUltimoHimno(currentNum); }, [currentNum]);
   const prevNum = currentIndex > 0 ? navNumbers[currentIndex - 1] : null;
   const nextNum = currentIndex < navNumbers.length - 1 ? navNumbers[currentIndex + 1] : null;
 
