@@ -83,7 +83,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
   const textoEstado = r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
   const toqueEditar = useToque(() => onEditar(r));
   const toqueBorrar = useToque(() => onBorrar(r));
-  const opcion = `flex items-center gap-1.5 rounded-full font-medium [touch-action:none] ${compacto ? 'h-7 px-3 text-[11px]' : 'h-8 px-3.5 text-xs'}`;
+  const opcion = 'flex items-center gap-1.5 rounded-full font-medium [touch-action:none] h-8 px-3.5 text-xs';
 
   // Toque corto = opciones; mantener presionado = despegarlo (vibra) y arrastrarlo (1.9.0). Mientras se arrastra se
   // mueve DIRECTO (style.transform, sin estado de React: fluido) y no deja que la página cambie de canción.
@@ -97,17 +97,22 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
   // Opciones (Editar/Eliminar) hacia donde HAYA ESPACIO (1.9.1, Josué: pegado al borde izquierdo se salían de la
   // pantalla). Se calcula antes de dibujar al abrir: corrida para caber de lado y, si abajo no cabe, arriba.
   const opciones = useRef<HTMLDivElement>(null);
-  const [ubic, setUbic] = useState<{ left: number; arriba: boolean }>({ left: 0, arriba: false });
+  // escala: cuánto está ampliada la letra (zoom) al tocar el post-it. Las opciones y el tirador se "des-amplían"
+  // (scale 1/escala) para verse siempre del mismo tamaño y a la misma distancia (1.9.8, Josué).
+  const [escala, setEscala] = useState(1);
+  // Posición de las opciones en px de PANTALLA respecto al centro de abajo del post-it: centradas debajo y corridas
+  // lo justo para caber; si abajo no hay espacio, arriba (1.9.8: "más equilibrado, abajo").
+  const [ubic, setUbic] = useState<{ dx: number; arriba: boolean }>({ dx: 0, arriba: false });
   useLayoutEffect(() => {
     if (!abierta || !caja.current || !opciones.current) return;
     const n = caja.current.getBoundingClientRect(), o = opciones.current.getBoundingClientRect();
     const pagina = caja.current.closest<HTMLElement>('[data-pagina]')?.getBoundingClientRect();
     const izq = Math.max(pagina?.left ?? 0, 0) + 6, der = Math.min(pagina?.right ?? innerWidth, innerWidth) - 6;
     const abajo = Math.min(pagina?.bottom ?? innerHeight, innerHeight) - 6;
-    const deseado = n.width - o.width - 8; // alineadas a la derecha del post-it
-    const left = Math.min(Math.max(deseado, izq - n.left), der - n.left - o.width);
-    setUbic({ left, arriba: n.bottom + o.height + 8 > abajo });
-  }, [abierta]);
+    const centro = n.left + n.width / 2;
+    const left = Math.min(Math.max(centro - o.width / 2, izq), der - o.width);
+    setUbic({ dx: left - centro, arriba: n.bottom + o.height + 10 > abajo });
+  }, [abierta, escala]);
 
   // Tirador de la esquina para agrandar/achicar (1.9.1, Josué): sigue el dedo (zoom directo, sin estado de React) y
   // al soltar se guarda; entre TAM_MIN y TAM_MAX.
@@ -192,7 +197,11 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
       if (!g) return;
       window.clearTimeout(g.timer);
       if (g.arrastrando) { soltar(); return; }
-      if (Math.hypot(e.clientX - g.x, e.clientY - g.y) < 12 && !r.id.startsWith('tmp-')) onAlternar();
+      if (Math.hypot(e.clientX - g.x, e.clientY - g.y) < 12 && !r.id.startsWith('tmp-')) {
+        const c = caja.current;
+        setEscala(c && c.offsetWidth ? c.getBoundingClientRect().width / c.offsetWidth : 1);
+        onAlternar();
+      }
     },
     onPointerCancel: () => {
       const g = gesto.current;
@@ -251,26 +260,34 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
       </div>
       {/* Opciones al tocar (Josué, 1.7.1): Editar (solo las propias) y Eliminar. FLOTAN bajo la nota (no la agrandan):
           si la nota creciera, la letra y la propia nota se moverían bajo el dedo (regla de Josué, 1.4.4). */}
-      {/* Tirador para estirar (solo con el post-it tocado), en su esquina de abajo a la derecha. */}
-      <div {...tirador} aria-label="Tamaño"
-           className="absolute -right-3 -bottom-3 z-20 w-8 h-8 rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
-           style={{ touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
-        <MoveDiagonal2 size={15} />
+      {/* Tirador para estirar (solo con el post-it tocado): SEPARADO de la esquina de abajo a la derecha (no tapa el
+          post-it) y siempre del mismo tamaño y distancia a la vista, aunque haya zoom (1.9.8, Josué). El ancla mide 0 y
+          está en la esquina; dentro, todo va "des-ampliado". */}
+      <div className="absolute right-0 bottom-0 w-0 h-0 z-20" style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 0' }}>
+        <div {...tirador} aria-label="Tamaño"
+             className="absolute left-[7px] top-[7px] w-[30px] h-[30px] rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
+             style={{ touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
+          <MoveDiagonal2 size={14} />
+        </div>
       </div>
-      <div ref={opciones} className="absolute z-10 flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
-           style={{
-             left: ubic.left, ...(ubic.arriba ? { bottom: '100%', marginBottom: 6 } : { top: '100%', marginTop: 6 }),
-             opacity: abierta ? 1 : 0, transform: abierta ? 'none' : `translateY(${ubic.arriba ? 4 : -4}px) scale(0.96)`,
-             pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out, transform 160ms ease-out',
-           }}>
-        {r.mio && (
-          <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} text-foreground whitespace-nowrap`} {...toqueEditar}>
-            <PenLine size={compacto ? 12 : 13} />{t.rec_edit}
+      {/* Opciones: ancla en el centro de abajo (o de arriba) del post-it, des-ampliada como el tirador. */}
+      <div className={`absolute left-1/2 ${ubic.arriba ? 'top-0' : 'top-full'} w-0 h-0 z-10`}
+           style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 0' }}>
+        <div ref={opciones} className="absolute flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
+             style={{
+               left: ubic.dx, ...(ubic.arriba ? { bottom: 8 } : { top: 10 }),
+               opacity: abierta ? 1 : 0, transform: abierta ? 'none' : `translateY(${ubic.arriba ? 4 : -4}px) scale(0.96)`,
+               pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out, transform 160ms ease-out',
+             }}>
+          {r.mio && (
+            <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} text-foreground whitespace-nowrap`} {...toqueEditar}>
+              <PenLine size={13} />{t.rec_edit}
+            </button>
+          )}
+          <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} bg-destructive/10 text-destructive whitespace-nowrap`} {...toqueBorrar}>
+            <Trash2 size={13} />{t.rec_delete}
           </button>
-        )}
-        <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} bg-destructive/10 text-destructive whitespace-nowrap`} {...toqueBorrar}>
-          <Trash2 size={compacto ? 12 : 13} />{t.rec_delete}
-        </button>
+        </div>
       </div>
     </div>
   );
