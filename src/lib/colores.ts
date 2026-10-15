@@ -15,7 +15,7 @@ export const FONDOS: Record<ColorTema, { claro: string; oscuro: string }> = {
   lila: { claro: '#E3D3F3', oscuro: '#1D1528' },
   damasco: { claro: '#FCE5D5', oscuro: '#241A14' },
   azul: { claro: '#DBEBFA', oscuro: '#121A26' },
-  salvia: { claro: '#DEEDE3', oscuro: '#141F1A' },
+  salvia: { claro: '#DEEDE3', oscuro: '#161D1A' },
 };
 
 /** Circulito de muestra en el menú Color. */

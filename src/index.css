@@ -421,24 +421,25 @@ html.color-salvia {
   --barra-linea: 140 20% 72%;
 }
 html.dark.color-salvia {
-  --background: 150 22% 10%;
-  --foreground: 140 30% 90%;
-  --card: 150 20% 14%;
-  --card-foreground: 140 30% 90%;
-  --popover: 150 20% 14%;
-  --popover-foreground: 140 30% 90%;
-  --primary: 140 45% 68%;
-  --primary-foreground: 150 25% 11%;
-  --secondary: 150 16% 18%;
-  --secondary-foreground: 140 30% 90%;
-  --muted: 150 16% 18%;
-  --muted-foreground: 140 15% 62%;
-  --accent: 150 16% 18%;
-  --accent-foreground: 140 30% 90%;
-  --border: 150 16% 23%;
-  --input: 150 16% 23%;
-  --ring: 140 45% 68%;
-  --campo: 150 22% 10%;
-  --barra-fondo: 150 20% 14%;
-  --barra-linea: 150 16% 23%;
+  /* 1.8.4: menos saturado (Josué: el verde oscuro se veía intenso). */
+  --background: 150 14% 10%;
+  --foreground: 140 18% 90%;
+  --card: 150 13% 14%;
+  --card-foreground: 140 18% 90%;
+  --popover: 150 13% 14%;
+  --popover-foreground: 140 18% 90%;
+  --primary: 140 30% 66%;
+  --primary-foreground: 150 16% 11%;
+  --secondary: 150 10% 18%;
+  --secondary-foreground: 140 18% 90%;
+  --muted: 150 10% 18%;
+  --muted-foreground: 140 9% 62%;
+  --accent: 150 10% 18%;
+  --accent-foreground: 140 18% 90%;
+  --border: 150 10% 23%;
+  --input: 150 10% 23%;
+  --ring: 140 30% 66%;
+  --campo: 150 14% 10%;
+  --barra-fondo: 150 13% 14%;
+  --barra-linea: 150 10% 23%;
 }
