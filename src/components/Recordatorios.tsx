@@ -345,8 +345,8 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
           <DialogHeader>
             <DialogTitle className="text-base">{t.rec_delete_confirm}</DialogTitle>
           </DialogHeader>
-          {aviso && <p className="text-xs text-muted-foreground">{aviso}</p>}
-          <div className="flex justify-end gap-2">
+          {aviso && <p className="text-xs text-muted-foreground text-center">{aviso}</p>}
+          <div className="flex justify-center gap-2">
             <Button variant="outline" className="h-9 px-4 text-sm" onClick={() => setConfirmar(false)}>{t.rec_cancel}</Button>
             <Button variant="destructive" className="h-9 px-4 text-sm gap-1.5" onClick={borrar} style={{ opacity: borrando ? 0.6 : 1 }}>
               <Trash2 size={14} />{t.rec_delete}
@@ -508,8 +508,8 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
             <DialogHeader>
               <DialogTitle className="text-base">{t.rec_delete_confirm}</DialogTitle>
             </DialogHeader>
-            {avisoBorrar && <p className="text-xs text-muted-foreground">{avisoBorrar}</p>}
-            <div className="flex justify-end gap-2">
+            {avisoBorrar && <p className="text-xs text-muted-foreground text-center">{avisoBorrar}</p>}
+            <div className="flex justify-center gap-2">
               <Button variant="outline" className="h-9 px-4 text-sm" onClick={() => setConfirmando(false)}>{t.rec_cancel}</Button>
               <Button variant="destructive" className="h-9 px-4 text-sm gap-1.5" onClick={borrar} style={{ opacity: guardando ? 0.6 : 1 }}>
                 <Trash2 size={14} />{t.rec_delete}
