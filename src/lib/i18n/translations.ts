@@ -322,6 +322,8 @@ export interface Translations {
   rec_placeholder: string;
   rec_for: string;
   rec_for_me: string;
+  rec_send: string;
+  rec_deleted_short: string;
   rec_from: string;
   rec_save: string;
   rec_cancel: string;
@@ -658,7 +660,9 @@ export const es: Translations = {
   rec_title_edit: 'Recordatorio',
   rec_placeholder: 'Escribe lo que quieres recordar…',
   rec_for: 'Para',
-  rec_for_me: 'Mí',
+  rec_for_me: 'Para mí',
+  rec_send: 'Enviar',
+  rec_deleted_short: 'Lo eliminó',
   rec_from: 'De',
   rec_save: 'Guardar',
   rec_cancel: 'Cancelar',
@@ -995,7 +999,9 @@ export const en: Translations = {
   rec_title_edit: 'Reminder',
   rec_placeholder: 'Write what you want to remember…',
   rec_for: 'For',
-  rec_for_me: 'Me',
+  rec_for_me: 'For me',
+  rec_send: 'Send',
+  rec_deleted_short: 'Deleted it',
   rec_from: 'From',
   rec_save: 'Save',
   rec_cancel: 'Cancel',
@@ -1332,7 +1338,9 @@ export const pt: Translations = {
   rec_title_edit: 'Lembrete',
   rec_placeholder: 'Escreva o que você quer lembrar…',
   rec_for: 'Para',
-  rec_for_me: 'Mim',
+  rec_for_me: 'Para mim',
+  rec_send: 'Enviar',
+  rec_deleted_short: 'Excluiu',
   rec_from: 'De',
   rec_save: 'Salvar',
   rec_cancel: 'Cancelar',

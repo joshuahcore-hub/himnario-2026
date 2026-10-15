@@ -2,7 +2,7 @@
 // (la IA solo transcribe la foto; el emparejamiento con el himnario lo hace la app).
 // Indicador: verde = IA disponible (Gemini o PC); gris = no disponible (pegar texto sigue funcionando).
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/aviso';
 import { Camera, ImageIcon, ListChecks, Loader2, PowerOff, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';

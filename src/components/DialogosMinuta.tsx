@@ -6,7 +6,7 @@
 //    usarla (Himnario → "Canciones que no están en el himnario").
 // Aquí el teclado SÍ se abre solo (excepción pedida: se agrega para escribir el nombre "al tiro").
 import { useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/aviso';
 import { ImagePlus, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

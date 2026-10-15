@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { toast } from '@/lib/aviso';
 import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2 } from 'lucide-react';
 import { compartirImagen, imagenDeMinuta } from '@/lib/imagenMinuta';
 import { formatearFecha } from '@/lib/minutaUtils';

@@ -15,14 +15,16 @@ import { esComputador } from '@/lib/proyeccion';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
-import { AcotacionesPostit, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
+import { AcotacionesPostit, BotonEnviados, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, UMBRAL_LADO } from '@/lib/deslizar';
-function SongPage({ song, horizontal, notas, onTocarNota }: {
+function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
   song: ParsedSong;
+  /** (1.13.1) Las notas son las que envié (vista "Enviados"). */
+  enviados?: boolean;
   horizontal: boolean;
   /** Recordatorios de esta alabanza (1.7.0): van entre el título y la letra. */
   notas: Recordatorio[];
@@ -65,7 +67,7 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (
             <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)}>
-              <NotasRecordatorio notas={notas.filter(vaSobreLetra)} sobreLetra soloVer onTocar={onTocarNota} />
+              <NotasRecordatorio notas={notas.filter(vaSobreLetra)} sobreLetra soloVer enviados={enviados} onTocar={onTocarNota} />
             </HimnoRecortado>
           )}
         </div>
@@ -91,8 +93,8 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
             <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)} ajustarAlto>
               {/* Sin mover: en fila justo ARRIBA de la letra, flotando (1.9.2: antes estaban en el flujo y al agregar
                   uno la letra bajaba, y al moverlo volvía a subir). */}
-              <NotasRecordatorio notas={notas} onTocar={onTocarNota} className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />
-              <NotasRecordatorio notas={notas} sobreLetra onTocar={onTocarNota} />
+              <NotasRecordatorio notas={notas} enviados={enviados} onTocar={onTocarNota} className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />
+              <NotasRecordatorio notas={notas} sobreLetra enviados={enviados} onTocar={onTocarNota} />
             </HimnoRecortado>
           </div>
         )}
@@ -153,7 +155,9 @@ export default function MinutaReader() {
   const horizontal = useHorizontal();
   const { theme: temaLector } = useTheme();
   // Recordatorios (1.7.0): los "siempre en esta alabanza" y los "solo en esta minuta".
-  const { registrado, puedeProyectar } = useAcceso();
+  const { registrado, puedeProyectar, puedeDejarAOtros } = useAcceso();
+  // Vista "Enviados" (1.13.1): los post-it que dejé a otras personas en vez de los míos.
+  const [verEnviados, setVerEnviados] = useState(false);
   // Generar proyección (1.12.0): solo en el computador y con el permiso; en la portada de la minuta.
   const [proyeccionAbierta, setProyeccionAbierta] = useState(false);
   const [enComputador] = useState(esComputador);
@@ -377,7 +381,8 @@ export default function MinutaReader() {
         ) : item?.fuera ? (
           <PaginaFuera canto={item} horizontal={horizontal} />
         ) : item ? (
-          <SongPage song={item} horizontal={horizontal} notas={notasDe(item.hymnNumber)} onTocarNota={abrirPanel} />
+          <SongPage song={item} horizontal={horizontal} enviados={verEnviados}
+                    notas={verEnviados ? notasDe(item.hymnNumber, 'enviados') : notasDe(item.hymnNumber)} onTocarNota={abrirPanel} />
         ) : null}
       </div>
     );
@@ -405,6 +410,12 @@ export default function MinutaReader() {
         </div>
         {/* Arriba a la derecha: añadir recordatorio a esta alabanza (1.7.0; solo en páginas de canto) y girar
             (1.6.1). Discretos, para no tapar la letra. */}
+        {/* Arriba a la izquierda (1.13.1, Josué: simétrico): los dos de post-it, solo en páginas de canto y de pie. */}
+        <div className="absolute top-2 left-2 z-20 flex gap-2 transition-opacity duration-200"
+             style={{ opacity: cantoVisible && !horizontal ? 1 : 0, pointerEvents: cantoVisible && !horizontal ? 'auto' : 'none' }}>
+          <BotonRecordatorio onClick={() => abrirPanel(null)} />
+          {puedeDejarAOtros && <BotonEnviados activo={verEnviados} onClick={() => setVerEnviados(v => !v)} />}
+        </div>
         <div className="absolute top-2 right-2 z-20 flex gap-2">
           {puedeProyectar && enComputador && (
             <button onClick={() => setProyeccionAbierta(true)} title={t.proy_titulo}
@@ -413,10 +424,7 @@ export default function MinutaReader() {
               <Presentation size={15} />{t.proy_titulo}
             </button>
           )}
-          {/* Girado = solo para ver (1.12.1, Josué): sin el botón de crear post-it. */}
-          <div className="transition-opacity duration-200" style={{ opacity: cantoVisible && !horizontal ? 1 : 0, pointerEvents: cantoVisible && !horizontal ? 'auto' : 'none' }}>
-            <BotonRecordatorio onClick={() => abrirPanel(null)} />
-          </div>
+
           {puedeGirar && (
             <button {...toqueGirar} onTouchStart={e => e.stopPropagation()} aria-label="Girar" style={{ touchAction: 'none' }}
                     className="tap-btn-overlay p-2 rounded-full bg-card/90 border border-border text-foreground/70">

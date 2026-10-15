@@ -4,7 +4,7 @@
 //  - Registrado: interruptor general (viene encendido) y, si está encendido, los tipos: el administrador uno por
 //    acción; los demás solo "Nueva minuta publicada". Si este celular aún no dio permiso, botón "Permitir".
 import { useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/aviso';
 import { BellOff, BellRing, UserRoundPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAcceso } from '@/hooks/useAcceso';

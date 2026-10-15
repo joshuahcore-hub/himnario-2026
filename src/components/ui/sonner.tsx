@@ -3,22 +3,20 @@ import { Toaster as Sonner, toast } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
+// Avisos de arriba (1.13.1, Josué): la PÍLDORA la dibuja src/lib/aviso.tsx (pequeña, centrada, gris oscuro). Aquí solo
+// la posición: arriba, centrada en la pantalla, con el mismo margen a los lados.
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme } = useTheme();
-
+  const margen = { top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: '16px', right: '16px' };
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
-      className="toaster group"
-      toastOptions={{
-        classNames: {
-          toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-        },
-      }}
+      // En el celular sonner pone ancho 100 % además de los márgenes y quedaba corrido: ancho automático.
+      className="toaster group !w-auto"
+      offset={margen}
+      mobileOffset={margen}
+      gap={8}
+      toastOptions={{ unstyled: true }}
       {...props}
     />
   );

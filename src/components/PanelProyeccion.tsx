@@ -2,7 +2,7 @@
 // portada SIN escribirla (Libro → Capítulo → Versículo → "hasta" opcional; por defecto Génesis 1:1), se ve el texto
 // y "Generar" descarga "PPT Culto DD-MM-AAAA.pptx". Avisa qué alabanzas no tienen diapositivas.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/aviso';
 import { ChevronDown, Loader2, Presentation, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
+import { toast } from '@/lib/aviso';
 import { ArrowDown, ArrowUp, Check, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

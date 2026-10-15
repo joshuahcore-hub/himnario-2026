@@ -6,8 +6,8 @@
 // - PanelRecordatorio: escribir / editar / borrar. Para quién y si es "siempre" o "solo esta minuta".
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, MoveDiagonal2, PenLine, Send, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { ArrowLeft, Check, CheckCheck, MoveDiagonal2, PenLine, Send, Trash2 } from 'lucide-react';
+import { toast } from '@/lib/aviso';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -98,8 +98,10 @@ function acomodar(n: Caja, texto: Caja, zona: Zona, dx: number, dy: number): [nu
   return [x, validos[0]];
 }
 
-function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, soloVer = false, escalaLetra = 1, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
+function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, soloVer = false, escalaLetra = 1, enviado = false, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
   r: Recordatorio;
+  /** (1.13.1) Vista "Enviados": papel más transparente, encima flota "Para X" con los tics; no se mueve ni estira. */
+  enviado?: boolean;
   /** Pegado sobre la letra: ancho de la letra / ANCHO_REF_LETRA (el post-it se escala con ella). */
   escalaLetra?: number;
   /** Solo para ver (celular girado, 1.9.10): no se toca, no se mueve ni se estira. */
@@ -307,7 +309,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         escala: caja.current && caja.current.offsetWidth ? caja.current.getBoundingClientRect().width / caja.current.offsetWidth : 1,
         timer: window.setTimeout(() => {
           const g = gesto.current;
-          if (!g || r.id.startsWith('tmp-')) return;
+          if (!g || r.id.startsWith('tmp-') || enviado) return;
           g.arrastrando = true;
           navigator.vibrate?.(15);
           try { caja.current?.setPointerCapture(id); } catch { /* sin captura igual funciona */ }
@@ -387,6 +389,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         className={`relative text-left ${compacto ? 'px-2.5 pt-1.5 pb-1.5' : 'px-3.5 pt-2.5 pb-2.5'}`}
         style={{
           zoom: tam * f,
+          opacity: enviado ? 0.62 : 1,
           background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
           boxShadow: levantado ? '0 10px 24px rgba(0,0,0,0.28)' : '0 2px 6px rgba(0,0,0,0.16)',
           transform: transformPapel,
@@ -396,7 +399,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         {/* Cinta adhesiva */}
         <span className="absolute left-1/2 -top-1.5 h-3 w-10 -ml-5 bg-white/55 dark:bg-white/35 pointer-events-none"
               style={{ transform: 'rotate(2deg)', boxShadow: '0 0 0 1px rgba(0,0,0,0.04)' }} />
-        {persona && (
+        {persona && !enviado && (
           <span className={`flex items-center gap-1 font-semibold ${compacto ? 'text-[10px]' : 'text-[11px]'}`} style={{ color: '#7A6420' }}>
             {r.autor ? `${t.rec_from}:` : `${t.rec_for}:`}
             <Punto color={persona.color} />
@@ -414,8 +417,21 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       {/* Tirador para estirar (solo con el post-it tocado): SEPARADO de la esquina de abajo a la derecha (no tapa el
           post-it) y siempre del mismo tamaño y distancia a la vista, aunque haya zoom (1.9.8, Josué). El ancla mide 0 y
           está en la esquina; dentro, todo va "des-ampliado". */}
+      {enviado && r.para && (
+        // Fuera del papel, flotando arriba (1.13.1, Josué): a quién se lo envié y si lo vio (tics) o lo eliminó.
+        <div className="absolute bottom-full left-0 mb-1.5 flex items-center gap-1 rounded-full bg-card/95 border border-border px-2 py-0.5 text-[10px] font-medium text-foreground whitespace-nowrap shadow-sm pointer-events-none">
+          <Punto color={r.para.color} />{r.para.nombre}
+          {r.estado === 'eliminado' ? (
+            <span className="text-red-600 dark:text-red-400">· {t.rec_deleted_short}</span>
+          ) : r.estado === 'visto' ? (
+            <CheckCheck size={13} className="text-especial" strokeWidth={2.4} aria-label={t.rec_seen} />
+          ) : (
+            <Check size={13} className="text-muted-foreground" strokeWidth={2.4} aria-label={t.rec_sent} />
+          )}
+        </div>
+      )}
       {!soloVer && <>
-      <div ref={anclaTirador} className={`absolute ${lado.izq ? 'left-0' : 'right-0'} ${lado.arriba ? 'top-0' : 'bottom-0'} w-0 h-0 z-20`}
+      {!enviado && <div ref={anclaTirador} className={`absolute ${lado.izq ? 'left-0' : 'right-0'} ${lado.arriba ? 'top-0' : 'bottom-0'} w-0 h-0 z-20`}
            style={{ transform: transformAncla, transformOrigin: '0 0' }}>
         <div {...tirador} aria-label="Tamaño"
              className="absolute rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
@@ -423,7 +439,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
                       width: TIRADOR_TAM, height: TIRADOR_TAM, touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
           <MoveDiagonal2 size={14} />
         </div>
-      </div>
+      </div>}
       {/* Opciones: ancla en el centro de abajo (o de arriba) del post-it, des-ampliada como el tirador. */}
       <div className={`absolute left-1/2 ${ubic.arriba ? 'top-0' : 'top-full'} w-0 h-0 z-10`}
            style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 0' }}>
@@ -455,8 +471,10 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
  *    que debe ser `relative` y llevar data-marco-letra; la página entera lleva data-pagina).
  * Mantener presionado uno lo despega y se arrastra; si se suelta arriba, fuera de la letra, vuelve a la fila.
  */
-export function NotasRecordatorio({ notas, compacto = false, onTocar, className = '', sobreLetra = false, alDerecha = false, soloVer = false }: {
+export function NotasRecordatorio({ notas, compacto = false, onTocar, className = '', sobreLetra = false, alDerecha = false, soloVer = false, enviados = false }: {
   notas: Recordatorio[];
+  /** (1.13.1) Son los que envié (vista "Enviados"). */
+  enviados?: boolean;
   /** Solo para ver (celular girado): ver Nota. */
   soloVer?: boolean;
   /** Fila pegada a la derecha (ver Nota). */
@@ -505,7 +523,7 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
     <div ref={contenedor}
          className={sobreLetra ? `absolute inset-0 pointer-events-none ${className}` : `w-full flex flex-col pt-1.5 ${compacto ? 'gap-2.5' : 'gap-3.5'} ${className}`}>
       {lista.map((r, i) => (
-        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra} alDerecha={alDerecha} soloVer={soloVer} escalaLetra={sobreLetra ? escalaLetra : 1}
+        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra} alDerecha={alDerecha} soloVer={soloVer} enviado={enviados} escalaLetra={sobreLetra ? escalaLetra : 1}
               onAlternar={() => setAbiertaId(a => (a === r.id ? null : r.id))} onCerrarOpciones={() => setAbiertaId(null)}
               onEditar={editar} onBorrar={pedirBorrar} />
       ))}
@@ -577,17 +595,18 @@ export function AcotacionesPostit({ notas, className = '' }: { notas: Recordator
 
 /** Post-it en miniatura (1.9.6): el mismo papel amarillo con su cinta; con "+" en el botón de arriba. Se usa en
  *  todos lados donde va el ícono de recordatorio, para que coincida con los post-it. */
-export function MiniPostit({ tam = 27, mas = true, className = '' }: { tam?: number; mas?: boolean; className?: string }) {
+export function MiniPostit({ tam = 27, mas = true, enviar = false, className = '' }: { tam?: number; mas?: boolean; enviar?: boolean; className?: string }) {
   return (
     <span className={`relative inline-block shrink-0 ${className}`}
           style={{ width: tam, height: tam, background: '#FFF3B0', borderRadius: `${tam * 0.08}px ${tam * 0.08}px ${tam * 0.26}px ${tam * 0.08}px`,
                    boxShadow: '0 1px 4px rgba(0,0,0,0.25)', transform: 'rotate(-5deg)' }}>
       <span className="absolute left-1/2 bg-white/60"
             style={{ top: -tam * 0.11, height: tam * 0.22, width: tam * 0.52, marginLeft: -tam * 0.26, transform: 'rotate(3deg)' }} />
-      {mas && (
+      {(mas || enviar) && (
         <svg viewBox="0 0 24 24" className="absolute inset-0 m-auto" style={{ width: tam * 0.56, height: tam * 0.56 }}
-             fill="none" stroke="#7A6420" strokeWidth={2.6} strokeLinecap="round">
-          <path d="M12 6v12M6 12h12" />
+             fill="none" stroke="#7A6420" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+          {/* "Enviados" (1.13.1): flecha que sale, con el mismo trazo que el "+". */}
+          {enviar ? <path d="M7 17L17 7M9 7h8v8" /> : <path d="M12 6v12M6 12h12" />}
         </svg>
       )}
     </span>
@@ -617,6 +636,37 @@ export function BotonRecordatorio({ onClick, className = '' }: { onClick: () => 
   );
 }
 
+/** Ver los post-it que ENVIÉ (1.13.1, Josué): alterna la vista de la página. Encendido = con un anillo suave. */
+export function BotonEnviados({ activo, onClick }: { activo: boolean; onClick: () => void }) {
+  const { t } = useI18n();
+  const toque = useToque(onClick);
+  return (
+    <button type="button" {...toque} onTouchStart={e => e.stopPropagation()} style={{ touchAction: 'none' }}
+            aria-label={t.rec_sent_title} aria-pressed={activo}
+            className={`tap-btn-overlay relative w-[37px] h-[37px] flex items-center justify-center rounded-full transition-shadow duration-200 ${
+              activo ? 'ring-2 ring-[hsl(var(--especial))]' : ''}`}>
+      <MiniPostit enviar mas={false} />
+    </button>
+  );
+}
+
+/** Interruptor largo de dos lados (1.13.1, Josué): es UN solo botón; cada toque pasa al otro lado (no son dos
+ *  botones). El lado elegido se marca con una "píldora" que se desliza. */
+function Conmutador({ izquierda, derecha, derechaActiva, onCambiar, deshabilitado = false }: {
+  izquierda: string; derecha: string; derechaActiva: boolean; onCambiar: (derecha: boolean) => void; deshabilitado?: boolean;
+}) {
+  return (
+    <button type="button" role="switch" aria-checked={derechaActiva} disabled={deshabilitado}
+            onClick={() => onCambiar(!derechaActiva)}
+            className="relative w-full h-10 rounded-full bg-muted p-1 grid grid-cols-2 items-center text-[13px] font-medium [touch-action:manipulation] disabled:opacity-50">
+      <span aria-hidden className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-full bg-card shadow-sm"
+            style={{ transform: derechaActiva ? 'translateX(100%)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+      <span className={`relative text-center truncate px-2 transition-colors duration-200 ${derechaActiva ? 'text-muted-foreground' : 'text-foreground'}`}>{izquierda}</span>
+      <span className={`relative text-center truncate px-2 transition-colors duration-200 ${derechaActiva ? 'text-foreground' : 'text-muted-foreground'}`}>{derecha}</span>
+    </button>
+  );
+}
+
 export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados = [], minutaId = null, minutaPublicada = true }: {
   abierto: boolean;
   onCerrar: () => void;
@@ -637,6 +687,8 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   const [porBorrar, setPorBorrar] = useState<string | null>(null);
   const [texto, setTexto] = useState('');
   const [paraId, setParaId] = useState<string | null>(null);
+  // "Enviar" (1.13.1): con el interruptor en Enviar aparecen las personas; volver a "Para mí" las oculta.
+  const [enviar, setEnviar] = useState(false);
   const [soloMinuta, setSoloMinuta] = useState(false);
   const [personas, setPersonas] = useState<Persona[]>(personasGuardadas);
   const [guardando, setGuardando] = useState(false);
@@ -648,6 +700,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
     setAnt(r);
     setTexto(r?.texto ?? '');
     setParaId(r?.para?.id ?? null);
+    setEnviar(!!r?.para);
     setSoloMinuta(r ? !!r.minuta : !!minutaId);
     setGuardando(false);
     setConfirmando(false);
@@ -669,11 +722,13 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   // otro (no la vería).
   const conPersonas = puedeDejarAOtros && !ant?.local && personas.length > 0;
   const bloqueoPrivada = soloMinuta && !!minutaId && !minutaPublicada;
-  useEffect(() => { if (bloqueoPrivada) setParaId(null); }, [bloqueoPrivada]);
+  useEffect(() => { if (bloqueoPrivada) { setParaId(null); setEnviar(false); } }, [bloqueoPrivada]);
 
-  const cambio = texto.trim() !== (ant?.texto ?? '') || paraId !== (ant?.para?.id ?? null)
+  const paraFinal = enviar ? paraId : null;
+  const cambio = texto.trim() !== (ant?.texto ?? '') || paraFinal !== (ant?.para?.id ?? null)
     || soloMinuta !== (ant ? !!ant.minuta : !!minutaId);
-  const listo = cambio && texto.trim().length > 0 && !guardando;
+  // Con "Enviar" hay que elegir a quién.
+  const listo = cambio && texto.trim().length > 0 && !guardando && !(enviar && !paraId);
 
   // Guardar y borrar se ven AL INSTANTE (1.8.1, Josué: "todo fluido"): el panel se cierra ya y el servidor se
   // actualiza por detrás; si falla, el cambio se deshace solo y aparece el aviso.
@@ -682,9 +737,9 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
     if (!listo || !himno) return;
     setGuardando(true);
     onCerrar();
-    const para = personas.find(p => p.id === paraId) ?? null;
+    const para = personas.find(p => p.id === paraFinal) ?? null;
     guardarRecordatorio({
-      anterior: ant, himno, texto: texto.trim(), paraId, para, minuta: soloMinuta && minutaId ? minutaId : null,
+      anterior: ant, himno, texto: texto.trim(), paraId: paraFinal, para, minuta: soloMinuta && minutaId ? minutaId : null,
     }, registrado).catch(avisarError);
     // Lo enviado a otra persona no queda sobre la letra (1.8.3): un aviso confirma que salió.
     if (para && !ant) toast.success(t.rec_sent_to(para.nombre));
@@ -803,23 +858,26 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
           </span>
         </div>
 
+        {/* Alcance (1.13.1, Josué): interruptor largo. Por defecto, en una minuta: "Solo esta minuta". */}
         {minutaId && (
-          <div className="flex flex-wrap gap-2.5">
-            <button type="button" className={pastilla(!soloMinuta)} onClick={() => setSoloMinuta(false)}>{t.rec_always}</button>
-            <button type="button" className={pastilla(soloMinuta)} onClick={() => setSoloMinuta(true)}>{t.rec_this_minuta}</button>
-          </div>
+          <Conmutador izquierda={t.rec_this_minuta} derecha={t.rec_always} derechaActiva={!soloMinuta}
+                      onCambiar={siempre => setSoloMinuta(!siempre)} />
         )}
 
+        {/* Para mí / Enviar (1.13.1): interruptor largo DEBAJO; al pasar a Enviar aparecen las personas (en una fila que
+            se desliza hacia el lado). Su espacio está siempre reservado: no empuja ni mueve nada. */}
         {conPersonas && (
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-semibold text-muted-foreground">{t.rec_for}:</p>
+          <div className="space-y-2">
+            <Conmutador izquierda={t.rec_for_me} derecha={t.rec_send} derechaActiva={enviar} deshabilitado={bloqueoPrivada}
+                        onCambiar={setEnviar} />
             {bloqueoPrivada ? (
-              <p className="text-[11px] text-muted-foreground">{t.rec_private_hint}</p>
+              <p className="text-[11px] text-muted-foreground h-9 flex items-center">{t.rec_private_hint}</p>
             ) : (
-              <div className="flex flex-wrap gap-2.5">
-                <button type="button" className={pastilla(paraId === null)} onClick={() => setParaId(null)}>{t.rec_for_me}</button>
+              <div className="flex gap-2 overflow-x-auto h-9 -mx-1 px-1 transition-opacity duration-200 [scrollbar-width:none]"
+                   style={{ opacity: enviar ? 1 : 0, pointerEvents: enviar ? 'auto' : 'none' }} aria-hidden={!enviar}>
                 {personas.map(p => (
-                  <button key={p.id} type="button" className={`${pastilla(paraId === p.id)} flex items-center gap-1.5`} onClick={() => setParaId(p.id)}>
+                  <button key={p.id} type="button" tabIndex={enviar ? 0 : -1}
+                          className={`${pastilla(paraId === p.id)} shrink-0 flex items-center gap-1.5`} onClick={() => setParaId(p.id)}>
                     <Punto color={p.color} />{p.nombre}
                   </button>
                 ))}
@@ -832,12 +890,6 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
             reservado, que aparecen (opacidad) solo si algo cambió. Si se borró todo el texto de uno existente, en
             lugar de Guardar dice "Eliminar" (pregunta antes). */}
         <div className="flex items-center gap-2 pt-1">
-          {!ant && enviados.length > 0 && (
-            <button type="button" className="flex items-center gap-1.5 h-9 px-1 text-xs font-medium text-muted-foreground"
-                    onClick={() => { setPorBorrar(null); setVista('enviados'); }}>
-              <Send size={13} />{t.rec_sent_count(enviados.length)}
-            </button>
-          )}
           <div className="flex-1" />
           <div className="flex gap-2 transition-opacity duration-200"
                style={{ opacity: listo || vacio ? 1 : 0, pointerEvents: listo || vacio ? 'auto' : 'none' }}>

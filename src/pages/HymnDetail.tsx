@@ -10,7 +10,7 @@ import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal'
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
-import { AcotacionesPostit, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
+import { AcotacionesPostit, BotonEnviados, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
 import ZoomableImage from '@/components/ZoomableImage';
 import Zoomable from '@/components/Zoomable';
 import HimnoRecortado, { vistaRecortada } from '@/components/HimnoRecortado';
@@ -91,8 +91,11 @@ export default function HymnDetail() {
   // Celular girado: la letra a todo el ancho y se recorre hacia abajo (deslizar arriba/abajo ya no cierra).
   const horizontal = useHorizontal();
   // Recordatorios (1.7.0): notas amarillas arriba de la letra. En el himnario solo los "siempre en esta alabanza".
-  const { registrado } = useAcceso();
+  const { registrado, puedeDejarAOtros } = useAcceso();
   const notasDe = useRecordatorios(registrado);
+  // Vista "Enviados" (1.13.1, Josué): en vez de los míos, los que dejé a otras personas (se ocultan los míos).
+  const [verEnviados, setVerEnviados] = useState(false);
+  const notasVista = (n: number) => (verEnviados ? notasDe(n, 'enviados') : notasDe(n));
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
   const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
@@ -315,11 +318,11 @@ export default function HymnDetail() {
             {/* Girado = solo para ver (1.9.10, Josué): los post-it de la letra en su lugar; los de arriba del título,
                 como acotación pequeña arriba del título. Ninguno se edita ni se mueve. */}
             <div className="w-full" style={{ containerType: 'inline-size' }}>
-              <AcotacionesPostit notas={notasDe(num)} className="px-[5%] pb-1" />
+              <AcotacionesPostit notas={notasVista(num)} className="px-[5%] pb-1" />
               {/* Espacio para los post-it que asoman por arriba de la letra (padding en % = del ancho). */}
-              <div style={{ paddingTop: `${sobresaleArriba(notasDe(num), num) * 100}%` }} />
+              <div style={{ paddingTop: `${sobresaleArriba(notasVista(num), num) * 100}%` }} />
               <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`}>
-                <NotasRecordatorio notas={notasDe(num).filter(vaSobreLetra)} sobreLetra soloVer onTocar={abrirPanel} />
+                <NotasRecordatorio notas={notasVista(num).filter(vaSobreLetra)} sobreLetra soloVer enviados={verEnviados} onTocar={abrirPanel} />
               </HimnoRecortado>
             </div>
           </Zoomable>
@@ -334,7 +337,7 @@ export default function HymnDetail() {
         {/* Post-it: los que no se han movido van en fila justo arriba de la letra (fuera del flujo: la letra no se corre
             al agregarlos ni al moverlos); los movidos, pegados en su lugar de la letra, encima de la imagen (1.9.0). */}
         <div className="relative w-full min-h-0 flex justify-center">
-          <NotasRecordatorio notas={notasDe(num)} onTocar={abrirPanel} className="absolute bottom-full left-0 right-0 mx-auto max-w-lg px-4 pb-3 pointer-events-none" />
+          <NotasRecordatorio notas={notasVista(num)} enviados={verEnviados} onTocar={abrirPanel} className="absolute bottom-full left-0 right-0 mx-auto max-w-lg px-4 pb-3 pointer-events-none" />
           <ZoomableImage
             src={src}
             alt={`${t.hymn_alt}${num}`}
@@ -343,7 +346,7 @@ export default function HymnDetail() {
             estilo={vistaRecortada(num)}
             onEdgeSwipe={handleEdgeSwipe}
           >
-            <NotasRecordatorio notas={notasDe(num)} sobreLetra onTocar={abrirPanel} />
+            <NotasRecordatorio notas={notasVista(num)} sobreLetra enviados={verEnviados} onTocar={abrirPanel} />
           </ZoomableImage>
         </div>
       </div>
@@ -365,15 +368,17 @@ export default function HymnDetail() {
     <div ref={exteriorRef} className={`fixed inset-0 ${horizontal ? 'z-[55]' : 'z-40'} bg-background`} style={{ overflow: 'clip', willChange: 'transform' }}>
       {/* overflow CLIP (no hidden): con hidden el navegador podía desplazarlo solo (al abrir un panel quedaba corrido
           113 px mostrando el himno vecino). clip recorta igual y no se puede desplazar (1.7.0). */}
-      <div data-tapa-postit className="absolute top-3 left-3 z-20">
+      {/* Arriba a la izquierda (1.13.1, Josué: simétrico): volver y los dos de post-it (crear y ver los enviados).
+          Girado = solo para ver: sin los de post-it. */}
+      <div data-tapa-postit className="absolute top-3 left-3 z-20 flex gap-2">
         <button {...toqueVolver} style={{ touchAction: 'none' }} className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
           <ArrowLeft size={20} />
         </button>
-      </div>
-      {/* Arriba a la derecha: añadir recordatorio (1.7.0) y girar a horizontal o volver a vertical (1.6.1). */}
-      <div data-tapa-postit className="absolute top-3 right-3 z-20 flex gap-2">
-        {/* Girado = solo para ver (1.12.1, Josué): sin el botón de crear post-it. */}
         {!horizontal && <BotonRecordatorio onClick={() => abrirPanel(null)} />}
+        {!horizontal && puedeDejarAOtros && <BotonEnviados activo={verEnviados} onClick={() => setVerEnviados(v => !v)} />}
+      </div>
+      {/* Arriba a la derecha: girar a horizontal o volver a vertical (1.6.1). */}
+      <div data-tapa-postit className="absolute top-3 right-3 z-20 flex gap-2">
         {puedeGirar && (
           <button {...toqueGirar} aria-label="Girar" style={{ touchAction: 'none' }}
                   className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">

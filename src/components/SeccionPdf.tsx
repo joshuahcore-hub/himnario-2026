@@ -1,7 +1,7 @@
 // Ajustes → Himnario en PDF: descargar la versión más reciente del himnario completo.
 // El PDF se actualiza con `npm run pdf -- "<ruta del PDF>"` (ver scripts/actualizar-pdf.mjs).
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/aviso';
 import { Download, FileDown, Loader2 } from 'lucide-react';
 import pdf from '@/datos/pdf.json';
 import { useI18n } from '@/lib/i18n/index';
