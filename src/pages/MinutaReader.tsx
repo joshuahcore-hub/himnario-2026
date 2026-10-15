@@ -12,7 +12,7 @@ import { RotateCwSquare } from 'lucide-react';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
-import { AcotacionesPostit, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, vaSobreLetra } from '@/components/Recordatorios';
+import { AcotacionesPostit, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
@@ -56,6 +56,8 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
         <div className="w-full flex flex-col items-center pt-3" style={{ containerType: 'inline-size' }}>
           {/* Girado = solo para ver (1.9.10, Josué): ver HymnDetail. */}
           <AcotacionesPostit notas={notas} className="w-full px-[5%] pb-1" />
+          {/* Espacio para los post-it que asoman por arriba de la letra (padding en % = del ancho). */}
+          <div className="w-full" style={{ paddingTop: `${sobresaleArriba(notas, hymnNumber) * 100}%` }} />
           {imgError ? (
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (

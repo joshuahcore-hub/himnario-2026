@@ -444,6 +444,17 @@ export const vaSobreLetra = (r: Recordatorio) => {
   return r.pos.y * altoSobreAncho + 0.09 * (r.tam ?? 1) > 0;
 };
 
+/** Celular girado (1.11.5, Josué): cuánto sobresalen por ARRIBA de la letra los post-it que van sobre ella (p. ej. uno
+ *  encima de un acorde de la primera línea), como fracción del ANCHO de la letra. Se deja ese espacio arriba para que
+ *  se vean completos (si no, quedaban cortados y no se podía desplazar hasta ellos). Incluye la cinta (~1,5 %). */
+export function sobresaleArriba(notas: Recordatorio[], himno: number): number {
+  const rc = tablaRecortes[String(himno)];
+  const altoSobreAncho = rc ? rc[2] / rc[0] : 0.7;
+  let max = 0;
+  for (const r of notas) if (r.pos && r.pos.y < 0 && vaSobreLetra(r)) max = Math.max(max, -r.pos.y * altoSobreAncho);
+  return max > 0 ? max + 0.015 : 0;
+}
+
 /** Acotaciones (celular girado, 1.9.10): mini post-it + texto del tamaño del título, en fila hacia la derecha, arriba
  *  del título. Solo para ver. El contenedor debe tener container-type inline-size (el tamaño sigue al de la letra). */
 export function AcotacionesPostit({ notas, className = '' }: { notas: Recordatorio[]; className?: string }) {

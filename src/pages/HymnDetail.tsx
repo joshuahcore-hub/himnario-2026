@@ -10,7 +10,7 @@ import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal'
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
-import { AcotacionesPostit, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, vaSobreLetra } from '@/components/Recordatorios';
+import { AcotacionesPostit, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
 import ZoomableImage from '@/components/ZoomableImage';
 import Zoomable from '@/components/Zoomable';
 import HimnoRecortado, { vistaRecortada } from '@/components/HimnoRecortado';
@@ -316,6 +316,8 @@ export default function HymnDetail() {
                 como acotación pequeña arriba del título. Ninguno se edita ni se mueve. */}
             <div className="w-full" style={{ containerType: 'inline-size' }}>
               <AcotacionesPostit notas={notasDe(num)} className="px-[5%] pb-1" />
+              {/* Espacio para los post-it que asoman por arriba de la letra (padding en % = del ancho). */}
+              <div style={{ paddingTop: `${sobresaleArriba(notasDe(num), num) * 100}%` }} />
               <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`}>
                 <NotasRecordatorio notas={notasDe(num).filter(vaSobreLetra)} sobreLetra soloVer onTocar={abrirPanel} />
               </HimnoRecortado>
