@@ -733,7 +733,7 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
       await env.DB.prepare('UPDATE recordatorios SET pos_x = ?, pos_y = ? WHERE id = ?').bind(pos?.x ?? null, pos?.y ?? null, id).run();
     }
     if (body.tam !== undefined) {
-      const tam = body.tam == null ? null : typeof body.tam === 'number' && body.tam >= 0.6 && body.tam <= 2 ? body.tam : undefined;
+      const tam = body.tam == null ? null : typeof body.tam === 'number' && body.tam >= 0.5 && body.tam <= 2 ? body.tam : undefined;
       if (tam === undefined) throw new ErrorApi(400, 'Tamaño no válido.');
       await env.DB.prepare('UPDATE recordatorios SET tam = ? WHERE id = ?').bind(tam, id).run();
     }

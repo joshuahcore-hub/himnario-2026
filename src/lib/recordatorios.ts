@@ -34,7 +34,7 @@ export interface Recordatorio {
   tam?: number | null;
 }
 
-export const TAM_MIN = 0.75;
+export const TAM_MIN = 0.55; // 1.11.5 (Josué): más chico, para meterlo entre acordes
 export const TAM_MAX = 2;
 /** Letras por post-it (1.9.10, Josué): lo justo para un recordatorio; más no cabe bien en un papelito. */
 export const MAX_TEXTO = 120;
