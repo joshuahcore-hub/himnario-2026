@@ -43,8 +43,11 @@ export default function SettingsPage() {
       </div>
 
       {/* Idioma, Tema y Color en una fila (Josué, 1.8.0); cada uno despliega sus opciones hacia abajo. */}
-      {/* Celulares muy angostos (< 350 px): Color pasa a una segunda fila para que todo se lea completo. */}
-      <div className="grid grid-cols-[minmax(0,auto)_minmax(0,auto)_minmax(0,1fr)] max-[349px]:grid-cols-2 gap-2 [&>*:nth-child(3)]:max-[349px]:col-span-2">
+      {/* Celulares de menos de 360 px: Color pasa a una segunda fila para que todo se lea completo.
+          Columnas de ancho FIJO (1.10.0, Josué): no dependen de lo elegido ni del idioma (antes, al pasar de Español a
+          Português, Idioma se agrandaba y achicaba a los demás). Proporciones = lo que necesita la opción más larga de
+          cada menú en los 3 idiomas (Português, Oscuro, Verde salvia): en 360 px cabe todo. */}
+      <div className="grid grid-cols-[minmax(0,103fr)_minmax(0,86fr)_minmax(0,117fr)] max-[359px]:grid-cols-2 gap-2 [&>*:nth-child(3)]:max-[359px]:col-span-2">
         <Desplegable<Locale>
           titulo={t.settings_language}
           icono={<Globe size={13} className="text-muted-foreground" />}

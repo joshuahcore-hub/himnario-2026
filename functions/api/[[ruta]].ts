@@ -26,6 +26,8 @@ interface Dispositivo {
   crea_minutas: number;
   /** 1 = puede dejar recordatorios a otras personas (el admin siempre puede). */
   recordatorios_otros: number;
+  /** 0 = el admin le quitó "Ver minutas" (1.10.0): solo ve las que creó. Por defecto 1. */
+  ve_minutas: number;
 }
 
 const COLORES = [
@@ -63,7 +65,7 @@ function llaveDe(request: Request): string | null {
 async function dispositivoActual(request: Request, env: Env): Promise<Dispositivo | null> {
   const llave = llaveDe(request);
   if (!llave) return null;
-  return env.DB.prepare('SELECT id, nombre, color, rol, estado, crea_minutas, recordatorios_otros FROM dispositivos WHERE llave_hash = ?')
+  return env.DB.prepare('SELECT id, nombre, color, rol, estado, crea_minutas, recordatorios_otros, ve_minutas FROM dispositivos WHERE llave_hash = ?')
     .bind(await sha256(llave)).first<Dispositivo>();
 }
 
@@ -82,8 +84,9 @@ function exigirConNombre(d: Dispositivo | null): Dispositivo {
 const puedeDejarAOtros = (d: Dispositivo) => d.rol === 'admin' || !!d.recordatorios_otros;
 
 /** Lo que el celular necesita saber de sí mismo. */
-const datosAcceso = (d: { nombre: string; color: string; rol: string; estado: string; crea_minutas?: number; recordatorios_otros?: number }) => ({
+const datosAcceso = (d: { nombre: string; color: string; rol: string; estado: string; crea_minutas?: number; recordatorios_otros?: number; ve_minutas?: number }) => ({
   nombre: d.nombre, color: d.color, rol: d.rol, estado: d.estado,
+  ve_minutas: d.rol === 'admin' || d.ve_minutas !== 0,
   crea_minutas: d.rol === 'admin' || d.crea_minutas !== 0,
   recordatorios_otros: d.rol === 'admin' || !!d.recordatorios_otros,
 });
@@ -183,13 +186,20 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
   const conAutores = true; // (1.5.5, Josué) "Creada por" lo ven todos, no solo el administrador.
   const quienId = quien?.estado === 'aprobado' ? quien.id : null;
 
+  // (1.10.0, Josué) Sin "Ver minutas", la persona registrada solo ve las que ella misma creó.
+  const sinVer = !!quien && quien.estado === 'aprobado' && quien.rol !== 'admin' && quien.ve_minutas === 0;
+  const visible = sinVer ? 'm.creada_por = ?' : VISIBLE;
   if (metodo === 'GET' && !id) {
     const { results } = await env.DB.prepare(
-      `${SELECT_MINUTAS} WHERE m.borrada = 0 AND ${VISIBLE} ORDER BY m.fecha, m.creada`,
+      `${SELECT_MINUTAS} WHERE m.borrada = 0 AND ${visible} ORDER BY m.fecha, m.creada`,
     ).bind(quienId ?? '').all();
     return json(results.map(f => filaAMinuta(f, conAutores, quienId)));
   }
-  if (metodo === 'GET' && id) return json(await obtenerMinuta(env, id, conAutores, quienId));
+  if (metodo === 'GET' && id) {
+    const f = await env.DB.prepare(`${SELECT_MINUTAS} WHERE m.id = ? AND m.borrada = 0 AND ${visible}`).bind(id, quienId ?? '').first();
+    if (!f) throw new ErrorApi(404, 'Minuta no encontrada.');
+    return json(filaAMinuta(f, conAutores, quienId));
+  }
 
   const yo = exigirEditor(quien);
 
@@ -313,7 +323,7 @@ async function rutasAcceso(request: Request, env: Env, partes: string[], ip: str
     const llave = llaveDe(request);
     if (!llave) throw new ErrorApi(400, 'Falta la llave del dispositivo.');
     const hash = await sha256(llave);
-    const existente = await env.DB.prepare('SELECT id, rol, estado, crea_minutas, recordatorios_otros FROM dispositivos WHERE llave_hash = ?')
+    const existente = await env.DB.prepare('SELECT id, rol, estado, crea_minutas, recordatorios_otros, ve_minutas FROM dispositivos WHERE llave_hash = ?')
       .bind(hash).first<Dispositivo>();
     if (existente) {
       if (existente.estado === 'deshabilitado') throw new ErrorApi(403, 'Este dispositivo fue deshabilitado por el administrador.');
@@ -371,7 +381,7 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
 
   if (seccion === 'dispositivos' && request.method === 'GET') {
     const { results } = await env.DB.prepare(`
-      SELECT d.id, d.nombre, d.color, d.rol, d.estado, d.creado, d.actualizado, d.crea_minutas, d.recordatorios_otros,
+      SELECT d.id, d.nombre, d.color, d.rol, d.estado, d.creado, d.actualizado, d.crea_minutas, d.recordatorios_otros, d.ve_minutas,
              (SELECT COUNT(*) FROM minutas m WHERE m.creada_por = d.id AND m.borrada = 0) AS minutas
       FROM dispositivos d ORDER BY d.estado = 'pendiente' DESC, d.actualizado DESC`).all();
     return json(results.map((d: any) => ({ ...d, yo: d.id === yo.id })));
@@ -389,6 +399,7 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
     }
     if (body.crea_minutas !== undefined) { cambios.push('crea_minutas = ?'); valores.push(body.crea_minutas ? 1 : 0); }
     if (body.recordatorios_otros !== undefined) { cambios.push('recordatorios_otros = ?'); valores.push(body.recordatorios_otros ? 1 : 0); }
+    if (body.ve_minutas !== undefined) { cambios.push('ve_minutas = ?'); valores.push(body.ve_minutas ? 1 : 0); }
     if (cambios.length === 0) throw new ErrorApi(400, 'Nada que cambiar.');
     const r = await env.DB.prepare(`UPDATE dispositivos SET ${cambios.join(', ')}, actualizado = ? WHERE id = ? AND rol != 'admin'`)
       .bind(...valores, ahora(), partes[2]).run();

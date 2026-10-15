@@ -98,6 +98,8 @@ export interface Translations {
   minuta_duplicada_por: string;
   minuta_not_yours: string;
   minuta_duplicate: string;
+  minuta_share_image: string;
+  minuta_share_error: string;
   minuta_duplicated_toast: string;
   minuta_publish_changes: string;
   minuta_changes_published_toast: string;
@@ -120,6 +122,7 @@ export interface Translations {
   minutas_refresh: string;
   minutas_offline: string;
   minutas_hint_select: string;
+  minutas_hint_share: string;
   minutas_pin: string;
 
   // Editor de minutas
@@ -181,6 +184,7 @@ export interface Translations {
   access_approved: string;
   access_registered: string;
   access_can_remind_others: string;
+  admin_can_view: string;
   admin_can_create: string;
   admin_can_remind: string;
   admin_registered: string;
@@ -381,6 +385,8 @@ export const es: Translations = {
   minuta_duplicada_por: 'Duplicada por',
   minuta_not_yours: 'Esta minuta es de otra persona: solo puedes verla o duplicarla. Tu copia sí la puedes editar.',
   minuta_duplicate: 'Duplicar',
+  minuta_share_image: 'Compartir',
+  minuta_share_error: 'No se pudo compartir la minuta.',
   minuta_duplicated_toast: 'Minuta duplicada: la copia es tuya y queda solo para ti.',
   minuta_publish_changes: 'Publicar cambios',
   minuta_changes_published_toast: 'Cambios publicados.',
@@ -402,7 +408,8 @@ export const es: Translations = {
   pdf_updated: 'Actualizado el',
   minutas_refresh: 'Actualizar',
   minutas_offline: 'Sin conexión: mostrando las minutas guardadas en este celular.',
-  minutas_hint_select: 'Mantén presionada una minuta para seleccionarla, fijarla o borrarla.',
+  minutas_hint_select: 'Mantén presionada una minuta para seleccionarla, compartirla, fijarla o borrarla.',
+  minutas_hint_share: 'Mantén presionada una minuta para compartirla como imagen.',
   minutas_pin: 'Fijar',
 
   editor_title_edit: 'Editar minuta',
@@ -466,6 +473,7 @@ export const es: Translations = {
   access_approved: 'Eres creador: puedes crear, editar y borrar minutas.',
   access_registered: 'Estás registrado: te pueden dejar recordatorios en las alabanzas. Si quieres crear minutas, pídeselo al administrador.',
   access_can_remind_others: 'Puedes dejar recordatorios a otras personas.',
+  admin_can_view: 'Ver minutas',
   admin_can_create: 'Crear minutas',
   admin_can_remind: 'Dejar recordatorios a otros',
   admin_registered: 'Registrado',
@@ -660,6 +668,8 @@ export const en: Translations = {
   minuta_duplicada_por: 'Duplicated by',
   minuta_not_yours: 'This service belongs to someone else: you can only view or duplicate it. You can edit your copy.',
   minuta_duplicate: 'Duplicate',
+  minuta_share_image: 'Share',
+  minuta_share_error: 'Could not share the service.',
   minuta_duplicated_toast: 'Service duplicated: the copy is yours and only you can see it.',
   minuta_publish_changes: 'Publish changes',
   minuta_changes_published_toast: 'Changes published.',
@@ -681,7 +691,8 @@ export const en: Translations = {
   pdf_updated: 'Updated on',
   minutas_refresh: 'Refresh',
   minutas_offline: 'Offline: showing the services saved on this phone.',
-  minutas_hint_select: 'Press and hold a service to select, pin or delete it.',
+  minutas_hint_select: 'Press and hold a service to select, share, pin or delete it.',
+  minutas_hint_share: 'Press and hold a service to share it as an image.',
   minutas_pin: 'Pin',
 
   editor_title_edit: 'Edit service',
@@ -745,6 +756,7 @@ export const en: Translations = {
   access_approved: 'You are a creator: you can create, edit and delete services.',
   access_registered: 'You are signed up: others can leave you reminders on songs. To create services, ask the administrator.',
   access_can_remind_others: 'You can leave reminders for other people.',
+  admin_can_view: 'View services',
   admin_can_create: 'Create services',
   admin_can_remind: 'Leave reminders for others',
   admin_registered: 'Signed up',
@@ -939,6 +951,8 @@ export const pt: Translations = {
   minuta_duplicada_por: 'Duplicada por',
   minuta_not_yours: 'Esta minuta é de outra pessoa: você só pode vê-la ou duplicá-la. A sua cópia você pode editar.',
   minuta_duplicate: 'Duplicar',
+  minuta_share_image: 'Compartilhar',
+  minuta_share_error: 'Não foi possível compartilhar a minuta.',
   minuta_duplicated_toast: 'Minuta duplicada: a cópia é sua e fica só para você.',
   minuta_publish_changes: 'Publicar alterações',
   minuta_changes_published_toast: 'Alterações publicadas.',
@@ -960,7 +974,8 @@ export const pt: Translations = {
   pdf_updated: 'Atualizado em',
   minutas_refresh: 'Atualizar',
   minutas_offline: 'Sem conexão: mostrando as minutas salvas neste celular.',
-  minutas_hint_select: 'Mantenha pressionada uma minuta para selecioná-la, fixá-la ou excluí-la.',
+  minutas_hint_select: 'Mantenha pressionada uma minuta para selecioná-la, compartilhá-la, fixá-la ou excluí-la.',
+  minutas_hint_share: 'Mantenha pressionada uma minuta para compartilhá-la como imagem.',
   minutas_pin: 'Fixar',
 
   editor_title_edit: 'Editar minuta',
@@ -1024,6 +1039,7 @@ export const pt: Translations = {
   access_approved: 'Você é criador: pode criar, editar e excluir minutas.',
   access_registered: 'Você está cadastrado: podem deixar lembretes para você nos louvores. Se quiser criar minutas, peça ao administrador.',
   access_can_remind_others: 'Você pode deixar lembretes para outras pessoas.',
+  admin_can_view: 'Ver minutas',
   admin_can_create: 'Criar minutas',
   admin_can_remind: 'Deixar lembretes para outros',
   admin_registered: 'Cadastrado',

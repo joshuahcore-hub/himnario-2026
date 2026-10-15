@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2 } from 'lucide-react';
+import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2 } from 'lucide-react';
+import { compartirImagen, imagenDeMinuta } from '@/lib/imagenMinuta';
+import { formatearFecha } from '@/lib/minutaUtils';
 import Portada from '@/components/Portada';
 import type { MinutaData } from '@/lib/types';
 import { useMinutas, quitarMinutaLocal, guardarMinutaLocal, tomarParaEnfocar } from '@/lib/minutaCache';
@@ -122,6 +124,25 @@ export default function Minutas() {
     }
   };
 
+  // Compartir (1.10.0, Josué): la portada de la minuta como imagen, por WhatsApp u otra app.
+  const [compartiendo, setCompartiendo] = useState(false);
+  const compartir = async () => {
+    if (!unaSeleccionada || compartiendo) return;
+    const m = unaSeleccionada;
+    setCompartiendo(true);
+    try {
+      const imagen = await imagenDeMinuta(m.fecha, m.cantos, {
+        titulo: t.portada_title, palabra: t.portada_palabra, oracion: t.portada_oracion, noEncontrado: t.portada_not_found,
+      });
+      await compartirImagen(imagen, `Minuta ${formatearFecha(m.fecha)}`);
+      salirSeleccion();
+    } catch (e: any) {
+      toast.error(e?.message || t.minuta_share_error);
+    } finally {
+      setCompartiendo(false);
+    }
+  };
+
   const fijar = async (m: MinutaData) => {
     try {
       guardarMinutaLocal(await api<MinutaData>(`minutas/${m.id}`, { metodo: 'PATCH', datos: { fijada: !m.fijada } }));
@@ -204,9 +225,9 @@ export default function Minutas() {
           {t.minutas_offline}
         </div>
       )}
-      {puedeEditar && ordenadas.length > 0 && (
+      {ordenadas.length > 0 && (
         <p className={`px-5 pt-2 text-[10px] text-muted-foreground/70 transition-opacity duration-200 w-full max-w-5xl mx-auto ${selectMode ? 'opacity-0' : ''}`}>
-          {t.minutas_hint_select}
+          {puedeEditar ? t.minutas_hint_select : t.minutas_hint_share}
         </p>
       )}
 
@@ -252,7 +273,7 @@ export default function Minutas() {
                     // Gesto nuevo: el "ignorar" de un mantener-presionado anterior ya no vale (1.7.5: si al soltar no
                     // llegaba el click, quedaba pendiente y se tragaba el siguiente toque de verdad).
                     ignorarSiguienteToque.current = false;
-                    if (!puedeEditar) return;
+                    // (1.10.0, Josué) Todos pueden seleccionar: "Compartir" es para cualquiera que vea las minutas.
                     longPress.current = setTimeout(() => {
                       ignorarSiguienteToque.current = true;
                       setSelectMode(true);
@@ -315,13 +336,23 @@ export default function Minutas() {
             </BotonSeguro>
           )}
           <BotonSeguro
-            onClick={duplicar}
-            disabled={selected.size !== 1 || duplicando}
+            onClick={compartir}
+            disabled={selected.size !== 1 || compartiendo}
             className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
-            aria-label={t.minuta_duplicate}
+            aria-label={t.minuta_share_image}
           >
-            {duplicando ? <Loader2 size={22} className="animate-spin" /> : <Copy size={22} />}
+            {compartiendo ? <Loader2 size={22} className="animate-spin" /> : <Share2 size={22} />}
           </BotonSeguro>
+          {puedeEditar && (
+            <BotonSeguro
+              onClick={duplicar}
+              disabled={selected.size !== 1 || duplicando}
+              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
+              aria-label={t.minuta_duplicate}
+            >
+              {duplicando ? <Loader2 size={22} className="animate-spin" /> : <Copy size={22} />}
+            </BotonSeguro>
+          )}
           {puedeCambiarVisibilidad && (
             <BotonSeguro
               onClick={cambiarVisibilidad}

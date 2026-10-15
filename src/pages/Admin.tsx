@@ -23,6 +23,8 @@ interface DispositivoAdmin {
   crea_minutas: number;
   /** (1.7.1) 1 = puede dejar recordatorios a otras personas. */
   recordatorios_otros: number;
+  /** (1.10.0) 0 = no ve las minutas de otros. Por defecto 1. */
+  ve_minutas: number;
 }
 
 /** Interruptor propio (sin controles nativos), como el de la IA. */
@@ -97,7 +99,7 @@ export default function Admin() {
   };
 
   // (1.7.1) Permisos por persona: crear minutas y dejar recordatorios a otros. Cambia al instante; si falla, vuelve.
-  const cambiarPermiso = async (d: DispositivoAdmin, campo: 'crea_minutas' | 'recordatorios_otros') => {
+  const cambiarPermiso = async (d: DispositivoAdmin, campo: 'crea_minutas' | 'recordatorios_otros' | 've_minutas') => {
     const valor = d[campo] ? 0 : 1;
     setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, [campo]: valor } : x)));
     try {
@@ -176,6 +178,8 @@ export default function Admin() {
       {/* Permisos (1.7.1): la persona se registra sola; aquí se le activa crear minutas o dejar recordatorios a otros. */}
       {!d.yo && d.rol !== 'admin' && d.estado === 'aprobado' && (
         <div className="border-t border-border pt-1.5 space-y-0.5">
+          {/* (1.10.0, Josué) Ver minutas: encendido al registrarse; el admin lo puede apagar. */}
+          <Interruptor texto={t.admin_can_view} activo={d.ve_minutas !== 0} onCambiar={() => cambiarPermiso(d, 've_minutas')} />
           <Interruptor texto={t.admin_can_create} activo={!!d.crea_minutas} onCambiar={() => cambiarPermiso(d, 'crea_minutas')} />
           <Interruptor texto={t.admin_can_remind} activo={!!d.recordatorios_otros} onCambiar={() => cambiarPermiso(d, 'recordatorios_otros')} />
         </div>

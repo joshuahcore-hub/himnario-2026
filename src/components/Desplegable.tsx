@@ -31,7 +31,7 @@ export default function Desplegable<T extends string>({ titulo, icono, valor, op
   const actual = opciones.find(o => o.valor === valor);
 
   return (
-    <div ref={caja} className="relative min-w-0 bg-card rounded-xl border border-border p-2.5">
+    <div ref={caja} className="relative min-w-0 bg-card rounded-xl border border-border px-2 py-2.5">
       <div className="flex items-center gap-1.5 mb-2">
         {icono}
         <span className="text-xs font-medium text-foreground">{titulo}</span>
@@ -39,7 +39,7 @@ export default function Desplegable<T extends string>({ titulo, icono, valor, op
       <button
         type="button"
         onClick={() => setAbierto(a => !a)}
-        className="tap-btn w-full flex items-center justify-between gap-0.5 rounded-lg bg-muted px-[7px] py-2 text-[11.5px] font-semibold text-foreground"
+        className="tap-btn w-full flex items-center justify-between gap-0.5 rounded-lg bg-muted px-[6px] py-2 text-[11.5px] font-semibold text-foreground"
         aria-expanded={abierto}
       >
         <span className="flex items-center gap-1 min-w-0">
