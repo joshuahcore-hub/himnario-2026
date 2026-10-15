@@ -1,7 +1,7 @@
 """
 Extrae del PDF del himnario cada himno como imagen (formato de la app) y sus datos.
 
-Uso:  python -I scripts/himnario-pdf/extraer.py <himnario.pdf> <carpeta-salida>
+Uso:  python -I scripts/himnario-pdf/extraer.py <himnario.pdf> <carpeta-salida> [--escala 2]
 Deja en <carpeta-salida>:
   claro/N.png   un himno por imagen: lienzo A4 blanco (1400x1980), recortado del PDF (vectorial, nítido),
                 ajustado al ancho y centrado verticalmente (mismo formato que las imágenes anteriores)
@@ -15,8 +15,10 @@ import sys
 
 import pymupdf
 
-ANCHO, ALTO = 1400, 1980          # lienzo A4 vertical
-MARGEN = 56                       # margen mínimo alrededor del himno, en px del lienzo
+# (1.17.1) "--escala 2" = versión nítida para el zoom (2800x1980*2): mismas proporciones, el doble de píxeles.
+ESCALA = float(sys.argv[sys.argv.index("--escala") + 1]) if "--escala" in sys.argv else 1.0
+ANCHO, ALTO = int(1400 * ESCALA), int(1980 * ESCALA)   # lienzo A4 vertical
+MARGEN = int(56 * ESCALA)                              # margen mínimo alrededor del himno, en px del lienzo
 FONDO_OSCURO = (14, 13, 12)       # #0E0D0C (las imágenes oscuras anteriores usaban este fondo)
 TITULO = re.compile(r"^\s*(\d{1,3})\s*\.\s*-\s*(.+?)\s*$")
 # Algunos títulos vienen sin ".-" (p. ej. "29 Cuan hermosa..."): se aceptan solo si la línea está en negrita.

@@ -13,7 +13,8 @@ import { CabeceraFuera, MarcoImagenes } from '@/components/ImagenesSubidas';
 import { esComputador } from '@/lib/proyeccion';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
-import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
+import { claveVirtual, useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
+import { normalizarTitulo } from '@/lib/cancionesExtra';
 import { AcotacionesPostit, BotonEnviados, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
@@ -104,23 +105,52 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
 
 /** (1.13.0, Josué) Alabanza que no está en el himnario. Con imagen subida: se ve con un CONTORNO y la marca "Imagen
  *  subida" (que se note que no es parte de la app: es un sustituto provisorio), con zoom. Sin imagen: página limpia. */
-function PaginaFuera({ canto, horizontal }: { canto: ParsedSong; horizontal: boolean }) {
+function PaginaFuera({ canto, horizontal, postit }: { canto: ParsedSong; horizontal: boolean; postit: PostitPagina }) {
   const { t } = useI18n();
   const [error, setError] = useState(false);
   if (!canto.imagen || error) {
     return (
-      <div className="m-auto flex flex-col items-center gap-2 text-center px-6">
-        <Music2 size={34} className="text-muted-foreground/60" />
-        <span className="text-2xl font-semibold text-foreground">{canto.title}</span>
-        {canto.key && <span translate="no" className="text-xl font-semibold text-hymn-key">{canto.key}</span>}
-        <span className="text-xs text-muted-foreground mt-2">{t.fuera_no_esta}</span>
+      <PaginaTexto horizontal={horizontal} postit={postit}>
+        <div className="flex flex-col items-center gap-2 text-center px-6">
+          <Music2 size={34} className="text-muted-foreground/60" />
+          <span className="text-2xl font-semibold text-foreground">{canto.title}</span>
+          {canto.key && <span translate="no" className="text-xl font-semibold text-hymn-key">{canto.key}</span>}
+          <span className="text-xs text-muted-foreground mt-2">{t.fuera_no_esta}</span>
+        </div>
+      </PaginaTexto>
+    );
+  }
+  // (1.13.4) Hasta 10 imágenes, con flechas dentro del marco. (1.17.1) Post-it pegados en cada imagen.
+  return (
+    <MarcoImagenes key={canto.imagen} imagen={canto.imagen} titulo={canto.title} horizontal={horizontal} onError={() => setError(true)}
+                   indice={postit.indice} onIndice={postit.onIndice} notas={postit.notas} enviados={postit.enviados} onTocarNota={postit.onTocar}
+                   cabecera={<CabeceraFuera titulo={canto.title} tono={canto.key} etiqueta={!canto.isEspecial} />} />
+  );
+}
+
+/** (1.17.1) Lo que necesita una página que no es himno para sus post-it. */
+interface PostitPagina { notas: Recordatorio[]; enviados: boolean; onTocar: (r: Recordatorio) => void; indice?: number; onIndice?: (i: number) => void }
+
+/** (1.17.1, Josué) Páginas de TEXTO (Palabra, Oración, Especial, canción fuera sin imagen) con post-it. Derecho: un
+ *  recuadro fijo alrededor del texto donde se pegan, se mueven y se estiran como en los himnos. Girado: fijos ARRIBA,
+ *  un poco más grandes que las acotaciones de los himnos (solo para ver). */
+function PaginaTexto({ horizontal, postit, children }: { horizontal: boolean; postit: PostitPagina; children: React.ReactNode }) {
+  if (horizontal) {
+    return (
+      <div className="m-auto w-full flex flex-col items-center" style={{ containerType: 'inline-size' }}>
+        <AcotacionesPostit notas={postit.notas.map(r => ({ ...r, pos: null }))} grande className="w-full px-[5%] pb-4 justify-center" />
+        {children}
       </div>
     );
   }
-  // (1.13.4) Hasta 10 imágenes, con flechas dentro del marco.
   return (
-    <MarcoImagenes key={canto.imagen} imagen={canto.imagen} titulo={canto.title} horizontal={horizontal} onError={() => setError(true)}
-                   cabecera={<CabeceraFuera titulo={canto.title} tono={canto.key} etiqueta={!canto.isEspecial} />} />
+    <div className="m-auto w-full max-w-lg">
+      <div data-marco-letra className="relative w-full aspect-[4/3] flex items-center justify-center">
+        {children}
+        <NotasRecordatorio notas={postit.notas} enviados={postit.enviados} onTocar={postit.onTocar} className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none px-2" />
+        <NotasRecordatorio notas={postit.notas} sobreLetra enviados={postit.enviados} onTocar={postit.onTocar} />
+      </div>
+    </div>
   );
 }
 
@@ -143,6 +173,8 @@ export default function MinutaReader() {
   // "Generar proyección" pasó al menú ⋮ de la minuta en la lista.
   const [enComputador] = useState(esComputador);
   const ruedaRef = useRef({ acum: 0, ultimo: 0, paso: 0 });
+  // (1.17.1) Imagen que se ve en cada página con varias imágenes (los post-it van por imagen).
+  const [imgIdx, setImgIdx] = useState<Record<number, number>>({});
   const pasoRef = useRef<((d: 1 | -1) => void) | null>(null);
   const notasDe = useRecordatorios(registrado, id ?? null);
   const [panelAbierto, setPanelAbierto] = useState(false);
@@ -335,7 +367,26 @@ export default function MinutaReader() {
   const itemAt = (page: number) => (page > 0 && page < totalPages ? swipeItems[page - 1] : null);
   // Alabanza que se está viendo (para el botón de recordatorio): no en la portada ni en Palabra/Oración.
   const itemVisible = itemAt(paginaVisible);
-  const cantoVisible = itemVisible && itemVisible.hymnNumber && itemVisible.found && !itemVisible.isPalabra && !itemVisible.isOracion ? itemVisible : null;
+  // (1.17.1) Cada página tiene su número para los post-it: el del himno o uno propio (Palabra, Oración, Especial,
+  // canción fuera del himnario y cada una de sus imágenes).
+  const claveDe = (item: ParsedSong | null, pageIdx: number): number | null => {
+    if (!item) return null;
+    if (item.hymnNumber && item.found && !item.isPalabra && !item.isOracion && !item.isEspecial && !item.fuera) return item.hymnNumber;
+    const i = imgIdx[pageIdx] ?? 0, sufijo = i > 0 ? `#${i}` : '';
+    if (item.isPalabra) return claveVirtual('palabra', t.portada_palabra);
+    if (item.isOracion) return claveVirtual('oracion', t.portada_oracion);
+    if (item.isEspecial) return claveVirtual(`especial${sufijo}`, `${t.especial} ${item.nombre ?? ''}`.trim());
+    if (item.fuera) return claveVirtual(`t:${normalizarTitulo(item.title)}${sufijo}`, item.title);
+    return null;
+  };
+  const claveVisible = claveDe(itemVisible, paginaVisible);
+  const postitDe = (item: ParsedSong, pageIdx: number): PostitPagina => {
+    const clave = claveDe(item, pageIdx);
+    return {
+      notas: verEnviados ? notasDe(clave, 'enviados') : notasDe(clave), enviados: verEnviados, onTocar: abrirPanel,
+      indice: imgIdx[pageIdx] ?? 0, onIndice: i => setImgIdx(v => ({ ...v, [pageIdx]: i })),
+    };
+  };
 
 
   const renderPage = (pageIdx: number, offset: number) => {
@@ -372,20 +423,26 @@ export default function MinutaReader() {
             </div>
           </Zoomable>
         ) : item?.isPalabra ? (
-          <span className="m-auto text-3xl font-bold text-palabra">{t.portada_palabra}</span>
+          <PaginaTexto horizontal={horizontal} postit={postitDe(item, pageIdx)}>
+            <span className="text-3xl font-bold text-palabra">{t.portada_palabra}</span>
+          </PaginaTexto>
         ) : item?.isOracion ? (
-          <span className="m-auto text-3xl font-bold text-oracion">{t.portada_oracion}</span>
+          <PaginaTexto horizontal={horizontal} postit={postitDe(item, pageIdx)}>
+            <span className="text-3xl font-bold text-oracion">{t.portada_oracion}</span>
+          </PaginaTexto>
         ) : item?.isEspecial && item.imagen ? (
           // (1.13.4) Especial con imagen: como una alabanza fuera del himnario (imagen subida con contorno y zoom).
-          <PaginaFuera canto={{ ...item, title: `${t.especial} ${item.nombre ?? ''}`.trim(), key: null }} horizontal={horizontal} />
+          <PaginaFuera canto={{ ...item, title: `${t.especial} ${item.nombre ?? ''}`.trim(), key: null }} horizontal={horizontal} postit={postitDe(item, pageIdx)} />
         ) : item?.isEspecial ? (
           // (1.13.0) Especial: solo texto, como Oración; el nombre debajo.
-          <div className="m-auto flex flex-col items-center gap-1 text-center px-6">
-            <span className="text-3xl font-bold text-especial">{t.especial.toLocaleUpperCase()}</span>
-            {item.nombre && <span className="text-2xl font-semibold text-especial">{item.nombre}</span>}
-          </div>
+          <PaginaTexto horizontal={horizontal} postit={postitDe(item, pageIdx)}>
+            <div className="flex flex-col items-center gap-1 text-center px-6">
+              <span className="text-3xl font-bold text-especial">{t.especial.toLocaleUpperCase()}</span>
+              {item.nombre && <span className="text-2xl font-semibold text-especial">{item.nombre}</span>}
+            </div>
+          </PaginaTexto>
         ) : item?.fuera ? (
-          <PaginaFuera canto={item} horizontal={horizontal} />
+          <PaginaFuera canto={item} horizontal={horizontal} postit={postitDe(item, pageIdx)} />
         ) : item ? (
           <SongPage song={item} horizontal={horizontal} enviados={verEnviados}
                     notas={verEnviados ? notasDe(item.hymnNumber, 'enviados') : notasDe(item.hymnNumber)} onTocarNota={abrirPanel} />
@@ -426,7 +483,7 @@ export default function MinutaReader() {
             </button>
           )}
           <div className="flex gap-2 transition-opacity duration-200"
-               style={{ opacity: cantoVisible && !horizontal ? 1 : 0, pointerEvents: cantoVisible && !horizontal ? 'auto' : 'none' }}>
+               style={{ opacity: claveVisible && !horizontal ? 1 : 0, pointerEvents: claveVisible && !horizontal ? 'auto' : 'none' }}>
             <BotonRecordatorio onClick={() => abrirPanel(null)} />
             {puedeDejarAOtros && <BotonEnviados activo={verEnviados} onClick={() => setVerEnviados(v => !v)} />}
           </div>
@@ -456,8 +513,8 @@ export default function MinutaReader() {
           )}
         </div>
       </div>
-      <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={cantoVisible?.hymnNumber ?? null}
-                         anterior={notaEditada} enviados={notasDe(cantoVisible?.hymnNumber, 'enviados')} minutaId={minuta.id} minutaPublicada={minuta.publicada} />
+      <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={claveVisible}
+                         anterior={notaEditada} enviados={notasDe(claveVisible, 'enviados')} minutaId={minuta.id} minutaPublicada={minuta.publicada} />
 
       <div className={`flex justify-center gap-1.5 pb-6 pt-2 flex-wrap px-4 ${pantallaCompleta ? 'hidden' : ''}`}>
         {Array.from({ length: totalPages }, (_, i) => (

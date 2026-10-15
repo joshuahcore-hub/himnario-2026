@@ -647,13 +647,15 @@ export function sobresaleArriba(notas: Recordatorio[], himno: number): number {
 
 /** Acotaciones (celular girado, 1.9.10): mini post-it + texto del tamaño del título, en fila hacia la derecha, arriba
  *  del título. Solo para ver. El contenedor debe tener container-type inline-size (el tamaño sigue al de la letra). */
-export function AcotacionesPostit({ notas, className = '' }: { notas: Recordatorio[]; className?: string }) {
+export function AcotacionesPostit({ notas, className = '', grande = false }: { notas: Recordatorio[]; className?: string;
+  /** (1.17.1) Páginas de texto giradas: un poco más grandes que las de los himnos. */
+  grande?: boolean }) {
   const lista = notas.filter(r => !vaSobreLetra(r));
   if (lista.length === 0) return null;
   return (
     // Cada uno es un post-it amarillo ALARGADO hacia el lado (1.10.1, Josué: como el papel, no ícono + texto suelto).
     <div className={`flex flex-wrap items-center gap-x-[0.8em] gap-y-[0.45em] pt-[0.3em] ${className}`}
-         style={{ fontSize: 'clamp(13px, 3.4cqw, 34px)', lineHeight: 1.2 }}>
+         style={{ fontSize: grande ? 'clamp(15px, 4.2cqw, 40px)' : 'clamp(13px, 3.4cqw, 34px)', lineHeight: 1.2 }}>
       {lista.map((r, i) => (
         <span key={r.id} className="relative inline-block min-w-0 max-w-full px-[0.6em] pt-[0.18em] pb-[0.14em] whitespace-pre-wrap break-words"
               style={{ fontFamily: LETRA_POSTIT, background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 0.4em 2px',
@@ -854,7 +856,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
 
   return (
     <Dialog open={abierto} onOpenChange={o => { if (!o) intentarCerrar(); }}>
-      <DialogContent capa="z-[70]" className="max-w-[340px] rounded-2xl gap-3" onOpenAutoFocus={e => e.preventDefault()}>
+      <DialogContent capa="z-[70]" className="max-w-[340px] rounded-2xl gap-3 grid-cols-[minmax(0,1fr)]" onOpenAutoFocus={e => e.preventDefault()}>
         {confirmando ? (
           <>
             <DialogHeader>

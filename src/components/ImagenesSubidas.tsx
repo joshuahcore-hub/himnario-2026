@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Zoomable from '@/components/Zoomable';
 import { useI18n } from '@/lib/i18n/index';
 import { urlImagen } from '@/lib/cancionesExtra';
+import { AcotacionesPostit, NotasRecordatorio, vaSobreLetra } from '@/components/Recordatorios';
+import type { Recordatorio } from '@/lib/recordatorios';
 
 export const MAX_IMAGENES = 10;
 export const imagenesDe = (imagen?: string | null): string[] => (imagen ? imagen.split(',').filter(Boolean) : []);
@@ -27,12 +29,19 @@ export function CabeceraFuera({ titulo, tono, etiqueta = true }: { titulo: strin
 }
 
 /** El marco con la(s) imagen(es) y su zoom. `cabecera` va dentro del zoom (se amplía junto con la imagen). */
-export function MarcoImagenes({ imagen, titulo, cabecera, horizontal = false, altoMax = 'max-h-[70dvh]', onError }: {
+export function MarcoImagenes({ imagen, titulo, cabecera, horizontal = false, altoMax = 'max-h-[70dvh]', onError,
+  indice, onIndice, notas = [], enviados = false, onTocarNota }: {
   imagen: string; titulo: string; cabecera?: React.ReactNode; horizontal?: boolean; altoMax?: string; onError: () => void;
+  /** (1.17.1) Imagen que se ve (controlado desde afuera: los post-it van por imagen). */
+  indice?: number; onIndice?: (i: number) => void;
+  /** Post-it de la imagen que se ve (pegados sobre ella, como en los himnos). */
+  notas?: Recordatorio[]; enviados?: boolean; onTocarNota?: (r: Recordatorio) => void;
 }) {
   const { t } = useI18n();
   const ids = imagenesDe(imagen);
-  const [i, setI] = useState(0);
+  const [iPropio, setIPropio] = useState(0);
+  const i = indice ?? iPropio;
+  const setI = (f: (v: number) => number) => { const n = f(i); setIPropio(n); onIndice?.(n); };
   const actual = ids[Math.min(i, ids.length - 1)];
   // Las flechas no inician ni el deslizamiento entre canciones ni el zoom.
   const cortar = { onTouchStart: (e: React.TouchEvent) => e.stopPropagation(), onDoubleClick: (e: React.MouseEvent) => e.stopPropagation(),
@@ -52,13 +61,24 @@ export function MarcoImagenes({ imagen, titulo, cabecera, horizontal = false, al
     <Zoomable className={horizontal ? 'w-full m-auto' : 'w-full h-full'} reiniciarCon={actual}>
       <div className={`w-full flex flex-col items-center px-3 ${horizontal ? 'pt-3' : 'h-full'}`}>
         {!horizontal && cabecera}
+        {/* Girado (opción A): la imagen a todo el ancho y se recorre; los post-it sin mover, como acotación arriba. */}
+        {horizontal && onTocarNota && <div className="w-full max-w-lg md:max-w-2xl" style={{ containerType: 'inline-size' }}><AcotacionesPostit notas={notas} className="pb-1" /></div>}
         <div className={`relative w-full max-w-lg md:max-w-2xl ${horizontal ? '' : 'flex-1 min-h-0 flex items-center justify-center py-3'}`}>
           <div className="relative rounded-lg border-2 border-dashed border-muted-foreground/40 p-1.5 max-h-full">
             <span className="absolute -top-2.5 left-3 bg-background px-1.5 text-[10px] text-muted-foreground">
               {t.fuera_imagen_subida}{ids.length > 1 && ` · ${i + 1}/${ids.length}`}
             </span>
-            <img key={actual} src={urlImagen(actual)} alt={titulo} draggable={false} onError={onError}
-                 className={`block w-full rounded ${horizontal ? 'h-auto' : `${altoMax} object-contain`}`} />
+            {/* data-marco-letra: los post-it se ubican como fracción de la imagen (igual que sobre la letra). */}
+            <div data-marco-letra className="relative">
+              <img key={actual} src={urlImagen(actual)} alt={titulo} draggable={false} onError={onError}
+                   className={`block w-full rounded ${horizontal ? 'h-auto' : `${altoMax} object-contain`}`} />
+              {onTocarNota && !horizontal && (
+                <NotasRecordatorio notas={notas} enviados={enviados} onTocar={onTocarNota} className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />
+              )}
+              {onTocarNota && (
+                <NotasRecordatorio notas={horizontal ? notas.filter(vaSobreLetra) : notas} sobreLetra soloVer={horizontal} enviados={enviados} onTocar={onTocarNota} />
+              )}
+            </div>
             {ids.length > 1 && <>{flecha('izq')}{flecha('der')}</>}
           </div>
         </div>

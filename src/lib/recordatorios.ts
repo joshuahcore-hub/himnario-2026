@@ -174,7 +174,7 @@ export async function guardarRecordatorio(
   fijarServidor([...delServidor, temporal]);
   try {
     // titulo_himno: para el aviso a quien lo recibe ("X te dejó un recordatorio en «49 Me hablaron de Dios»").
-    const titulo_himno = getHymns().hymns.find(h => h.hymn_number === himno)?.title ?? '';
+    const titulo_himno = getHymns().hymns.find(h => h.hymn_number === himno)?.title ?? titulosVirtuales.get(himno) ?? '';
     const r = await api<Recordatorio>('recordatorios', { metodo: 'POST', datos: { himno, texto, para: paraId, minuta, titulo_himno } });
     fijarServidor(delServidor.map(x => (x.id === temporal.id ? r : x)));
   } catch (e) {
@@ -228,3 +228,17 @@ export function ajustarRecordatorio(r: Recordatorio, cambios: Ajuste) {
 
 /** Compatibilidad: mover = ajustar solo la posición. */
 export const moverRecordatorio = (r: Recordatorio, pos: Pos) => ajustarRecordatorio(r, { pos });
+
+// ---- Páginas que no son himnos (1.17.1, Josué): Palabra, Oración, Especial y canciones fuera del himnario (cada
+// imagen subida por separado). Usan los mismos post-it: se les da un número propio desde 1.000.000, calculado del
+// nombre de la página ("palabra", "oracion", "especial", "t:<título normalizado>", con "#2" para la 2.ª imagen…).
+const titulosVirtuales = new Map<number, string>();
+/** Número de la página para los post-it. `titulo` es lo que dice el aviso ("Palabra", "Way maker"…). */
+export function claveVirtual(pagina: string, titulo: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < pagina.length; i++) { h ^= pagina.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  const n = 1_000_000 + (h % 900_000_000);
+  titulosVirtuales.set(n, titulo);
+  return n;
+}
+export const esClaveVirtual = (n: number | null | undefined) => !!n && n >= 1_000_000;

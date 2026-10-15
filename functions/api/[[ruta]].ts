@@ -699,7 +699,9 @@ function validarMinutaId(minuta: unknown): string | null {
 
 function validarHimno(himno: unknown): number {
   const n = Number(himno);
-  if (!Number.isInteger(n) || n < 1 || n > 9999) throw new ErrorApi(400, 'Himno no válido.');
+  // (1.17.1) Desde 1.000.000: páginas que no son himnos (Palabra, Oración, Especial, canciones fuera del himnario);
+  // el número lo calcula la app a partir del nombre de la página (ver claveVirtual en src/lib/recordatorios.ts).
+  if (!Number.isInteger(n) || n < 1 || (n > 9999 && n < 1_000_000) || n > 1_999_999_999) throw new ErrorApi(400, 'Himno no válido.');
   return n;
 }
 
@@ -988,9 +990,10 @@ async function avisarRecordatorio(env: Env, d: { paraId: string; autor: string; 
   const f = await env.DB.prepare('SELECT notif_activas, notif_apagadas FROM dispositivos WHERE id = ?').bind(d.paraId)
     .first<{ notif_activas: number; notif_apagadas: string | null }>();
   if (!f || !f.notif_activas || apagadasDe(f.notif_apagadas).includes('recordatorio')) return;
-  const datos = JSON.stringify({ autor: d.autor, titulo: d.titulo ? `${d.himno} ${d.titulo}` : String(d.himno), rec: d.recId });
+  const virtual = d.himno >= 1_000_000; // página que no es himno: solo su nombre, y el aviso lleva a Minutas
+  const datos = JSON.stringify({ autor: d.autor, titulo: virtual ? d.titulo || 'Minuta' : d.titulo ? `${d.himno} ${d.titulo}` : String(d.himno), rec: d.recId });
   await env.DB.prepare('INSERT INTO notificaciones (dispositivo_id, tipo, datos, url, creada) VALUES (?, ?, ?, ?, ?)')
-    .bind(d.paraId, 'recordatorio', datos, `/hymnal/${d.himno}`, ahora()).run();
+    .bind(d.paraId, 'recordatorio', datos, virtual ? '/minutas' : `/hymnal/${d.himno}`, ahora()).run();
   const { results } = await env.DB.prepare('SELECT endpoint FROM suscripciones WHERE dispositivo_id = ?').bind(d.paraId).all<{ endpoint: string }>();
   await Promise.all(results.map(s => despertar(env, s.endpoint)));
 }
