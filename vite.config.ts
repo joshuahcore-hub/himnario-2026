@@ -82,6 +82,8 @@ export default defineConfig({
         skipWaiting: false,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
+        // Notificaciones (1.11.0): el service worker carga public/sw-push.js (push, tocar, "Marcar como vista").
+        importScripts: ["sw-push.js"],
         runtimeCaching: [
           { urlPattern: ({ url }) => url.pathname.startsWith("/api/"), handler: "NetworkOnly" },
         ],

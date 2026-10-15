@@ -205,6 +205,18 @@ export interface Translations {
   admin_history: string;
   admin_pending_requests: string;
   admin_no_people: string;
+  admin_hide: string;
+  admin_hide_title: (nombre: string) => string;
+  admin_hide_text: string;
+  notif_title: string;
+  notif_receive: string;
+  notif_need_register: string;
+  notif_not_supported: string;
+  notif_allow: string;
+  notif_allow_text: string;
+  notif_blocked: string;
+  notif_types: string;
+  notif_tipo: Record<string, string>;
   admin_requested: string;
   admin_this_device: string;
   admin_role_admin: string;
@@ -461,8 +473,8 @@ export const es: Translations = {
   access_intro: 'Para crear o editar minutas, pide acceso de creador. El administrador lo aprobará.',
   access_request: 'Registrarme',
   access_dialog_title: 'Registrarme',
-  access_viewer: 'Eres visor: puedes ver el himnario y las minutas publicadas, incluso sin internet.',
-  access_want_create: 'Regístrate con tu nombre y un color: así te pueden dejar recordatorios en las alabanzas.',
+  access_viewer: 'Puedes usar el himnario, incluso sin internet.',
+  access_want_create: 'Regístrate con tu nombre y un color: el administrador te puede dar acceso a las minutas, y te pueden dejar recordatorios en las alabanzas.',
   access_my_profile: 'Mi perfil',
   settings_more: 'Más opciones',
   access_dialog_text: 'Escribe tu nombre y elige un color: así te reconocen en la app.',
@@ -471,7 +483,7 @@ export const es: Translations = {
   access_pending: 'Tu solicitud está enviada. Espera a que el administrador la apruebe.',
   access_check: 'Revisar estado',
   access_approved: 'Eres creador: puedes crear, editar y borrar minutas.',
-  access_registered: 'Estás registrado: te pueden dejar recordatorios en las alabanzas. Si quieres crear minutas, pídeselo al administrador.',
+  access_registered: 'Estás registrado: te pueden dejar recordatorios en las alabanzas. Para ver o crear minutas, pídeselo al administrador.',
   access_can_remind_others: 'Puedes dejar recordatorios a otras personas.',
   admin_can_view: 'Ver minutas',
   admin_can_create: 'Crear minutas',
@@ -493,6 +505,22 @@ export const es: Translations = {
   admin_history: 'Historial',
   admin_pending_requests: 'Solicitudes pendientes',
   admin_no_people: 'Todavía nadie ha pedido acceso.',
+  admin_hide: 'Quitar',
+  admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
+  admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
+  notif_title: 'Notificaciones',
+  notif_receive: 'Recibir notificaciones',
+  notif_need_register: 'Para recibir notificaciones, regístrate con tu nombre y un color.',
+  notif_not_supported: 'Este celular no admite notificaciones de la app. En iPhone, instala la app en la pantalla de inicio y ábrela desde ahí.',
+  notif_allow: 'Permitir',
+  notif_allow_text: 'Este celular aún no tiene permiso para mostrarlas.',
+  notif_blocked: 'Las notificaciones están bloqueadas en este celular. Actívalas en los ajustes del teléfono para esta app.',
+  notif_types: 'Avisarme cuando:',
+  notif_tipo: {
+    registro: 'Alguien se registra', creada: 'Se crea una minuta', editada: 'Se edita una minuta',
+    publicada: 'Se publica una minuta', privada: 'Una minuta pasa a privada', duplicada: 'Se duplica una minuta',
+    borrada: 'Se elimina una minuta', restaurada: 'Se restaura una minuta', nueva_minuta: 'Se publica una minuta nueva',
+  },
   admin_requested: 'Se registró el',
   admin_this_device: 'este celular',
   admin_role_admin: 'Administrador',
@@ -744,8 +772,8 @@ export const en: Translations = {
   access_intro: 'To create or edit services, request creator access. The administrator will approve it.',
   access_request: 'Sign up',
   access_dialog_title: 'Sign up',
-  access_viewer: 'You are a viewer: you can see the hymnal and published services, even offline.',
-  access_want_create: 'Sign up with your name and a color so others can leave you reminders on songs.',
+  access_viewer: 'You can use the hymnal, even offline.',
+  access_want_create: 'Sign up with your name and a color: the administrator can give you access to services, and others can leave you reminders on songs.',
   access_my_profile: 'My profile',
   settings_more: 'More options',
   access_dialog_text: 'Enter your name and pick a color: it identifies you in the app.',
@@ -754,7 +782,7 @@ export const en: Translations = {
   access_pending: 'Your request has been sent. Wait for the administrator to approve it.',
   access_check: 'Check status',
   access_approved: 'You are a creator: you can create, edit and delete services.',
-  access_registered: 'You are signed up: others can leave you reminders on songs. To create services, ask the administrator.',
+  access_registered: 'You are signed up: others can leave you reminders on songs. To view or create services, ask the administrator.',
   access_can_remind_others: 'You can leave reminders for other people.',
   admin_can_view: 'View services',
   admin_can_create: 'Create services',
@@ -776,6 +804,22 @@ export const en: Translations = {
   admin_history: 'History',
   admin_pending_requests: 'Pending requests',
   admin_no_people: 'Nobody has requested access yet.',
+  admin_hide: 'Remove',
+  admin_hide_title: n => `Remove ${n} from the list?`,
+  admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
+  notif_title: 'Notifications',
+  notif_receive: 'Receive notifications',
+  notif_need_register: 'To receive notifications, sign up with your name and a color.',
+  notif_not_supported: 'This phone does not support app notifications. On iPhone, add the app to the Home Screen and open it from there.',
+  notif_allow: 'Allow',
+  notif_allow_text: 'This phone has not allowed them yet.',
+  notif_blocked: 'Notifications are blocked on this phone. Turn them on in the phone settings for this app.',
+  notif_types: 'Notify me when:',
+  notif_tipo: {
+    registro: 'Someone signs up', creada: 'A service is created', editada: 'A service is edited',
+    publicada: 'A service is published', privada: 'A service is made private', duplicada: 'A service is duplicated',
+    borrada: 'A service is deleted', restaurada: 'A service is restored', nueva_minuta: 'A new service is published',
+  },
   admin_requested: 'Signed up on',
   admin_this_device: 'this phone',
   admin_role_admin: 'Administrator',
@@ -1027,8 +1071,8 @@ export const pt: Translations = {
   access_intro: 'Para criar ou editar minutas, peça acesso de criador. O administrador vai aprovar.',
   access_request: 'Cadastrar-me',
   access_dialog_title: 'Cadastrar-me',
-  access_viewer: 'Você é visitante: pode ver o hinário e as minutas publicadas, até sem internet.',
-  access_want_create: 'Cadastre-se com seu nome e uma cor: assim podem deixar lembretes para você nos louvores.',
+  access_viewer: 'Você pode usar o hinário, até sem internet.',
+  access_want_create: 'Cadastre-se com seu nome e uma cor: o administrador pode dar acesso às minutas, e podem deixar lembretes para você nos louvores.',
   access_my_profile: 'Meu perfil',
   settings_more: 'Mais opções',
   access_dialog_text: 'Escreva seu nome e escolha uma cor: assim reconhecem você no app.',
@@ -1037,7 +1081,7 @@ export const pt: Translations = {
   access_pending: 'Sua solicitação foi enviada. Aguarde o administrador aprovar.',
   access_check: 'Verificar status',
   access_approved: 'Você é criador: pode criar, editar e excluir minutas.',
-  access_registered: 'Você está cadastrado: podem deixar lembretes para você nos louvores. Se quiser criar minutas, peça ao administrador.',
+  access_registered: 'Você está cadastrado: podem deixar lembretes para você nos louvores. Para ver ou criar minutas, peça ao administrador.',
   access_can_remind_others: 'Você pode deixar lembretes para outras pessoas.',
   admin_can_view: 'Ver minutas',
   admin_can_create: 'Criar minutas',
@@ -1059,6 +1103,22 @@ export const pt: Translations = {
   admin_history: 'Histórico',
   admin_pending_requests: 'Solicitações pendentes',
   admin_no_people: 'Ninguém se cadastrou ainda.',
+  admin_hide: 'Remover',
+  admin_hide_title: n => `Remover ${n} da lista?`,
+  admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
+  notif_title: 'Notificações',
+  notif_receive: 'Receber notificações',
+  notif_need_register: 'Para receber notificações, cadastre-se com seu nome e uma cor.',
+  notif_not_supported: 'Este celular não aceita notificações do app. No iPhone, instale o app na tela de início e abra por lá.',
+  notif_allow: 'Permitir',
+  notif_allow_text: 'Este celular ainda não permitiu mostrá-las.',
+  notif_blocked: 'As notificações estão bloqueadas neste celular. Ative-as nos ajustes do telefone para este app.',
+  notif_types: 'Avisar quando:',
+  notif_tipo: {
+    registro: 'Alguém se cadastra', creada: 'Uma minuta é criada', editada: 'Uma minuta é editada',
+    publicada: 'Uma minuta é publicada', privada: 'Uma minuta fica privada', duplicada: 'Uma minuta é duplicada',
+    borrada: 'Uma minuta é excluída', restaurada: 'Uma minuta é restaurada', nueva_minuta: 'Uma nova minuta é publicada',
+  },
   admin_requested: 'Cadastrou-se em',
   admin_this_device: 'este celular',
   admin_role_admin: 'Administrador',

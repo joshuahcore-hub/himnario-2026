@@ -1,4 +1,4 @@
-// Solicitudes de creador pendientes de aprobar (solo el administrador). Se muestra un punto en la pestaña Ajustes,
+// Solicitudes de creador pendientes de aprobar y notificaciones sin ver (solo el administrador). Se muestra un punto en la pestaña Ajustes,
 // en el menú ⋮ y en "Administración", para saber que hay algo por revisar sin tener que entrar (Josué, 1.5.6).
 // Un solo contador compartido: se consulta al abrir, al volver a la app y cada minuto.
 import { useEffect, useState } from 'react';
@@ -13,8 +13,12 @@ export async function revisarPendientes() {
   if (consultando) return;
   consultando = true;
   try {
-    const lista = await api<{ estado: string }[]>('admin/dispositivos');
-    cantidad = lista.filter(d => d.estado === 'pendiente').length;
+    // (1.11.0) También las notificaciones que el administrador aún no vio (p. ej. las borró de la bandeja sin abrirlas).
+    const [lista, sinVer] = await Promise.all([
+      api<{ estado: string }[]>('admin/dispositivos'),
+      api<{ n: number }>('notificaciones/sin-ver').catch(() => ({ n: 0 })),
+    ]);
+    cantidad = lista.filter(d => d.estado === 'pendiente').length + sinVer.n;
     oyentes.forEach(f => f(cantidad));
   } catch { /* sin internet o sin permiso: se deja como estaba */ } finally {
     consultando = false;

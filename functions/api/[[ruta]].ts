@@ -1,6 +1,6 @@
 // API del Himnario 2026 (Cloudflare Pages Functions + D1).
 // Roles:
-//   visor   — cualquiera: lee minutas (GET), sin llave.
+//   visor   — cualquiera: usa el himnario. Las minutas solo con permiso "Ver minutas" (1.11.0: hay que registrarse).
 //   creador — celular aprobado por el admin: crea/edita/borra minutas.
 //   admin   — celular activado con la clave de administrador (secreto ADMIN_KEY): aprueba creadores, ve historial.
 // Cada celular se identifica con "Authorization: Bearer <llave>"; aquí solo se guarda el SHA-256 de la llave.
@@ -14,6 +14,12 @@ interface Env {
   GEMINI_MODELO?: string;
   /** Secreto compartido con el PC de respaldo (Ollama) para que pueda avisar que está en línea. */
   PC_SECRET?: string;
+  /** Notificaciones (1.11.0): par de claves VAPID de la app (secretos; ver scripts/claves-notificaciones.mjs).
+   *  VAPID_PRIVADA = JWK (JSON) de la clave privada P-256; VAPID_PUBLICA = clave pública (base64url, sin comprimir). */
+  VAPID_PRIVADA?: string;
+  VAPID_PUBLICA?: string;
+  /** Para tareas que siguen después de responder (enviar notificaciones). Lo pone onRequest. */
+  esperar?: (p: Promise<unknown>) => void;
 }
 
 interface Dispositivo {
@@ -35,7 +41,7 @@ const COLORES = [
   '#64B5F6', '#4DB6AC', '#81C784', '#FFD54F', '#FF8A65',
 ];
 const MAX_PENDIENTES = 30;        // solicitudes pendientes en total
-const MAX_SOLICITUDES_IP_DIA = 5; // solicitudes nuevas por IP en 24 h
+const MAX_SOLICITUDES_IP_DIA = 30; // registros nuevos por IP en 24 h (1.11.0: todos se registran, a veces desde el mismo wifi)
 const MAX_INTENTOS_ADMIN_HORA = 5;
 
 class ErrorApi extends Error {
@@ -187,7 +193,8 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
   const quienId = quien?.estado === 'aprobado' ? quien.id : null;
 
   // (1.10.0, Josué) Sin "Ver minutas", la persona registrada solo ve las que ella misma creó.
-  const sinVer = !!quien && quien.estado === 'aprobado' && quien.rol !== 'admin' && quien.ve_minutas === 0;
+  // (1.11.0, Josué) Sin registrarse no se ven minutas: hay que poner nombre y color y el admin da el permiso.
+  const sinVer = !quien || quien.estado !== 'aprobado' || (quien.rol !== 'admin' && quien.ve_minutas === 0);
   const visible = sinVer ? 'm.creada_por = ?' : VISIBLE;
   if (metodo === 'GET' && !id) {
     const { results } = await env.DB.prepare(
@@ -218,6 +225,7 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       registrar(env, nueva, yo.id, 'creada', titulo),
       ...(publicada ? [registrar(env, nueva, yo.id, 'publicada', titulo)] : []),
     ]);
+    avisar(env, { tipo: 'creada', autorId: yo.id, autor: yo.nombre, minutaId: nueva, titulo: tituloAviso(titulo, body.fecha), publica: !!publicada });
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
   }
 
@@ -239,6 +247,7 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
                       SELECT lower(hex(randomblob(16))), himno, autor_id, para_id, texto, ?, estado, pos_x, pos_y, tam, creado, ?
                       FROM recordatorios WHERE minuta_id = ? AND (autor_id = ? OR para_id = ?)`).bind(nueva, t, id, yo.id, yo.id),
     ]);
+    avisar(env, { tipo: 'duplicada', autorId: yo.id, autor: yo.nombre, minutaId: nueva, titulo: tituloAviso(original.titulo, original.fecha) });
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
   }
 
@@ -273,6 +282,12 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       ...(soloVisibilidad ? [] : [registrar(env, id, yo.id, 'editada', titulo)]),
       ...(cambioVisibilidad ? [registrar(env, id, yo.id, cambioVisibilidad, titulo)] : []),
     ]);
+    // Fijar o desfijar no avisa nada (no cambia la minuta).
+    const soloFijar = cambios.length === 3 && body.fijada !== undefined;
+    if (!soloFijar) {
+      avisar(env, { tipo: cambioVisibilidad ?? 'editada', autorId: yo.id, autor: yo.nombre, minutaId: id,
+                    titulo: tituloAviso(titulo, body.fecha ?? actual.fecha), publica: cambioVisibilidad === 'publicada' });
+    }
     // Sin verificar visibilidad: si el administrador dejó privada la minuta de otro, igual recibe la respuesta.
     return json(await obtenerMinuta(env, id, conAutores, yo.id, false));
   }
@@ -286,6 +301,7 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       env.DB.prepare('UPDATE minutas SET borrada = 1, editada_por = ?, actualizada = ? WHERE id = ?').bind(yo.id, ahora(), id),
       registrar(env, id, yo.id, 'borrada', actual.titulo),
     ]);
+    avisar(env, { tipo: 'borrada', autorId: yo.id, autor: yo.nombre, minutaId: id, titulo: tituloAviso(actual.titulo, actual.fecha) });
     return json({ ok: true });
   }
 
@@ -328,7 +344,7 @@ async function rutasAcceso(request: Request, env: Env, partes: string[], ip: str
     if (existente) {
       if (existente.estado === 'deshabilitado') throw new ErrorApi(403, 'Este dispositivo fue deshabilitado por el administrador.');
       const estado = 'aprobado';
-      await env.DB.prepare('UPDATE dispositivos SET nombre = ?, color = ?, estado = ?, actualizado = ? WHERE id = ?')
+      await env.DB.prepare('UPDATE dispositivos SET nombre = ?, color = ?, estado = ?, oculta = 0, actualizado = ? WHERE id = ?')
         .bind(nombre, color, estado, ahora(), existente.id).run();
       return json(datosAcceso({ ...existente, nombre, color, estado }));
     }
@@ -338,10 +354,13 @@ async function rutasAcceso(request: Request, env: Env, partes: string[], ip: str
       .bind(ip, haceHoras(24)).first<{ n: number }>();
     if ((deIp?.n ?? 0) >= MAX_SOLICITUDES_IP_DIA) throw new ErrorApi(429, 'Demasiadas solicitudes desde esta conexión. Intenta mañana.');
     const t = ahora();
-    await env.DB.prepare(`INSERT INTO dispositivos (id, llave_hash, nombre, color, rol, estado, crea_minutas, ip, creado, actualizado)
-                          VALUES (?, ?, ?, ?, 'creador', 'aprobado', ?, ?, ?, ?)`)
-      .bind(crypto.randomUUID(), hash, nombre, color, creaMinutas, ip, t, t).run();
-    return json(datosAcceso({ nombre, color, rol: 'creador', estado: 'aprobado', crea_minutas: creaMinutas }), 201);
+    // (1.11.0, Josué) Al registrarse NO ve minutas: el admin se lo activa ("Ver minutas" en Administración).
+    const nuevoId = crypto.randomUUID();
+    await env.DB.prepare(`INSERT INTO dispositivos (id, llave_hash, nombre, color, rol, estado, crea_minutas, ve_minutas, ip, creado, actualizado)
+                          VALUES (?, ?, ?, ?, 'creador', 'aprobado', ?, 0, ?, ?, ?)`)
+      .bind(nuevoId, hash, nombre, color, creaMinutas, ip, t, t).run();
+    avisar(env, { tipo: 'registro', autorId: nuevoId, autor: nombre });
+    return json(datosAcceso({ nombre, color, rol: 'creador', estado: 'aprobado', crea_minutas: creaMinutas, ve_minutas: 0 }), 201);
   }
 
   throw new ErrorApi(404, 'Ruta no encontrada.');
@@ -383,7 +402,7 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
     const { results } = await env.DB.prepare(`
       SELECT d.id, d.nombre, d.color, d.rol, d.estado, d.creado, d.actualizado, d.crea_minutas, d.recordatorios_otros, d.ve_minutas,
              (SELECT COUNT(*) FROM minutas m WHERE m.creada_por = d.id AND m.borrada = 0) AS minutas
-      FROM dispositivos d ORDER BY d.estado = 'pendiente' DESC, d.actualizado DESC`).all();
+      FROM dispositivos d WHERE d.oculta = 0 ORDER BY d.estado = 'pendiente' DESC, d.actualizado DESC`).all();
     return json(results.map((d: any) => ({ ...d, yo: d.id === yo.id })));
   }
 
@@ -400,8 +419,12 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
     if (body.crea_minutas !== undefined) { cambios.push('crea_minutas = ?'); valores.push(body.crea_minutas ? 1 : 0); }
     if (body.recordatorios_otros !== undefined) { cambios.push('recordatorios_otros = ?'); valores.push(body.recordatorios_otros ? 1 : 0); }
     if (body.ve_minutas !== undefined) { cambios.push('ve_minutas = ?'); valores.push(body.ve_minutas ? 1 : 0); }
+    // (1.11.0, Josué) Quitar de la lista (p. ej. un registro repetido). No se borra nada: sus minutas siguen.
+    if (body.oculta !== undefined) { cambios.push('oculta = ?'); valores.push(body.oculta ? 1 : 0); }
     if (cambios.length === 0) throw new ErrorApi(400, 'Nada que cambiar.');
-    const r = await env.DB.prepare(`UPDATE dispositivos SET ${cambios.join(', ')}, actualizado = ? WHERE id = ? AND rol != 'admin'`)
+    // Los permisos de otro administrador no se tocan; quitarlo de la lista sí (p. ej. un celular viejo de Josué).
+    const soloOcultar = cambios.length === 1 && body.oculta !== undefined;
+    const r = await env.DB.prepare(`UPDATE dispositivos SET ${cambios.join(', ')}, actualizado = ? WHERE id = ?${soloOcultar ? '' : " AND rol != 'admin'"}`)
       .bind(...valores, ahora(), partes[2]).run();
     if (!r.meta.changes) throw new ErrorApi(404, 'Dispositivo no encontrado.');
     return json({ ok: true });
@@ -427,12 +450,13 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
   }
 
   if (seccion === 'restaurar' && request.method === 'POST' && partes[2]) {
-    const f = await env.DB.prepare('SELECT titulo FROM minutas WHERE id = ? AND borrada = 1').bind(partes[2]).first<{ titulo: string }>();
+    const f = await env.DB.prepare('SELECT titulo, fecha FROM minutas WHERE id = ? AND borrada = 1').bind(partes[2]).first<{ titulo: string; fecha: string }>();
     if (!f) throw new ErrorApi(404, 'No hay una minuta borrada con ese código.');
     await env.DB.batch([
       env.DB.prepare('UPDATE minutas SET borrada = 0, editada_por = ?, actualizada = ? WHERE id = ?').bind(yo.id, ahora(), partes[2]),
       registrar(env, partes[2], yo.id, 'restaurada', f.titulo),
     ]);
+    avisar(env, { tipo: 'restaurada', autorId: yo.id, autor: yo.nombre, minutaId: partes[2], titulo: tituloAviso(f.titulo, f.fecha) });
     return json({ ok: true });
   }
 
@@ -760,7 +784,264 @@ async function rutasPersonas(request: Request, env: Env): Promise<Response> {
 
 // ---------- Entrada ----------
 
-export const onRequest: PagesFunction<Env> = async ({ request, env, params }) => {
+// ---------- Notificaciones (1.11.0, Josué) ----------
+// Web Push estándar, sin servicios externos: el servidor solo le dice al servicio de notificaciones del navegador
+// "despierta a este celular" (push SIN contenido, firmado con las claves VAPID de la app); el service worker del
+// celular despierta, pide aquí sus avisos pendientes (identificándose con su suscripción) y los muestra.
+// Así no hay que cifrar contenido y lo que se muestra siempre sale de la base de datos.
+//  - Administrador: un aviso por cada acción (registro, minuta creada/editada/publicada/privada/duplicada/eliminada/
+//    restaurada), cada tipo con su interruptor.
+//  - Los demás: SOLO "Nueva minuta" (cuando se publica una) y solo si tienen "Ver minutas". No se enteran de nada más.
+// Nadie recibe aviso de lo que hizo él mismo.
+
+const TIPOS_ADMIN = ['registro', 'creada', 'editada', 'publicada', 'privada', 'duplicada', 'borrada', 'restaurada'] as const;
+const TIPOS_OTROS = ['nueva_minuta'] as const;
+type TipoAviso = (typeof TIPOS_ADMIN)[number] | (typeof TIPOS_OTROS)[number];
+
+interface Aviso {
+  tipo: (typeof TIPOS_ADMIN)[number];
+  autorId: string;
+  autor: string;
+  minutaId?: string;
+  titulo?: string;
+  /** La minuta quedó visible para todos (creada publicada o pasó a publicada): avisa también a los demás. */
+  publica?: boolean;
+}
+
+/** "Minuta" sola se muestra con su fecha, como en la app. */
+function tituloAviso(titulo: string, fecha: unknown): string {
+  if (titulo !== 'Minuta' || typeof fecha !== 'string') return titulo;
+  const [y, m, d] = fecha.split('-');
+  return d && m && y ? `Minuta ${d}-${m}-${y}` : titulo;
+}
+
+type Idioma = 'es' | 'en' | 'pt';
+type TextoAviso = [string, (autor: string, titulo: string, publica: boolean) => string];
+const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, TextoAviso> }> = {
+  es: {
+    vista: 'Marcar como vista',
+    tipos: {
+      registro: ['Nueva persona registrada', a => `${a} se registró en la app.`],
+      creada: ['Minuta creada', (a, t, p) => `${a} creó ${p ? 'y publicó ' : ''}«${t}».`],
+      editada: ['Minuta editada', (a, t) => `${a} editó «${t}».`],
+      publicada: ['Minuta publicada', (a, t) => `${a} publicó «${t}».`],
+      privada: ['Minuta privada', (a, t) => `${a} dejó «${t}» solo para sí.`],
+      duplicada: ['Minuta duplicada', (a, t) => `${a} duplicó «${t}».`],
+      borrada: ['Minuta eliminada', (a, t) => `${a} eliminó «${t}».`],
+      restaurada: ['Minuta restaurada', (a, t) => `${a} restauró «${t}».`],
+      nueva_minuta: ['Nueva minuta', (a, t) => `«${t}» · ${a}`],
+    },
+  },
+  en: {
+    vista: 'Mark as seen',
+    tipos: {
+      registro: ['New person signed up', a => `${a} signed up in the app.`],
+      creada: ['Service created', (a, t, p) => `${a} created ${p ? 'and published ' : ''}“${t}”.`],
+      editada: ['Service edited', (a, t) => `${a} edited “${t}”.`],
+      publicada: ['Service published', (a, t) => `${a} published “${t}”.`],
+      privada: ['Service made private', (a, t) => `${a} made “${t}” private.`],
+      duplicada: ['Service duplicated', (a, t) => `${a} duplicated “${t}”.`],
+      borrada: ['Service deleted', (a, t) => `${a} deleted “${t}”.`],
+      restaurada: ['Service restored', (a, t) => `${a} restored “${t}”.`],
+      nueva_minuta: ['New service', (a, t) => `“${t}” · ${a}`],
+    },
+  },
+  pt: {
+    vista: 'Marcar como vista',
+    tipos: {
+      registro: ['Nova pessoa cadastrada', a => `${a} se cadastrou no app.`],
+      creada: ['Minuta criada', (a, t, p) => `${a} criou ${p ? 'e publicou ' : ''}«${t}».`],
+      editada: ['Minuta editada', (a, t) => `${a} editou «${t}».`],
+      publicada: ['Minuta publicada', (a, t) => `${a} publicou «${t}».`],
+      privada: ['Minuta privada', (a, t) => `${a} deixou «${t}» só para si.`],
+      duplicada: ['Minuta duplicada', (a, t) => `${a} duplicou «${t}».`],
+      borrada: ['Minuta excluída', (a, t) => `${a} excluiu «${t}».`],
+      restaurada: ['Minuta restaurada', (a, t) => `${a} restaurou «${t}».`],
+      nueva_minuta: ['Nova minuta', (a, t) => `«${t}» · ${a}`],
+    },
+  },
+};
+
+const apagadasDe = (texto: string | null): string[] => {
+  try { const v = JSON.parse(texto ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
+};
+
+/** Registra el aviso para quien corresponda y despierta sus celulares. Sigue DESPUÉS de responder (no atrasa nada). */
+function avisar(env: Env, aviso: Aviso) {
+  const trabajo = enviarAvisos(env, aviso).catch(e => console.error('avisos', e));
+  if (env.esperar) env.esperar(trabajo);
+}
+
+async function enviarAvisos(env: Env, a: Aviso) {
+  type Fila = { id: string; notif_apagadas: string | null };
+  const destinos: { id: string; tipo: TipoAviso; url: string }[] = [];
+  const { results: admins } = await env.DB.prepare(
+    `SELECT id, notif_apagadas FROM dispositivos WHERE rol = 'admin' AND estado = 'aprobado' AND notif_activas = 1 AND id != ?`,
+  ).bind(a.autorId).all<Fila>();
+  const urlAdmin = a.tipo === 'registro' ? '/admin' : '/admin?ver=historial';
+  for (const d of admins) if (!apagadasDe(d.notif_apagadas).includes(a.tipo)) destinos.push({ id: d.id, tipo: a.tipo, url: urlAdmin });
+  if (a.publica && a.minutaId) {
+    const { results: otros } = await env.DB.prepare(
+      `SELECT d.id, d.notif_apagadas FROM dispositivos d
+       WHERE d.rol != 'admin' AND d.estado = 'aprobado' AND d.ve_minutas = 1 AND d.notif_activas = 1 AND d.id != ?
+         AND EXISTS (SELECT 1 FROM suscripciones s WHERE s.dispositivo_id = d.id)`,
+    ).bind(a.autorId).all<Fila>();
+    for (const d of otros) {
+      if (!apagadasDe(d.notif_apagadas).includes('nueva_minuta')) destinos.push({ id: d.id, tipo: 'nueva_minuta', url: `/minuta/${a.minutaId}` });
+    }
+  }
+  if (destinos.length === 0) return;
+  const t = ahora();
+  const datos = JSON.stringify({ autor: a.autor, titulo: a.titulo ?? '', publica: !!a.publica });
+  await env.DB.batch([
+    ...destinos.map(d => env.DB.prepare('INSERT INTO notificaciones (dispositivo_id, tipo, datos, url, creada) VALUES (?, ?, ?, ?, ?)')
+      .bind(d.id, d.tipo, datos, d.url, t)),
+    // Limpieza: lo visto de hace más de 30 días ya no hace falta.
+    env.DB.prepare('DELETE FROM notificaciones WHERE vista = 1 AND creada < ?').bind(new Date(Date.now() - 30 * 86400_000).toISOString()),
+  ]);
+  const marcas = destinos.map(() => '?').join(',');
+  const { results: subs } = await env.DB.prepare(`SELECT endpoint FROM suscripciones WHERE dispositivo_id IN (${marcas})`)
+    .bind(...destinos.map(d => d.id)).all<{ endpoint: string }>();
+  await Promise.all(subs.map(s => despertar(env, s.endpoint)));
+}
+
+const b64u = (bytes: Uint8Array) => {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+let claveFirma: Promise<CryptoKey> | null = null;
+
+/** Firma de la app ante el servicio de notificaciones (JWT ES256, "VAPID"). */
+async function firmaVapid(env: Env, endpoint: string): Promise<string> {
+  claveFirma ??= crypto.subtle.importKey('jwk', JSON.parse(env.VAPID_PRIVADA!), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const enc = new TextEncoder();
+  const cabecera = b64u(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const datos = b64u(enc.encode(JSON.stringify({
+    aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: 'https://himnario-2026.pages.dev',
+  })));
+  const firma = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, await claveFirma, enc.encode(`${cabecera}.${datos}`));
+  return `${cabecera}.${datos}.${b64u(new Uint8Array(firma))}`;
+}
+
+/** Despierta a un celular (push vacío). Si el navegador dice que esa suscripción ya no existe, se borra. */
+async function despertar(env: Env, endpoint: string) {
+  if (!env.VAPID_PRIVADA || !env.VAPID_PUBLICA) return;
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: { TTL: String(3 * 86400), Urgency: 'high', Authorization: `vapid t=${await firmaVapid(env, endpoint)}, k=${env.VAPID_PUBLICA}` },
+    });
+    if (r.status === 404 || r.status === 410) await env.DB.prepare('DELETE FROM suscripciones WHERE endpoint = ?').bind(endpoint).run();
+    else if (!r.ok) console.error('push', r.status, (await r.text()).slice(0, 200));
+  } catch (e) {
+    console.error('push', e);
+  }
+}
+
+function validarEndpoint(v: unknown): string {
+  if (typeof v !== 'string' || v.length > 1000 || !/^https:\/\/\S+$/.test(v)) throw new ErrorApi(400, 'Suscripción no válida.');
+  return v;
+}
+
+/** El service worker se identifica con su suscripción (dirección larga e imposible de adivinar). */
+async function dispositivoPorSuscripcion(request: Request, env: Env) {
+  const endpoint = request.headers.get('x-endpoint');
+  if (!endpoint) return null;
+  return env.DB.prepare('SELECT dispositivo_id, idioma FROM suscripciones WHERE endpoint = ?').bind(endpoint)
+    .first<{ dispositivo_id: string; idioma: Idioma }>();
+}
+
+async function rutasNotificaciones(request: Request, env: Env, partes: string[]): Promise<Response> {
+  const accion = partes[1];
+  const metodo = request.method;
+
+  if (accion === 'clave' && metodo === 'GET') return json({ clave: env.VAPID_PUBLICA ?? null });
+
+  // Del service worker (sin llave: con su suscripción).
+  if (accion === 'pendientes' && metodo === 'GET') {
+    const s = await dispositivoPorSuscripcion(request, env);
+    if (!s) return json([]);
+    const desde = new Date(Date.now() - 3 * 86400_000).toISOString();
+    const { results } = await env.DB.prepare(
+      'SELECT id, tipo, datos, url FROM notificaciones WHERE dispositivo_id = ? AND entregada = 0 AND vista = 0 AND creada > ? ORDER BY id LIMIT 10',
+    ).bind(s.dispositivo_id, desde).all<{ id: number; tipo: TipoAviso; datos: string; url: string }>();
+    if (results.length) {
+      await env.DB.prepare(`UPDATE notificaciones SET entregada = 1 WHERE id IN (${results.map(() => '?').join(',')})`)
+        .bind(...results.map(f => f.id)).run();
+    }
+    const textos = TEXTOS_AVISO[s.idioma] ?? TEXTOS_AVISO.es;
+    return json(results.map(f => {
+      const d = JSON.parse(f.datos);
+      const [titulo, texto] = textos.tipos[f.tipo] ?? textos.tipos.editada;
+      return { id: f.id, titulo, texto: texto(d.autor, d.titulo, !!d.publica), url: f.url, accion: textos.vista };
+    }));
+  }
+
+  // Marcar como vista: desde la notificación (service worker) o desde la app (llave).
+  if (accion === 'vista' && metodo === 'POST') {
+    const body = await leerJson(request);
+    const quien = (await dispositivoPorSuscripcion(request, env))?.dispositivo_id ?? (await dispositivoActual(request, env))?.id;
+    if (!quien) throw new ErrorApi(403, 'Sin permiso.');
+    if (Array.isArray(body.ids) && body.ids.length) {
+      const ids = body.ids.filter((x: unknown) => Number.isInteger(x)).slice(0, 50);
+      if (ids.length) {
+        await env.DB.prepare(`UPDATE notificaciones SET vista = 1, entregada = 1 WHERE dispositivo_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
+          .bind(quien, ...ids).run();
+      }
+    } else if (body.todas === true) {
+      await env.DB.prepare('UPDATE notificaciones SET vista = 1, entregada = 1 WHERE dispositivo_id = ? AND vista = 0').bind(quien).run();
+    }
+    return json({ ok: true });
+  }
+
+  const yo = exigirConNombre(await dispositivoActual(request, env));
+  const tipos: readonly string[] = yo.rol === 'admin' ? TIPOS_ADMIN : TIPOS_OTROS;
+
+  if (accion === 'sin-ver' && metodo === 'GET') {
+    const f = await env.DB.prepare('SELECT COUNT(*) AS n FROM notificaciones WHERE dispositivo_id = ? AND vista = 0').bind(yo.id).first<{ n: number }>();
+    return json({ n: f?.n ?? 0 });
+  }
+
+  if (accion === 'suscripcion' && metodo === 'POST') {
+    const body = await leerJson(request);
+    const endpoint = validarEndpoint(body.endpoint);
+    const idioma: Idioma = ['es', 'en', 'pt'].includes(body.idioma) ? body.idioma : 'es';
+    await env.DB.prepare(`INSERT INTO suscripciones (endpoint, dispositivo_id, idioma, creada) VALUES (?, ?, ?, ?)
+                          ON CONFLICT (endpoint) DO UPDATE SET dispositivo_id = excluded.dispositivo_id, idioma = excluded.idioma`)
+      .bind(endpoint, yo.id, idioma, ahora()).run();
+    return json({ ok: true });
+  }
+  if (accion === 'suscripcion' && metodo === 'DELETE') {
+    const body = await leerJson(request);
+    await env.DB.prepare('DELETE FROM suscripciones WHERE endpoint = ? AND dispositivo_id = ?').bind(validarEndpoint(body.endpoint), yo.id).run();
+    return json({ ok: true });
+  }
+
+  if (accion === 'preferencias') {
+    const f = await env.DB.prepare('SELECT notif_activas, notif_apagadas FROM dispositivos WHERE id = ?').bind(yo.id)
+      .first<{ notif_activas: number; notif_apagadas: string | null }>();
+    let activas = !!f?.notif_activas;
+    let apagadas = apagadasDe(f?.notif_apagadas ?? null);
+    if (metodo === 'PATCH') {
+      const body = await leerJson(request);
+      if (typeof body.activas === 'boolean') activas = body.activas;
+      if (typeof body.tipo === 'string' && tipos.includes(body.tipo) && typeof body.activo === 'boolean') {
+        apagadas = body.activo ? apagadas.filter(x => x !== body.tipo) : [...new Set([...apagadas, body.tipo])];
+      }
+      await env.DB.prepare('UPDATE dispositivos SET notif_activas = ?, notif_apagadas = ? WHERE id = ?')
+        .bind(activas ? 1 : 0, JSON.stringify(apagadas), yo.id).run();
+    } else if (metodo !== 'GET') {
+      throw new ErrorApi(405, 'Operación no permitida.');
+    }
+    return json({ activas, tipos: tipos.map(tipo => ({ tipo, activo: !apagadas.includes(tipo) })) });
+  }
+
+  throw new ErrorApi(404, 'Ruta no encontrada.');
+}
+
+export const onRequest: PagesFunction<Env> = async ({ request, env: envBase, params, waitUntil }) => {
+  const env: Env = { ...envBase, esperar: p => waitUntil(p) };
   const partes = (Array.isArray(params.ruta) ? params.ruta : [params.ruta]).filter(Boolean) as string[];
   const ip = request.headers.get('cf-connecting-ip') || 'local';
   try {
@@ -772,6 +1053,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, params }) =>
       case 'pc': return await rutasPc(request, env, partes);
       case 'recordatorios': return await rutasRecordatorios(request, env, partes);
       case 'personas': return await rutasPersonas(request, env);
+      case 'notificaciones': return await rutasNotificaciones(request, env, partes);
       case 'salud': return json({ ok: true });
       default: throw new ErrorApi(404, 'Ruta no encontrada.');
     }

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, RefreshCw, RotateCcw } from 'lucide-react';
+import { ArrowLeft, EyeOff, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { marcarTodasVistas } from '@/lib/notificaciones';
 import { ChipAutor } from '@/components/Portada';
 import { api, ErrorDeRed } from '@/lib/api';
 import { refrescarMinutas } from '@/lib/minutaCache';
@@ -87,6 +89,45 @@ export default function Admin() {
   }, [t]);
 
   useEffect(() => { if (esAdmin) cargar(); }, [esAdmin, cargar]);
+  // Notificaciones (1.11.0): entrar a Administración = ya se vieron (se quita el aviso pendiente de ⋮ y Ajustes).
+  useEffect(() => { if (esAdmin) marcarTodasVistas().then(() => revisarPendientes()); }, [esAdmin]);
+
+  // Quitar a una persona de la lista (1.11.0, Josué: registros repetidos). Mantener presionada su tarjeta → confirmar.
+  // No se borra nada: sus minutas y recordatorios siguen; si vuelve a registrarse en ese celular, reaparece.
+  const [aQuitar, setAQuitar] = useState<DispositivoAdmin | null>(null);
+  const [confirmarQuitar, setConfirmarQuitar] = useState(false);
+  const presion = useRef<{ x: number; y: number; timer: number } | null>(null);
+  const mantener = (d: DispositivoAdmin) => d.yo ? {} : {
+    onPointerDown: (e: React.PointerEvent) => {
+      const timer = window.setTimeout(() => {
+        presion.current = null;
+        navigator.vibrate?.(15);
+        setAQuitar(d);
+        setConfirmarQuitar(true);
+      }, 500);
+      presion.current = { x: e.clientX, y: e.clientY, timer };
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const p = presion.current;
+      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 8) { window.clearTimeout(p.timer); presion.current = null; }
+    },
+    onPointerUp: () => { if (presion.current) { window.clearTimeout(presion.current.timer); presion.current = null; } },
+    onPointerCancel: () => { if (presion.current) { window.clearTimeout(presion.current.timer); presion.current = null; } },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
+  const quitar = async () => {
+    const d = aQuitar;
+    if (!d) return;
+    setConfirmarQuitar(false);
+    setDispositivos(prev => prev.filter(x => x.id !== d.id)); // al instante; si falla, vuelve
+    try {
+      await api(`admin/dispositivos/${d.id}`, { metodo: 'PATCH', datos: { oculta: true } });
+      revisarPendientes();
+    } catch (e: any) {
+      setDispositivos(prev => [...prev, d]);
+      toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
+    }
+  };
 
   const cambiarEstado = async (d: DispositivoAdmin, estado: DispositivoAdmin['estado']) => {
     try {
@@ -162,7 +203,7 @@ export default function Admin() {
   const resto = dispositivos.filter(d => d.estado !== 'pendiente');
 
   const tarjeta = (d: DispositivoAdmin) => (
-    <div key={d.id} className="bg-card rounded-xl border border-border p-3 space-y-2">
+    <div key={d.id} {...mantener(d)} className="bg-card rounded-xl border border-border p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <ChipAutor autor={{ nombre: d.nombre, color: d.color }} />
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${colorEstado[d.estado]}`}>
@@ -172,7 +213,8 @@ export default function Admin() {
         </span>
       </div>
       <p className="text-[10px] text-muted-foreground">
-        {t.admin_requested} {fechaHora(d.creado)} · {d.minutas} {t.minutas_title.toLowerCase()}
+        {/* Sin contador de minutas (1.11.0, Josué: no es necesario). */}
+        {t.admin_requested} {fechaHora(d.creado)}
         {d.yo && ` · ${t.admin_this_device}`}
       </p>
       {/* Permisos (1.7.1): la persona se registra sola; aquí se le activa crear minutas o dejar recordatorios a otros. */}
@@ -269,6 +311,20 @@ export default function Admin() {
           </>
         )}
       </div>
+
+      {/* Quitar de la lista (tocar fuera cancela). El aviso se fija al abrir (aQuitar no cambia al cerrar). */}
+      <Dialog open={confirmarQuitar} onOpenChange={o => { if (!o) setConfirmarQuitar(false); }}>
+        <DialogContent className="max-w-[320px] rounded-2xl gap-3">
+          <DialogHeader>
+            <DialogTitle className="text-base">{t.admin_hide_title(aQuitar?.nombre ?? '')}</DialogTitle>
+            <DialogDescription className="text-xs text-center">{t.admin_hide_text}</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center gap-2">
+            <Button variant="outline" className="h-9 px-4 text-sm" onClick={() => setConfirmarQuitar(false)}>{t.rec_cancel}</Button>
+            <Button variant="destructive" className="h-9 px-4 text-sm gap-1.5" onClick={quitar}><EyeOff size={14} />{t.admin_hide}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

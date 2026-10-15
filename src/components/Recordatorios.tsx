@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n/index';
+import recortes from '@/datos/recortes.json';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useToque } from '@/hooks/useToque';
@@ -429,9 +430,19 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
   );
 }
 
-/** Con el celular girado (1.9.10, Josué): los post-it que van SOBRE LA LETRA (y >= 0) quedan en su lugar; los que
- *  se dejaron arriba del título (y < 0) o sin mover no caben ahí: se muestran como acotación arriba del título. */
-export const vaSobreLetra = (r: Recordatorio) => !!r.pos && r.pos.y >= 0;
+/** Con el celular girado (1.9.10, Josué): los post-it que van SOBRE LA LETRA quedan en su lugar; los que se dejaron
+ *  arriba del título o sin mover se muestran como acotación arriba del título.
+ *  "Sobre la letra" (1.11.0, Josué) = alguna parte del post-it toca la letra: también uno que asoma por arriba de la
+ *  primera línea (p. ej. encima de un acorde) sigue en ese punto al girar. Su alto se estima en ~9 % del ancho de la
+ *  letra por su tamaño (un renglón; ahora el post-it se escala con la letra, así que esa proporción es fija). */
+const tablaRecortes = recortes as unknown as Record<string, [number, number, number, number]>;
+export const vaSobreLetra = (r: Recordatorio) => {
+  if (!r.pos) return false;
+  if (r.pos.y >= 0) return true;
+  const rc = tablaRecortes[String(r.himno)];
+  const altoSobreAncho = rc ? rc[2] / rc[0] : 0.7;
+  return r.pos.y * altoSobreAncho + 0.09 * (r.tam ?? 1) > 0;
+};
 
 /** Acotaciones (celular girado, 1.9.10): mini post-it + texto del tamaño del título, en fila hacia la derecha, arriba
  *  del título. Solo para ver. El contenedor debe tener container-type inline-size (el tamaño sigue al de la letra). */

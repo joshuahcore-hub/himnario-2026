@@ -15,6 +15,7 @@ import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { cargarRecordatorios } from '@/lib/recordatorios';
 import BotonSeguro from '@/components/BotonSeguro';
+import { marcarTodasVistas } from '@/lib/notificaciones';
 
 /** Dónde quedó la lista de minutas (se conserva al cambiar de pestaña mientras la app esté abierta). */
 let posicionMinutas: number | null = null;
@@ -23,6 +24,9 @@ export default function Minutas() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { puedeEditar, esAdmin } = useAcceso();
+  // Avisos de "Nueva minuta" (1.11.0): al entrar a Minutas ya se vieron. Los del administrador se marcan al entrar a
+  // Administración (ahí está el historial).
+  useEffect(() => { if (!esAdmin) marcarTodasVistas(); }, [esAdmin]);
   const { minutas, sinConexion, cargando, refrescar } = useMinutas();
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());

@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Check, Clock, EllipsisVertical, Eye, Loader2, PenLine, RefreshCw, Shield, ShieldCheck, ShieldX, UserRound, UserRoundPlus } from 'lucide-react';
+import { Bell, Check, Clock, EllipsisVertical, Eye, Loader2, PenLine, RefreshCw, Shield, ShieldCheck, ShieldX, UserRound, UserRoundPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -20,6 +20,8 @@ import { ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { ChipAutor } from '@/components/Portada';
 import { usePendientes } from '@/hooks/usePendientes';
+import PanelNotificaciones from '@/components/PanelNotificaciones';
+import { permisoActual, suscribir } from '@/lib/notificaciones';
 
 /** Evento para abrir "Activar como administrador" (Ajustes lo lanza al tocar 5 veces la versión). */
 export const EVENTO_ACTIVAR_ADMIN = 'himnario-activar-admin';
@@ -118,7 +120,7 @@ export default function MenuAcceso() {
   const acceso = useAcceso();
   const pendientes = usePendientes();
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const [dialogo, setDialogo] = useState<null | 'perfil' | 'admin'>(null);
+  const [dialogo, setDialogo] = useState<null | 'perfil' | 'notif' | 'admin'>(null);
   const [editandoPerfil, setEditandoPerfil] = useState(false);
   const [clave, setClave] = useState('');
   // Visor pidiendo ser creador: el MISMO panel "Mi perfil" cambia a nombre + color (antes se cerraba un panel y
@@ -136,12 +138,16 @@ export default function MenuAcceso() {
   const autor = acceso.nombre && acceso.color ? { nombre: acceso.nombre, color: acceso.color } : null;
   // Los paneles se reinician al ABRIR, nunca al cerrar: si se reiniciaran al cerrar, durante el desvanecimiento se
   // vería por un instante la pantalla anterior (p. ej. "Mi perfil" al tocar fuera mientras se elige color; Josué).
-  const abrir = (d: 'perfil') => { setMenuAbierto(false); setEditandoPerfil(false); setPidiendo(false); setDialogo(d); };
+  // vista: qué muestra el panel. Se fija al abrir y NO cambia al cerrar (si no, al desvanecerse asomaría otra cosa).
+  const [vista, setVista] = useState<'perfil' | 'notif'>('perfil');
+  const abrir = (d: 'perfil' | 'notif') => { setMenuAbierto(false); setEditandoPerfil(false); setPidiendo(false); setVista(d); setDialogo(d); };
   const cerrarDialogo = () => setDialogo(null);
 
-  // Menú igual para todos (Josué: "mientras menos enredo, mejor"): "Mi perfil" siempre; "Administración" solo el admin.
+  // Menú igual para todos (Josué: "mientras menos enredo, mejor"): "Mi perfil" y "Notificaciones" (1.11.0) siempre;
+  // "Administración" solo el admin, al final.
   const opciones: React.ReactNode[] = [
     <OpcionMenu key="perfil" icono={<UserRound size={16} />} texto={t.access_my_profile} onClick={() => abrir('perfil')} />,
+    <OpcionMenu key="notif" icono={<Bell size={16} />} texto={t.notif_title} onClick={() => abrir('notif')} />,
   ];
   if (acceso.esAdmin) {
     opciones.push(<OpcionMenu key="admin" icono={<Shield size={16} />} texto={t.admin_title} aviso={pendientes}
@@ -159,7 +165,15 @@ export default function MenuAcceso() {
           nombreInicial={acceso.nombre}
           colorInicial={acceso.color}
           textoBoton={t.access_send}
-          onEnviar={async (nombre, color) => { await acceso.solicitar(nombre, color); setPidiendo(false); }}
+          onEnviar={async (nombre, color) => {
+            // Notificaciones activadas por defecto (1.11.0): la pregunta del sistema se lanza YA (aún dentro del
+            // toque; después de esperar al servidor el navegador podría no mostrarla) y se suscribe al quedar registrado.
+            const permiso = permisoActual() === 'pedir' ? Notification.requestPermission().catch(() => null) : null;
+            await acceso.solicitar(nombre, color);
+            setPidiendo(false);
+            await permiso;
+            suscribir(false).catch(() => {});
+          }}
         />
       </div>
     );
@@ -245,13 +259,16 @@ export default function MenuAcceso() {
 
       {/* Mi perfil (y, para el visor, pedir ser creador en el mismo panel). Tocar fuera cierra; sin foco
           automático: el teclado no se abre solo. */}
-      <Dialog open={dialogo === 'perfil'} onOpenChange={o => { if (!o) cerrarDialogo(); }}>
+      <Dialog open={dialogo === 'perfil' || dialogo === 'notif'} onOpenChange={o => { if (!o) cerrarDialogo(); }}>
         <DialogContent className="max-w-[340px] rounded-2xl" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle className="text-sm">{pidiendo ? t.access_dialog_title : t.access_my_profile}</DialogTitle>
+            <DialogTitle className="text-sm">{vista === 'notif' ? t.notif_title : pidiendo ? t.access_dialog_title : t.access_my_profile}</DialogTitle>
             <DialogDescription className="sr-only">{t.access_my_profile}</DialogDescription>
           </DialogHeader>
-          {perfil}
+          {/* Notificaciones va en el MISMO panel: "Registrarme" desde aquí solo cambia el contenido. */}
+          {vista === 'notif'
+            ? <PanelNotificaciones onRegistrarme={() => { setPidiendo(true); setVista('perfil'); setDialogo('perfil'); }} />
+            : perfil}
         </DialogContent>
       </Dialog>
 

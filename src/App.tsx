@@ -1,7 +1,7 @@
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { I18nProvider } from "@/lib/i18n/index";
-import { AccesoProvider } from "@/hooks/useAcceso";
+import { AccesoProvider, useAcceso } from "@/hooks/useAcceso";
 import AppShell from "@/components/AppShell";
 import HymnalPage from "@/pages/Hymnal";
 import HymnDetail from "@/pages/HymnDetail";
@@ -11,8 +11,13 @@ import MinutaReader from "@/pages/MinutaReader";
 import EditorMinuta from "@/pages/EditorMinuta";
 import Admin from "@/pages/Admin";
 
-// Sin login: cualquiera que abre la app ve himnos y minutas (rol "visor").
-// Crear/editar minutas requiere que el administrador apruebe este celular (ver Ajustes).
+// Sin login: cualquiera que abre la app ve el himnario. Las minutas, solo registrado y con el permiso "Ver minutas"
+// que da el administrador (1.11.0, Josué). Crear/editar minutas también lo activa el administrador.
+function SoloConMinutas({ children }: { children: JSX.Element }) {
+  const { puedeVerMinutas } = useAcceso();
+  return puedeVerMinutas ? children : <Navigate to="/" replace />;
+}
+
 const App = () => (
   <I18nProvider>
     <AccesoProvider>
@@ -28,7 +33,7 @@ const App = () => (
                   <Route path="/" element={<HymnalPage />} />
                   <Route path="/hymnal" element={<HymnalPage />} />
                   <Route path="/hymnal/:number" element={<HymnDetail />} />
-                  <Route path="/minutas" element={<Minutas />} />
+                  <Route path="/minutas" element={<SoloConMinutas><Minutas /></SoloConMinutas>} />
                   <Route path="/crear" element={<EditorMinuta />} />
                   <Route path="/editar/:id" element={<EditorMinuta />} />
                   <Route path="/settings" element={<SettingsPage />} />

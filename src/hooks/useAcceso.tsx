@@ -14,6 +14,8 @@ export interface Acceso {
   crea_minutas?: boolean;
   /** (1.7.1) Puede dejar recordatorios a otras personas (lo activa el admin). */
   recordatorios_otros?: boolean;
+  /** (1.10.0) Puede ver las minutas (lo activa el admin; desde 1.11.0 apagado al registrarse). */
+  ve_minutas?: boolean;
 }
 
 interface ContextoAcceso extends Acceso {
@@ -23,6 +25,8 @@ interface ContextoAcceso extends Acceso {
   registrado: boolean;
   /** Dejar recordatorios a otras personas. */
   puedeDejarAOtros: boolean;
+  /** (1.11.0) Ver minutas: hay que estar registrado y con el permiso (o crear minutas, o ser admin). */
+  puedeVerMinutas: boolean;
   esAdmin: boolean;
   recargar: () => Promise<void>;
   solicitar: (nombre: string, color: string) => Promise<void>;
@@ -88,6 +92,9 @@ export function AccesoProvider({ children }: { children: ReactNode }) {
     registrado: acceso.estado === 'aprobado',
     puedeDejarAOtros: acceso.estado === 'aprobado' && (acceso.rol === 'admin' || !!acceso.recordatorios_otros),
     esAdmin: acceso.estado === 'aprobado' && acceso.rol === 'admin',
+    // Copia guardada de antes de 1.10.0 (sin el campo): como estaba, hasta que llegue la respuesta del servidor.
+    puedeVerMinutas: acceso.estado === 'aprobado'
+      && (acceso.rol === 'admin' || acceso.ve_minutas !== false || acceso.crea_minutas !== false),
     recargar,
     solicitar,
     activarAdmin,

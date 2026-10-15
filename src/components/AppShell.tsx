@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, BookOpen, Music, Settings } from 'lucide-react';
 
@@ -7,6 +7,7 @@ import { useAcceso } from '@/hooks/useAcceso';
 import { intentarSalir } from '@/lib/guardiaSalida';
 import { usePendientes } from '@/hooks/usePendientes';
 import { useToque } from '@/hooks/useToque';
+import { mantenerSuscripcion } from '@/lib/notificaciones';
 
 /** Pestaña de abajo. Se activa al soltar el dedo (useToque): tras mover una lista, el navegador a veces no generaba
  *  el click del primer toque (Josué, 1.7.4). Toda su franja recibe el toque (flex-1, alto completo). */
@@ -41,13 +42,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { puedeEditar } = useAcceso();
+  const { puedeEditar, puedeVerMinutas, registrado } = useAcceso();
   const pendientes = usePendientes();
 
-  // "Crear" solo aparece en los celulares aprobados (creadores y administrador).
+  // Notificaciones (1.11.0): al abrir la app, si ya dio permiso, se renueva la suscripción en silencio.
+  useEffect(() => { if (registrado) mantenerSuscripcion(); }, [registrado]);
+
+  // "Crear" solo aparece en los celulares aprobados (creadores y administrador). "Minutas", solo con permiso de
+  // verlas (1.11.0, Josué: sin él la app es Himnario y Ajustes).
   const tabs = [
     ...(puedeEditar ? [{ path: '/crear', label: t.tab_create, icon: Plus }] : []),
-    { path: '/minutas', label: t.tab_minutas, icon: BookOpen },
+    ...(puedeVerMinutas ? [{ path: '/minutas', label: t.tab_minutas, icon: BookOpen }] : []),
     { path: '/', label: t.tab_hymnal, icon: Music },
     { path: '/settings', label: t.tab_settings, icon: Settings },
   ];
