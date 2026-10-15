@@ -235,13 +235,9 @@ export default function MinutaReader() {
       touchStartRef.current += Math.sign(dx) * UMBRAL_LADO; // arranca desde 0, sin salto
       dx = e.touches[0].clientX - touchStartRef.current;
     }
-    if (!lateralRef.current) {
-      // Vertical: con el celular girado se recorre la letra (nativo); derecho, la pantalla sigue al dedo para salir.
-      if (horizontal) return;
-      dragYRef.current = e.touches[0].clientY - touchStartYRef.current;
-      moverVertical(dragYRef.current, 'arrastre');
-      return;
-    }
+    // Vertical: NO sale de la minuta (1.9.4, Josué: se salía sin querer al pasar a llevar; solo con "atrás" del
+    // celular). Con el celular girado, el gesto vertical recorre la letra (nativo).
+    if (!lateralRef.current) return;
     const atEdge = (dx > 0 && currentPage === 0) || (dx < 0 && currentPage === totalPages - 1);
     dragXRef.current = atEdge ? dx * 0.3 : dx;
     moverCarrusel(dragXRef.current, false);
