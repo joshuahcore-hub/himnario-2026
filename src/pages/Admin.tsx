@@ -27,6 +27,8 @@ interface DispositivoAdmin {
   recordatorios_otros: number;
   /** (1.10.0) 0 = no ve las minutas de otros. Por defecto 1. */
   ve_minutas: number;
+  /** (1.12.0) 1 = puede generar la proyección. */
+  proyeccion: number;
 }
 
 /** Interruptor propio (sin controles nativos), como el de la IA. */
@@ -140,13 +142,19 @@ export default function Admin() {
   };
 
   // (1.7.1) Permisos por persona: crear minutas y dejar recordatorios a otros. Cambia al instante; si falla, vuelve.
-  const cambiarPermiso = async (d: DispositivoAdmin, campo: 'crea_minutas' | 'recordatorios_otros' | 've_minutas') => {
+  const cambiarPermiso = async (d: DispositivoAdmin, campo: 'crea_minutas' | 'recordatorios_otros' | 've_minutas' | 'proyeccion') => {
     const valor = d[campo] ? 0 : 1;
-    setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, [campo]: valor } : x)));
+    // Hay un orden (1.12.0, Josué): no se puede crear minutas sin verlas. Encender "Crear" enciende "Ver";
+    // apagar "Ver" apaga "Crear". El servidor aplica la misma regla.
+    const cambios: Partial<DispositivoAdmin> = { [campo]: valor };
+    if (campo === 'crea_minutas' && valor) cambios.ve_minutas = 1;
+    if (campo === 've_minutas' && !valor) cambios.crea_minutas = 0;
+    const antes = { crea_minutas: d.crea_minutas, ve_minutas: d.ve_minutas, [campo]: d[campo] };
+    setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, ...cambios } : x)));
     try {
       await api(`admin/dispositivos/${d.id}`, { metodo: 'PATCH', datos: { [campo]: !!valor } });
     } catch (e: any) {
-      setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, [campo]: d[campo] } : x)));
+      setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, ...antes } : x)));
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
     }
   };
@@ -212,8 +220,11 @@ export default function Admin() {
         <ChipAutor autor={{ nombre: d.nombre, color: d.color }} />
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${colorEstado[d.estado]}`}>
           {d.rol === 'admin' ? t.admin_role_admin
-            // Cualquiera de los dos permisos lo deja como "Creador"; sin ninguno, "Registrado" (Josué, 1.7.1).
-            : d.estado === 'aprobado' ? (d.crea_minutas || d.recordatorios_otros ? t.admin_role_creator : t.admin_registered) : etiquetaEstado[d.estado]}
+            // Crear minutas o dejar recordatorios a otros = "Creador"; solo "Ver minutas" = "Visor" (1.12.0, Josué);
+            // sin ningún permiso, "Registrado".
+            : d.estado === 'aprobado'
+              ? (d.crea_minutas || d.recordatorios_otros ? t.admin_role_creator : d.ve_minutas ? t.admin_role_viewer : t.admin_registered)
+              : etiquetaEstado[d.estado]}
         </span>
       </div>
       <p className="text-[10px] text-muted-foreground">
@@ -228,6 +239,7 @@ export default function Admin() {
           <Interruptor texto={t.admin_can_view} activo={d.ve_minutas !== 0} onCambiar={() => cambiarPermiso(d, 've_minutas')} />
           <Interruptor texto={t.admin_can_create} activo={!!d.crea_minutas} onCambiar={() => cambiarPermiso(d, 'crea_minutas')} />
           <Interruptor texto={t.admin_can_remind} activo={!!d.recordatorios_otros} onCambiar={() => cambiarPermiso(d, 'recordatorios_otros')} />
+          <Interruptor texto={t.admin_can_project} activo={!!d.proyeccion} onCambiar={() => cambiarPermiso(d, 'proyeccion')} />
         </div>
       )}
       {/* (1.7.8, Josué) Sin "Deshabilitar/Habilitar": cada persona se maneja solo con los dos interruptores. Solo las

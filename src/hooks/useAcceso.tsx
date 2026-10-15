@@ -16,6 +16,8 @@ export interface Acceso {
   recordatorios_otros?: boolean;
   /** (1.10.0) Puede ver las minutas (lo activa el admin; desde 1.11.0 apagado al registrarse). */
   ve_minutas?: boolean;
+  /** (1.12.0) Generar la proyección (PowerPoint del culto). El admin siempre. */
+  proyeccion?: boolean;
 }
 
 interface ContextoAcceso extends Acceso {
@@ -27,6 +29,8 @@ interface ContextoAcceso extends Acceso {
   puedeDejarAOtros: boolean;
   /** (1.11.0) Ver minutas: hay que estar registrado y con el permiso (o crear minutas, o ser admin). */
   puedeVerMinutas: boolean;
+  /** (1.12.0) Generar la proyección (solo se ofrece en el computador). */
+  puedeProyectar: boolean;
   esAdmin: boolean;
   recargar: () => Promise<void>;
   solicitar: (nombre: string, color: string) => Promise<void>;
@@ -95,6 +99,7 @@ export function AccesoProvider({ children }: { children: ReactNode }) {
     // Copia guardada de antes de 1.10.0 (sin el campo): como estaba, hasta que llegue la respuesta del servidor.
     puedeVerMinutas: acceso.estado === 'aprobado'
       && (acceso.rol === 'admin' || acceso.ve_minutas !== false || acceso.crea_minutas !== false),
+    puedeProyectar: acceso.estado === 'aprobado' && (acceso.rol === 'admin' || !!acceso.proyeccion),
     recargar,
     solicitar,
     activarAdmin,

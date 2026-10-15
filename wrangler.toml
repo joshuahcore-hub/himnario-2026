@@ -10,3 +10,10 @@ binding = "DB"
 database_name = "himnario-2026"
 database_id = "2ac2a621-a65e-4219-8d07-3af5d6ba780a"
 migrations_dir = "migraciones"
+
+# Proyección (1.12.0): PowerPoint maestro (en partes de 20 MB), su índice y la Biblia RVR1960 compacta.
+# Solo los entrega /api/proyeccion a quien tiene el permiso "Generar proyección". Se sube con
+# node scripts/proyeccion/subir.mjs (ver CLAUDE.md).
+[[kv_namespaces]]
+binding = "PROYECCION"
+id = "7d1818aa98554f1aa8f0deb1bbfc61cd"

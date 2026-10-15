@@ -8,7 +8,9 @@ import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
-import { RotateCwSquare } from 'lucide-react';
+import { Presentation, RotateCwSquare } from 'lucide-react';
+import PanelProyeccion from '@/components/PanelProyeccion';
+import { esComputador } from '@/lib/proyeccion';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
@@ -110,7 +112,10 @@ export default function MinutaReader() {
   const horizontal = useHorizontal();
   const { theme: temaLector } = useTheme();
   // Recordatorios (1.7.0): los "siempre en esta alabanza" y los "solo en esta minuta".
-  const { registrado } = useAcceso();
+  const { registrado, puedeProyectar } = useAcceso();
+  // Generar proyección (1.12.0): solo en el computador y con el permiso; en la portada de la minuta.
+  const [proyeccionAbierta, setProyeccionAbierta] = useState(false);
+  const [enComputador] = useState(esComputador);
   const notasDe = useRecordatorios(registrado, id ?? null);
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
@@ -352,6 +357,13 @@ export default function MinutaReader() {
         {/* Arriba a la derecha: añadir recordatorio a esta alabanza (1.7.0; solo en páginas de canto) y girar
             (1.6.1). Discretos, para no tapar la letra. */}
         <div className="absolute top-2 right-2 z-20 flex gap-2">
+          {puedeProyectar && enComputador && (
+            <button onClick={() => setProyeccionAbierta(true)} title={t.proy_titulo}
+                    className="tap-btn-overlay h-[37px] px-3 rounded-full bg-card/90 border border-border text-foreground text-xs font-medium flex items-center gap-1.5 transition-opacity duration-200"
+                    style={{ opacity: paginaVisible === 0 ? 1 : 0, pointerEvents: paginaVisible === 0 ? 'auto' : 'none' }}>
+              <Presentation size={15} />{t.proy_titulo}
+            </button>
+          )}
           <div className="transition-opacity duration-200" style={{ opacity: cantoVisible ? 1 : 0, pointerEvents: cantoVisible ? 'auto' : 'none' }}>
             <BotonRecordatorio onClick={() => abrirPanel(null)} />
           </div>
@@ -363,6 +375,9 @@ export default function MinutaReader() {
           )}
         </div>
       </div>
+      {puedeProyectar && enComputador && (
+        <PanelProyeccion abierto={proyeccionAbierta} onCerrar={() => setProyeccionAbierta(false)} minuta={minuta} />
+      )}
       <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={cantoVisible?.hymnNumber ?? null}
                          anterior={notaEditada} enviados={notasDe(cantoVisible?.hymnNumber, 'enviados')} minutaId={minuta.id} minutaPublicada={minuta.publicada} />
 

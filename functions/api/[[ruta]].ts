@@ -18,6 +18,8 @@ interface Env {
    *  VAPID_PRIVADA = JWK (JSON) de la clave privada P-256; VAPID_PUBLICA = clave pública (base64url, sin comprimir). */
   VAPID_PRIVADA?: string;
   VAPID_PUBLICA?: string;
+  /** Proyección (1.12.0): maestro de PowerPoint en partes, su índice y la Biblia (Cloudflare KV). */
+  PROYECCION?: KVNamespace;
   /** Para tareas que siguen después de responder (enviar notificaciones). Lo pone onRequest. */
   esperar?: (p: Promise<unknown>) => void;
 }
@@ -34,6 +36,8 @@ interface Dispositivo {
   recordatorios_otros: number;
   /** 0 = el admin le quitó "Ver minutas" (1.10.0): solo ve las que creó. Por defecto 1. */
   ve_minutas: number;
+  /** 1 = puede generar la proyección (PowerPoint del culto). El admin siempre. (1.12.0) */
+  proyeccion: number;
 }
 
 const COLORES = [
@@ -71,7 +75,7 @@ function llaveDe(request: Request): string | null {
 async function dispositivoActual(request: Request, env: Env): Promise<Dispositivo | null> {
   const llave = llaveDe(request);
   if (!llave) return null;
-  return env.DB.prepare('SELECT id, nombre, color, rol, estado, crea_minutas, recordatorios_otros, ve_minutas FROM dispositivos WHERE llave_hash = ?')
+  return env.DB.prepare('SELECT id, nombre, color, rol, estado, crea_minutas, recordatorios_otros, ve_minutas, proyeccion FROM dispositivos WHERE llave_hash = ?')
     .bind(await sha256(llave)).first<Dispositivo>();
 }
 
@@ -90,8 +94,9 @@ function exigirConNombre(d: Dispositivo | null): Dispositivo {
 const puedeDejarAOtros = (d: Dispositivo) => d.rol === 'admin' || !!d.recordatorios_otros;
 
 /** Lo que el celular necesita saber de sí mismo. */
-const datosAcceso = (d: { nombre: string; color: string; rol: string; estado: string; crea_minutas?: number; recordatorios_otros?: number; ve_minutas?: number }) => ({
+const datosAcceso = (d: { nombre: string; color: string; rol: string; estado: string; crea_minutas?: number; recordatorios_otros?: number; ve_minutas?: number; proyeccion?: number }) => ({
   nombre: d.nombre, color: d.color, rol: d.rol, estado: d.estado,
+  proyeccion: d.rol === 'admin' || !!d.proyeccion,
   ve_minutas: d.rol === 'admin' || d.ve_minutas !== 0,
   crea_minutas: d.rol === 'admin' || d.crea_minutas !== 0,
   recordatorios_otros: d.rol === 'admin' || !!d.recordatorios_otros,
@@ -400,7 +405,7 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
 
   if (seccion === 'dispositivos' && request.method === 'GET') {
     const { results } = await env.DB.prepare(`
-      SELECT d.id, d.nombre, d.color, d.rol, d.estado, d.creado, d.actualizado, d.crea_minutas, d.recordatorios_otros, d.ve_minutas,
+      SELECT d.id, d.nombre, d.color, d.rol, d.estado, d.creado, d.actualizado, d.crea_minutas, d.recordatorios_otros, d.ve_minutas, d.proyeccion,
              (SELECT COUNT(*) FROM minutas m WHERE m.creada_por = d.id AND m.borrada = 0) AS minutas
       FROM dispositivos d WHERE d.oculta = 0 ORDER BY d.estado = 'pendiente' DESC, d.actualizado DESC`).all();
     return json(results.map((d: any) => ({ ...d, yo: d.id === yo.id })));
@@ -419,6 +424,10 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
     if (body.crea_minutas !== undefined) { cambios.push('crea_minutas = ?'); valores.push(body.crea_minutas ? 1 : 0); }
     if (body.recordatorios_otros !== undefined) { cambios.push('recordatorios_otros = ?'); valores.push(body.recordatorios_otros ? 1 : 0); }
     if (body.ve_minutas !== undefined) { cambios.push('ve_minutas = ?'); valores.push(body.ve_minutas ? 1 : 0); }
+    // Orden de permisos (1.12.0, Josué): crear minutas implica verlas; sin verlas, tampoco crea.
+    if (body.crea_minutas && body.ve_minutas === undefined) { cambios.push('ve_minutas = 1'); }
+    if (body.ve_minutas === false && body.crea_minutas === undefined) { cambios.push('crea_minutas = 0'); }
+    if (body.proyeccion !== undefined) { cambios.push('proyeccion = ?'); valores.push(body.proyeccion ? 1 : 0); }
     // (1.11.0, Josué) Quitar de la lista (p. ej. un registro repetido). No se borra nada: sus minutas siguen.
     if (body.oculta !== undefined) { cambios.push('oculta = ?'); valores.push(body.oculta ? 1 : 0); }
     if (cambios.length === 0) throw new ErrorApi(400, 'Nada que cambiar.');
@@ -1045,6 +1054,36 @@ async function rutasNotificaciones(request: Request, env: Env, partes: string[])
   throw new ErrorApi(404, 'Ruta no encontrada.');
 }
 
+// ---------- Proyección (1.12.0, Josué) ----------
+// El PowerPoint maestro (en partes de 20 MB: KV admite hasta 25 MB por valor), su índice y la Biblia RVR1960 viven en
+// Cloudflare KV y SOLO se entregan a quien tiene el permiso "Generar proyección" (o al admin). La RVR1960 tiene
+// derechos de autor: nunca se publica abiertamente. Claves: "meta" (JSON), "maestro-<version>-<n>", "biblia".
+async function rutasProyeccion(request: Request, env: Env, partes: string[]): Promise<Response> {
+  const yo = await dispositivoActual(request, env);
+  if (!yo || yo.estado !== 'aprobado' || (yo.rol !== 'admin' && !yo.proyeccion)) throw new ErrorApi(403, 'No tienes permiso para generar la proyección.');
+  if (!env.PROYECCION) throw new ErrorApi(503, 'La proyección no está configurada en el servidor.');
+  if (request.method !== 'GET') throw new ErrorApi(405, 'Operación no permitida.');
+  const accion = partes[1];
+  if (accion === 'meta') {
+    const meta = await env.PROYECCION.get('meta');
+    if (!meta) throw new ErrorApi(404, 'Todavía no se subió el PowerPoint maestro.');
+    return new Response(meta, { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+  }
+  // Archivos que no cambian (llevan la versión en el nombre): el computador los guarda y no los vuelve a bajar.
+  const privado = { 'cache-control': 'private, max-age=31536000, immutable' };
+  if (accion === 'parte' && partes[2] && partes[3] !== undefined && /^[\w.:-]+$/.test(partes[2]) && /^\d+$/.test(partes[3])) {
+    const v = await env.PROYECCION.get(`maestro-${partes[2]}-${partes[3]}`, 'stream');
+    if (!v) throw new ErrorApi(404, 'Parte no encontrada.');
+    return new Response(v, { headers: { 'content-type': 'application/octet-stream', ...privado } });
+  }
+  if (accion === 'biblia') {
+    const v = await env.PROYECCION.get('biblia', 'stream');
+    if (!v) throw new ErrorApi(404, 'Todavía no se subió la Biblia.');
+    return new Response(v, { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, max-age=86400' } });
+  }
+  throw new ErrorApi(404, 'Ruta no encontrada.');
+}
+
 export const onRequest: PagesFunction<Env> = async ({ request, env: envBase, params, waitUntil }) => {
   const env: Env = { ...envBase, esperar: p => waitUntil(p) };
   const partes = (Array.isArray(params.ruta) ? params.ruta : [params.ruta]).filter(Boolean) as string[];
@@ -1059,6 +1098,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env: envBase, par
       case 'recordatorios': return await rutasRecordatorios(request, env, partes);
       case 'personas': return await rutasPersonas(request, env);
       case 'notificaciones': return await rutasNotificaciones(request, env, partes);
+      case 'proyeccion': return await rutasProyeccion(request, env, partes);
       case 'salud': return json({ ok: true });
       default: throw new ErrorApi(404, 'Ruta no encontrada.');
     }

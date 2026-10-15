@@ -189,6 +189,7 @@ export interface Translations {
   admin_can_create: string;
   admin_can_remind: string;
   admin_registered: string;
+  admin_role_viewer: string;
   admin_role_creator: string;
   access_admin: string;
   access_rejected: string;
@@ -207,6 +208,19 @@ export interface Translations {
   admin_pending_requests: string;
   admin_no_people: string;
   admin_hide: string;
+  admin_can_project: string;
+  proy_titulo: string;
+  proy_texto: string;
+  proy_libro: string;
+  proy_capitulo: string;
+  proy_versiculo: string;
+  proy_hasta: string;
+  proy_sin_diapositivas: string;
+  proy_bajando: string;
+  proy_armando: string;
+  proy_generar: string;
+  proy_listo: string;
+  proy_error: string;
   admin_hide_title: (nombre: string) => string;
   admin_hide_text: string;
   notif_title: string;
@@ -497,6 +511,7 @@ export const es: Translations = {
   admin_can_create: 'Crear minutas',
   admin_can_remind: 'Dejar recordatorios a otros',
   admin_registered: 'Registrado',
+  admin_role_viewer: 'Visor',
   admin_role_creator: 'Creador',
   access_admin: 'Eres administrador: puedes crear, editar y borrar minutas, y aprobar creadores.',
   access_rejected: 'Regístrate con tu nombre y un color: así te pueden dejar recordatorios en las alabanzas.',
@@ -514,6 +529,19 @@ export const es: Translations = {
   admin_pending_requests: 'Solicitudes pendientes',
   admin_no_people: 'Todavía nadie ha pedido acceso.',
   admin_hide: 'Quitar',
+  admin_can_project: 'Generar proyección',
+  proy_titulo: 'Generar proyección',
+  proy_texto: 'Elige la escritura de la portada. Se descarga el PowerPoint del culto con las alabanzas de esta minuta.',
+  proy_libro: 'Libro',
+  proy_capitulo: 'Capítulo',
+  proy_versiculo: 'Versículo',
+  proy_hasta: 'Hasta',
+  proy_sin_diapositivas: 'Sin diapositivas (no van en el PowerPoint):',
+  proy_bajando: 'Descargando el PowerPoint maestro…',
+  proy_armando: 'Armando…',
+  proy_generar: 'Generar',
+  proy_listo: 'Descargado',
+  proy_error: 'No se pudo generar la proyección.',
   admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
   admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
   notif_title: 'Notificaciones',
@@ -803,6 +831,7 @@ export const en: Translations = {
   admin_can_create: 'Create services',
   admin_can_remind: 'Leave reminders for others',
   admin_registered: 'Signed up',
+  admin_role_viewer: 'Viewer',
   admin_role_creator: 'Creator',
   access_admin: 'You are the administrator: you can create, edit and delete services, and approve creators.',
   access_rejected: 'Sign up with your name and a color so others can leave you reminders on songs.',
@@ -820,6 +849,19 @@ export const en: Translations = {
   admin_pending_requests: 'Pending requests',
   admin_no_people: 'Nobody has requested access yet.',
   admin_hide: 'Remove',
+  admin_can_project: 'Generate projection',
+  proy_titulo: 'Generate projection',
+  proy_texto: 'Choose the cover scripture. The service PowerPoint with this service’s songs is downloaded.',
+  proy_libro: 'Book',
+  proy_capitulo: 'Chapter',
+  proy_versiculo: 'Verse',
+  proy_hasta: 'To',
+  proy_sin_diapositivas: 'No slides (not in the PowerPoint):',
+  proy_bajando: 'Downloading the master PowerPoint…',
+  proy_armando: 'Building…',
+  proy_generar: 'Generate',
+  proy_listo: 'Downloaded',
+  proy_error: 'Could not generate the projection.',
   admin_hide_title: n => `Remove ${n} from the list?`,
   admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
   notif_title: 'Notifications',
@@ -1109,6 +1151,7 @@ export const pt: Translations = {
   admin_can_create: 'Criar minutas',
   admin_can_remind: 'Deixar lembretes para outros',
   admin_registered: 'Cadastrado',
+  admin_role_viewer: 'Leitor',
   admin_role_creator: 'Criador',
   access_admin: 'Você é administrador: pode criar, editar e excluir minutas, e aprovar criadores.',
   access_rejected: 'Cadastre-se com seu nome e uma cor: assim podem deixar lembretes para você nos louvores.',
@@ -1126,6 +1169,19 @@ export const pt: Translations = {
   admin_pending_requests: 'Solicitações pendentes',
   admin_no_people: 'Ninguém se cadastrou ainda.',
   admin_hide: 'Remover',
+  admin_can_project: 'Gerar projeção',
+  proy_titulo: 'Gerar projeção',
+  proy_texto: 'Escolha a escritura da capa. Baixa o PowerPoint do culto com os louvores desta minuta.',
+  proy_libro: 'Livro',
+  proy_capitulo: 'Capítulo',
+  proy_versiculo: 'Versículo',
+  proy_hasta: 'Até',
+  proy_sin_diapositivas: 'Sem slides (não vão no PowerPoint):',
+  proy_bajando: 'Baixando o PowerPoint mestre…',
+  proy_armando: 'Montando…',
+  proy_generar: 'Gerar',
+  proy_listo: 'Baixado',
+  proy_error: 'Não foi possível gerar a projeção.',
   admin_hide_title: n => `Remover ${n} da lista?`,
   admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
   notif_title: 'Notificações',
