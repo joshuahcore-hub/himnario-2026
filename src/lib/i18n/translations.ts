@@ -127,6 +127,7 @@ export interface Translations {
   minutas_ir_primera: string;
   minutas_ir_ultima: string;
   minutas_pin: string;
+  pantalla_completa: string;
   minutas_cambiar_espacio: string;
   admin_espacios: string;
   admin_espacio_nuevo: string;
@@ -490,6 +491,7 @@ export const es: Translations = {
   minutas_ir_primera: 'Ir a la primera',
   minutas_ir_ultima: 'Ir a la última',
   minutas_pin: 'Fijar',
+  pantalla_completa: 'Pantalla completa',
   minutas_cambiar_espacio: 'Cambiar de espacio',
   admin_espacios: 'Espacios de minutas',
   admin_espacio_nuevo: 'Nombre del espacio nuevo',
@@ -853,6 +855,7 @@ export const en: Translations = {
   minutas_ir_primera: 'Go to the first',
   minutas_ir_ultima: 'Go to the last',
   minutas_pin: 'Pin',
+  pantalla_completa: 'Full screen',
   minutas_cambiar_espacio: 'Switch space',
   admin_espacios: 'Service spaces',
   admin_espacio_nuevo: 'New space name',
@@ -1216,6 +1219,7 @@ export const pt: Translations = {
   minutas_ir_primera: 'Ir para a primeira',
   minutas_ir_ultima: 'Ir para a última',
   minutas_pin: 'Fixar',
+  pantalla_completa: 'Tela cheia',
   minutas_cambiar_espacio: 'Mudar de espaço',
   admin_espacios: 'Espaços de minutas',
   admin_espacio_nuevo: 'Nome do novo espaço',

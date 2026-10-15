@@ -7,8 +7,8 @@ import Zoomable from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
-import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
-import { ArrowLeft, ChevronLeft, ChevronRight, Music2, RotateCwSquare } from 'lucide-react';
+import { useHorizontal, puedeGirar, girarPantalla, usePantallaCompleta } from '@/hooks/useHorizontal';
+import { ArrowLeft, ChevronLeft, ChevronRight, Maximize, Minimize, Music2, RotateCwSquare } from 'lucide-react';
 import { CabeceraFuera, MarcoImagenes } from '@/components/ImagenesSubidas';
 import { esComputador } from '@/lib/proyeccion';
 import { useAcceso } from '@/hooks/useAcceso';
@@ -149,6 +149,9 @@ export default function MinutaReader() {
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
   const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
   const toqueGirar = useToque(() => girarPantalla(horizontal)); // al soltar el dedo (ver useToque)
+  // (1.17.0, Josué) Pantalla completa sin girar (oculta las barras del sistema).
+  const { completa, alternar: alternarCompleta } = usePantallaCompleta();
+  const toqueCompleta = useToque(alternarCompleta);
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -440,6 +443,10 @@ export default function MinutaReader() {
           );
         })}
         <div className="absolute top-2 right-2 z-20 flex gap-2">
+        <button {...toqueCompleta} aria-label={t.pantalla_completa} title={t.pantalla_completa} style={{ touchAction: 'none' }}
+                className="tap-btn-overlay p-2 rounded-full bg-card/90 border border-border text-foreground/70">
+          {completa ? <Minimize size={18} /> : <Maximize size={18} />}
+        </button>
 
           {puedeGirar && (
             <button {...toqueGirar} onTouchStart={e => e.stopPropagation()} aria-label="Girar" style={{ touchAction: 'none' }}

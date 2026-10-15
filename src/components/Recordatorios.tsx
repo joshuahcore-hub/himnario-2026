@@ -121,6 +121,9 @@ function acomodar(n: Caja, texto: Caja, zona: Zona, dx: number, dy: number): [nu
   return [x, validos[0]];
 }
 
+/** Zoom de pellizcar en que está la letra (tamaño en pantalla ÷ tamaño de su recuadro). */
+const escalaVista = (el: HTMLElement) => (el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1);
+
 function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, soloVer = false, escalaLetra = 1, enviado = false, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
   r: Recordatorio;
   /** (1.13.1) Vista "Enviados": papel más transparente, encima flota "Para X" con los tics; no se mueve ni estira. */
@@ -224,7 +227,9 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   // al soltar se guarda; entre TAM_MIN y TAM_MAX.
   const tam = r.tam ?? 1;
   const f = escalaLetra;
-  const estirar = useRef<{ x: number; y: number; ancho: number; tam: number; id: number } | null>(null);
+  const estirar = useRef<{ x: number; y: number; ancho: number; tam: number; id: number;
+    /** Tamaño del papel y del recuadro de la letra en la pantalla (para mover la posición si crece a la izq./arriba). */
+    pw: number; ph: number; marco: DOMRect | null } | null>(null);
   const tamAl = (e: React.PointerEvent) => {
     const g = estirar.current!;
     // Tirador a la izquierda o arriba: estirar hacia AFUERA (izquierda/arriba) también agranda.
@@ -244,10 +249,13 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     const { w, h } = base.current;
     // OJO (1.13.4): el translate del papel va en SUS unidades (el navegador lo multiplica por su zoom = tam × letra);
     // antes se usaba el tamaño ya ampliado y, con el post-it grande (computador), se corría y "saltaba" al soltar.
+    // (1.17.0) Crece hacia el lado del TIRADOR y queda fija la esquina contraria: con el tirador a la izquierda (post-it
+    // junto al borde derecho) antes crecía hacia la derecha, se salía de la pantalla y parecía moverse.
     const z = tam * f;
+    const sx = lado.izq ? -1 : 1, sy = lado.arriba ? -1 : 1;
     p.style.transition = 'none';
-    p.style.transform = `translate(${((k - 1) * w) / 2 / z}px, ${((k - 1) * h) / 2 / z}px) ${transformPapel} scale(${k})`;
-    if (a) a.style.transform = `translate(${lado.izq ? 0 : (k - 1) * w}px, ${lado.arriba ? 0 : (k - 1) * h}px) ${transformAncla}`;
+    p.style.transform = `translate(${(sx * (k - 1) * w) / 2 / z}px, ${(sy * (k - 1) * h) / 2 / z}px) ${transformPapel} scale(${k})`;
+    if (a) a.style.transform = `translate(${sx * (k - 1) * w}px, ${sy * (k - 1) * h}px) ${transformAncla}`;
   };
   const dejarDeEstirar = (zoomFinal: number) => {
     const p = papel.current, a = anclaTirador.current;
@@ -260,7 +268,10 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       if (!papel.current) return;
       // Tamaño del papel en px de su recuadro (sin el zoom de pellizcar), para mover el tirador junto con la esquina.
       base.current = { w: papel.current.offsetWidth * tam * f, h: papel.current.offsetHeight * tam * f };
-      estirar.current = { x: e.clientX, y: e.clientY, ancho: papel.current.getBoundingClientRect().width, tam, id: e.pointerId };
+      const rp = papel.current.getBoundingClientRect();
+      estirar.current = { x: e.clientX, y: e.clientY, ancho: rp.width, tam, id: e.pointerId, pw: papel.current.offsetWidth * tam * f,
+                          ph: papel.current.offsetHeight * tam * f,
+                          marco: r.pos ? caja.current?.closest('[data-marco-letra]')?.getBoundingClientRect() ?? null : null };
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* igual funciona */ }
     },
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
@@ -272,8 +283,17 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       e.stopPropagation();
       if (!estirar.current) return;
       const nuevo = Math.round(tamAl(e) * 100) / 100;
+      const g = estirar.current;
       estirar.current = null;
-      flushSync(() => ajustarRecordatorio(r, { tam: nuevo }));
+      // Creció hacia la izquierda o hacia arriba: su esquina de arriba a la izquierda (la posición guardada) se corre lo
+      // mismo, así queda exactamente donde se veía. Medidas en px del recuadro (sin el zoom de pellizcar).
+      const k = nuevo / tam;
+      const marcoW = g.marco && caja.current ? g.marco.width / (escalaVista(caja.current) || 1) : 0;
+      const marcoH = g.marco && caja.current ? g.marco.height / (escalaVista(caja.current) || 1) : 0;
+      const pos = r.pos && marcoW && marcoH && (lado.izq || lado.arriba)
+        ? { x: r.pos.x - (lado.izq ? ((k - 1) * g.pw) / marcoW : 0), y: r.pos.y - (lado.arriba ? ((k - 1) * g.ph) / marcoH : 0) }
+        : undefined;
+      flushSync(() => ajustarRecordatorio(r, pos ? { tam: nuevo, pos } : { tam: nuevo }));
       // Queda EXACTAMENTE el tamaño que se veía al soltar (1.9.7, Josué: antes se borraba y volvía al normal).
       dejarDeEstirar(nuevo * f);
     },

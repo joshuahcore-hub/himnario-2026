@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, RotateCwSquare } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Maximize, Minimize, RotateCwSquare } from 'lucide-react';
 import { getHymns, precargarHimno, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { getFilteredNumbers, marcarUltimoHimno } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
-import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
+import { useHorizontal, puedeGirar, girarPantalla, usePantallaCompleta } from '@/hooks/useHorizontal';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
@@ -103,6 +103,10 @@ export default function HymnDetail() {
   // Botones de arriba: se activan al soltar el dedo (ver useToque: tras deslizar, el primer click no llegaba).
   const toqueVolver = useToque(() => navigate('/hymnal'));
   const toqueGirar = useToque(() => girarPantalla(horizontal));
+  // (1.17.0, Josué) Pantalla completa sin girar: sin barra de pestañas, contador ni barra de himnos.
+  const { completa, alternar: alternarCompleta } = usePantallaCompleta();
+  const toqueCompleta = useToque(alternarCompleta);
+  const sinBarras = horizontal || completa;
   // Computador (1.13.4, Josué): flechas a los lados, rueda del mouse (un himno por muesca) y la letra más grande
   // aprovechando el ancho: todos al MISMO ancho (misma letra); los muy altos, al alto que cabe (algo más grandes que antes).
   const [enComputador] = useState(esComputador);
@@ -114,7 +118,7 @@ export default function HymnDetail() {
     return () => window.removeEventListener('resize', medir);
   }, [enComputador]);
   const anchoLetraPc = (n: number) => {
-    const disponible = pantalla.alto - 60 - 64 - 60; // botones de arriba, barra de pestañas y contador
+    const disponible = pantalla.alto - 60 - (completa ? 16 : 64 + 60); // botones de arriba, barra de pestañas y contador
     return Math.round(Math.min(780, pantalla.ancho * 0.62, disponible / proporcionLetra(n)));
   };
   const ruedaRef = useRef({ acum: 0, ultimo: 0, paso: 0 });
@@ -365,7 +369,7 @@ export default function HymnDetail() {
       // Solo la franja con letra (vistaRecortada), centrada entre los botones de arriba y el contador de abajo, con los
       // recordatorios justo encima de la letra (1.7.0). La letra a todo el ancho siempre cabe en vertical.
       <div key={num} data-pagina className="absolute inset-0 flex flex-col items-center justify-center overflow-clip"
-           style={{ transform: `translateX(${offset * 100}%)`, paddingTop: '3.75rem', paddingBottom: 'calc(var(--barra) + 3.75rem)' }}>
+           style={{ transform: `translateX(${offset * 100}%)`, paddingTop: '3.75rem', paddingBottom: completa ? '1rem' : 'calc(var(--barra) + 3.75rem)' }}>
         {/* Post-it: los que no se han movido van en fila justo arriba de la letra (fuera del flujo: la letra no se corre
             al agregarlos ni al moverlos); los movidos, pegados en su lugar de la letra, encima de la imagen (1.9.0). */}
         <div className="relative w-full min-h-0 flex justify-center" style={enComputador ? { width: anchoLetraPc(num), maxWidth: '100%' } : undefined}>
@@ -397,7 +401,7 @@ export default function HymnDetail() {
   return (
     // bg-background: el mismo fondo que tienen ahora las imágenes de los himnos (sin recuadro visible).
     // En horizontal tapa también la barra de pestañas (z-50): toda la pantalla para la letra.
-    <div ref={exteriorRef} className={`fixed inset-0 ${horizontal ? 'z-[55]' : 'z-40'} bg-background`} style={{ overflow: 'clip', willChange: 'transform' }}>
+    <div ref={exteriorRef} className={`fixed inset-0 ${sinBarras ? 'z-[55]' : 'z-40'} bg-background`} style={{ overflow: 'clip', willChange: 'transform' }}>
       {/* overflow CLIP (no hidden): con hidden el navegador podía desplazarlo solo (al abrir un panel quedaba corrido
           113 px mostrando el himno vecino). clip recorta igual y no se puede desplazar (1.7.0). */}
       {/* Arriba a la izquierda (1.13.1, Josué: simétrico): volver y los dos de post-it (crear y ver los enviados).
@@ -409,8 +413,12 @@ export default function HymnDetail() {
         {!horizontal && <BotonRecordatorio onClick={() => abrirPanel(null)} />}
         {!horizontal && puedeDejarAOtros && <BotonEnviados activo={verEnviados} onClick={() => setVerEnviados(v => !v)} />}
       </div>
-      {/* Arriba a la derecha: girar a horizontal o volver a vertical (1.6.1). */}
+      {/* Arriba a la derecha (1.17.0, simétrico con la izquierda): pantalla completa y girar (1.6.1). */}
       <div data-tapa-postit className="absolute top-3 right-3 z-20 flex gap-2">
+        <button {...toqueCompleta} aria-label={t.pantalla_completa} title={t.pantalla_completa} style={{ touchAction: 'none' }}
+                className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
+          {completa ? <Minimize size={20} /> : <Maximize size={20} />}
+        </button>
         {puedeGirar && (
           <button {...toqueGirar} aria-label="Girar" style={{ touchAction: 'none' }}
                   className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
@@ -440,7 +448,7 @@ export default function HymnDetail() {
       })}
       {/* Contador y, debajo, la barra para saltar a cualquier himno; todo encima de la barra de pestañas (h-16, z-50).
           En horizontal no se muestran: tapaban la letra. */}
-      {!horizontal && <>
+      {!sinBarras && <>
       <div data-tapa-postit className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(var(--barra) + 2.75rem)' }}>
         <p className="text-muted-foreground/40 text-xs">{(vistaPrevia ?? indiceDestino ?? currentIndex) + 1} / {navNumbers.length}</p>
       </div>
