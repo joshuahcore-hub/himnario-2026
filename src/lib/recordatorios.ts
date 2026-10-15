@@ -35,7 +35,9 @@ export interface Recordatorio {
 }
 
 export const TAM_MIN = 0.75;
-export const TAM_MAX = 1.6;
+export const TAM_MAX = 2;
+/** Letras por post-it (1.9.10, Josué): lo justo para un recordatorio; más no cabe bien en un papelito. */
+export const MAX_TEXTO = 120;
 
 type Pos = { x: number; y: number } | null;
 type Ajuste = { pos?: Pos; tam?: number | null };

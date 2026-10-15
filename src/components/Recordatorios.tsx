@@ -17,7 +17,7 @@ import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useToque } from '@/hooks/useToque';
 import { ErrorDeRed } from '@/lib/api';
 import {
-  ajustarRecordatorio, borrarRecordatorio, cargarPersonas, marcarVisto, moverRecordatorio, TAM_MAX, TAM_MIN, guardarRecordatorio, personasGuardadas, type Persona, type Recordatorio,
+  ajustarRecordatorio, borrarRecordatorio, cargarPersonas, marcarVisto, moverRecordatorio, MAX_TEXTO, TAM_MAX, TAM_MIN, guardarRecordatorio, personasGuardadas, type Persona, type Recordatorio,
 } from '@/lib/recordatorios';
 
 const Punto = ({ color }: { color: string }) => (
@@ -29,6 +29,8 @@ export const LETRA_POSTIT = "'Patrick Hand', 'Segoe Print', 'Bradley Hand', curs
 
 const MANTENER_MS = 420; // mantener presionado para despegar el post-it y moverlo
 const MOVER_MAX = 7;     // si el dedo se mueve más que esto antes, es un deslizamiento (cambiar de canción), no mover
+const TIRADOR_SEP = 12;  // separación del tirador respecto a la esquina del post-it (1.9.10: "un poco más lejos")
+const TIRADOR_TAM = 30;
 
 /** Zona donde se ve el post-it: la página, recortada por los contenedores que no dejan ver lo que se sale. */
 function zonaVisible(marco: HTMLElement, pagina: HTMLElement) {
@@ -43,22 +45,33 @@ function zonaVisible(marco: HTMLElement, pagina: HTMLElement) {
   return { left, top, right, bottom };
 }
 
-/** Dónde soltarlo (1.9.1, Josué): donde quede, en cualquier parte de la pantalla (también arriba del título o a los
- *  lados), sin salirse de lo visible. Se guarda respecto al recuadro de la letra (data-marco-letra), así coincide en
- *  himnario y minuta, vertical u horizontal; puede ser < 0 o > 1 (fuera de la letra). */
-function posicionAlSoltar(postit: HTMLElement): { x: number; y: number } | undefined {
+/** Lo que no cambia mientras se arrastra: se mide UNA vez al despegar (1.9.10, Josué: medir en cada movimiento
+ *  obligaba al teléfono a recalcular la página y el arrastre daba saltitos). */
+type Zona = { m: DOMRect; z: { left: number; top: number; right: number; bottom: number }; tapas: DOMRect[] };
+function medirZona(postit: HTMLElement): Zona | undefined {
   const pagina = postit.closest<HTMLElement>('[data-pagina]');
   const marco = pagina?.querySelector<HTMLElement>('[data-marco-letra]');
   if (!pagina || !marco) return undefined;
-  const m = marco.getBoundingClientRect(), n = postit.getBoundingClientRect();
-  const z = zonaVisible(marco, pagina);
-  const izq = Math.min(Math.max(n.left, z.left + 4), z.right - n.width - 4);
-  const arr = Math.min(Math.max(n.top, z.top + 4), z.bottom - n.height - 4);
-  return { x: (izq - m.left) / m.width, y: (arr - m.top) / m.height };
+  const tapas = [...document.querySelectorAll<HTMLElement>('[data-tapa-postit]')].map(el => el.getBoundingClientRect()).filter(t => t.width > 0);
+  return { m: marco.getBoundingClientRect(), z: zonaVisible(marco, pagina), tapas };
 }
 
-function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
+/** Dónde queda (1.9.1, Josué): en cualquier parte de la pantalla (también arriba del título o a los lados). Se guarda
+ *  respecto al recuadro de la letra (data-marco-letra), así coincide en himnario y minuta, vertical u horizontal;
+ *  puede ser < 0 o > 1 (fuera de la letra). `fuera` (1.9.10, Josué): ahí NO se puede dejar (se marca en rojo, vibra y
+ *  al soltar vuelve a donde estaba): toca el borde de lo visible, queda MÁS ABAJO que la letra (el post-it "de siempre"
+ *  se ve también en el himnario, donde abajo están el contador y la barra) o encima de botones (data-tapa-postit). */
+function evaluar(n: { left: number; top: number; right: number; bottom: number }, { m, z, tapas }: Zona) {
+  const tapa = tapas.some(t => n.left < t.right && n.right > t.left && n.top < t.bottom && n.bottom > t.top);
+  const fuera = n.left < z.left + 2 || n.top < z.top + 2 || n.right > z.right - 2 || n.bottom > z.bottom - 2
+    || n.bottom > m.bottom + 4 || tapa;
+  return { x: (n.left - m.left) / m.width, y: (n.top - m.top) / m.height, fuera };
+}
+
+function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, soloVer = false, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
   r: Recordatorio;
+  /** Solo para ver (celular girado, 1.9.10): no se toca, no se mueve ni se estira. */
+  soloVer?: boolean;
   /** En la fila: pegados a la derecha (celular girado: sobre la esquina del autor) en vez de a la izquierda. */
   alDerecha?: boolean;
   compacto: boolean;
@@ -91,7 +104,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
   const papel = useRef<HTMLDivElement>(null);
   // escala: cuánto está ampliada la letra (zoom). El movimiento se divide por ella para que el post-it siga al dedo
   // (1.9.5, Josué: con zoom "saltaba lejos": se movía el doble que el dedo).
-  const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean; escala: number } | null>(null);
+  const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean; escala: number;
+    fuera?: boolean; zona?: Zona; inicio?: DOMRect } | null>(null);
   const [levantado, setLevantado] = useState(false);
 
   // Opciones (Editar/Eliminar) hacia donde HAYA ESPACIO (1.9.1, Josué: pegado al borde izquierdo se salían de la
@@ -100,18 +114,30 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
   // escala: cuánto está ampliada la letra (zoom) al tocar el post-it. Las opciones y el tirador se "des-amplían"
   // (scale 1/escala) para verse siempre del mismo tamaño y a la misma distancia (1.9.8, Josué).
   const [escala, setEscala] = useState(1);
-  // Posición de las opciones en px de PANTALLA respecto al centro de abajo del post-it: centradas debajo y corridas
-  // lo justo para caber; si abajo no hay espacio, arriba (1.9.8: "más equilibrado, abajo").
-  const [ubic, setUbic] = useState<{ dx: number; arriba: boolean }>({ dx: 0, arriba: false });
+  // Posición de las opciones en px de PANTALLA respecto al centro (de arriba o de abajo) del post-it.
+  // 1.9.10 (Josué): ARRIBA si caben; si no (post-it en el tope), abajo, pero NUNCA encima del tirador: corridas a
+  // la izquierda de él y, si no caben ahí, más abajo que el tirador. `baja` = px extra hacia abajo.
+  const [ubic, setUbic] = useState<{ dx: number; arriba: boolean; baja: number }>({ dx: 0, arriba: true, baja: 0 });
   useLayoutEffect(() => {
     if (!abierta || !caja.current || !opciones.current) return;
     const n = caja.current.getBoundingClientRect(), o = opciones.current.getBoundingClientRect();
     const pagina = caja.current.closest<HTMLElement>('[data-pagina]')?.getBoundingClientRect();
     const izq = Math.max(pagina?.left ?? 0, 0) + 6, der = Math.min(pagina?.right ?? innerWidth, innerWidth) - 6;
-    const abajo = Math.min(pagina?.bottom ?? innerHeight, innerHeight) - 6;
     const centro = n.left + n.width / 2;
-    const left = Math.min(Math.max(centro - o.width / 2, izq), der - o.width);
-    setUbic({ dx: left - centro, arriba: n.bottom + o.height + 10 > abajo });
+    let left = Math.min(Math.max(centro - o.width / 2, izq), der - o.width);
+    // Arriba sin meterse bajo los botones que flotan sobre la página (volver, girar…).
+    let arribaLim = Math.max(pagina?.top ?? 0, 0) + 6;
+    for (const el of document.querySelectorAll<HTMLElement>('[data-tapa-postit]')) {
+      const t = el.getBoundingClientRect();
+      if (t.width > 0 && t.bottom <= n.top && t.left < left + o.width && t.right > left) arribaLim = Math.max(arribaLim, t.bottom + 6);
+    }
+    if (n.top - o.height - 8 >= arribaLim) { setUbic({ dx: left - centro, arriba: true, baja: 0 }); return; }
+    // Abajo: el tirador ocupa desde n.right + TIRADOR_SEP hacia la derecha.
+    const limite = n.right + TIRADOR_SEP - 8 - o.width;
+    if (left > limite) left = limite;
+    if (left >= izq) { setUbic({ dx: left - centro, arriba: false, baja: 0 }); return; }
+    left = Math.min(Math.max(centro - o.width / 2, izq), der - o.width);
+    setUbic({ dx: left - centro, arriba: false, baja: TIRADOR_SEP + TIRADOR_TAM });
   }, [abierta, escala]);
 
   // Tirador de la esquina para agrandar/achicar (1.9.1, Josué): sigue el dedo (zoom directo, sin estado de React) y
@@ -151,13 +177,27 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
     onTouchEnd: (e: React.TouchEvent) => e.stopPropagation(),
   };
 
+  const marcarFuera = (fuera: boolean) => {
+    if (papel.current) papel.current.style.outline = fuera ? '2.5px solid hsl(0 72% 52%)' : '';
+  };
   const soltar = () => {
     const el = caja.current;
     if (!el || !papel.current) return;
-    const pos = posicionAlSoltar(papel.current);
+    const zona = medirZona(papel.current);
+    const pos = zona ? evaluar(papel.current.getBoundingClientRect(), zona) : undefined;
+    marcarFuera(false);
+    el.style.willChange = '';
+    if (!pos || pos.fuera) {
+      // Tocaba el borde: vuelve suavemente a donde estaba (no se guarda nada).
+      setLevantado(false);
+      el.style.transition = 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)';
+      el.style.transform = '';
+      window.setTimeout(() => { if (caja.current) caja.current.style.transition = ''; }, 280);
+      return;
+    }
     flushSync(() => {
       setLevantado(false);
-      if (pos !== undefined) moverRecordatorio(r, pos);
+      moverRecordatorio(r, { x: pos.x, y: pos.y });
     });
     el.style.transform = '';
   };
@@ -175,6 +215,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
           g.arrastrando = true;
           navigator.vibrate?.(15);
           try { caja.current?.setPointerCapture(id); } catch { /* sin captura igual funciona */ }
+          if (papel.current) { g.zona = medirZona(papel.current); g.inicio = papel.current.getBoundingClientRect(); }
+          if (caja.current) caja.current.style.willChange = 'transform'; // capa propia: moverlo no repinta nada
           onCerrarOpciones();
           setLevantado(true);
         }, MANTENER_MS),
@@ -188,7 +230,14 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
         if (Math.hypot(dx, dy) > MOVER_MAX) { window.clearTimeout(g.timer); gesto.current = null; }
         return;
       }
-      if (caja.current) caja.current.style.transform = `translate(${dx / g.escala}px, ${dy / g.escala}px)`;
+      if (caja.current) caja.current.style.transform = `translate3d(${dx / g.escala}px, ${dy / g.escala}px, 0)`;
+      const a = g.inicio;
+      const fuera = !!(a && g.zona && evaluar({ left: a.left + dx, top: a.top + dy, right: a.right + dx, bottom: a.bottom + dy }, g.zona).fuera);
+      if (fuera !== !!g.fuera) {
+        g.fuera = fuera;
+        marcarFuera(fuera);
+        if (fuera) navigator.vibrate?.([30, 40, 30]);
+      }
     },
     onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
@@ -220,11 +269,11 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
   return (
     <div
       ref={caja}
-      role="button"
-      {...eventos}
-      className={sobreLetra ? 'absolute pointer-events-auto' : `relative ${alDerecha ? 'self-end' : 'self-start'} max-w-[88%] pointer-events-auto`}
+      role={soloVer ? undefined : 'button'}
+      {...(soloVer ? {} : eventos)}
+      className={sobreLetra ? `absolute ${soloVer ? 'pointer-events-none' : 'pointer-events-auto'}` : `relative ${alDerecha ? 'self-end' : 'self-start'} max-w-[88%] pointer-events-auto`}
       style={{
-        touchAction: 'none',
+        touchAction: soloVer ? undefined : 'none',
         zIndex: levantado ? 40 : abierta ? 30 : sobreLetra ? 10 : undefined,
         ...(sobreLetra && r.pos ? { left: `${r.pos.x * 100}%`, top: `${r.pos.y * 100}%`, maxWidth: '85%', width: 'max-content' } : {}),
       }}
@@ -263,10 +312,11 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
       {/* Tirador para estirar (solo con el post-it tocado): SEPARADO de la esquina de abajo a la derecha (no tapa el
           post-it) y siempre del mismo tamaño y distancia a la vista, aunque haya zoom (1.9.8, Josué). El ancla mide 0 y
           está en la esquina; dentro, todo va "des-ampliado". */}
+      {!soloVer && <>
       <div className="absolute right-0 bottom-0 w-0 h-0 z-20" style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 0' }}>
         <div {...tirador} aria-label="Tamaño"
-             className="absolute left-[7px] top-[7px] w-[30px] h-[30px] rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
-             style={{ touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
+             className="absolute rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
+             style={{ left: TIRADOR_SEP, top: TIRADOR_SEP, width: TIRADOR_TAM, height: TIRADOR_TAM, touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
           <MoveDiagonal2 size={14} />
         </div>
       </div>
@@ -275,7 +325,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
            style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 0' }}>
         <div ref={opciones} className="absolute flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
              style={{
-               left: ubic.dx, ...(ubic.arriba ? { bottom: 8 } : { top: 10 }),
+               left: ubic.dx, ...(ubic.arriba ? { bottom: 8 } : { top: 10 + ubic.baja }),
                opacity: abierta ? 1 : 0, transform: abierta ? 'none' : `translateY(${ubic.arriba ? 4 : -4}px) scale(0.96)`,
                pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out, transform 160ms ease-out',
              }}>
@@ -289,6 +339,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
           </button>
         </div>
       </div>
+      </>}
     </div>
   );
 }
@@ -300,8 +351,10 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
  *    que debe ser `relative` y llevar data-marco-letra; la página entera lleva data-pagina).
  * Mantener presionado uno lo despega y se arrastra; si se suelta arriba, fuera de la letra, vuelve a la fila.
  */
-export function NotasRecordatorio({ notas, compacto = false, onTocar, className = '', sobreLetra = false, alDerecha = false }: {
+export function NotasRecordatorio({ notas, compacto = false, onTocar, className = '', sobreLetra = false, alDerecha = false, soloVer = false }: {
   notas: Recordatorio[];
+  /** Solo para ver (celular girado): ver Nota. */
+  soloVer?: boolean;
   /** Fila pegada a la derecha (ver Nota). */
   alDerecha?: boolean;
   compacto?: boolean;
@@ -336,7 +389,7 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
     <div ref={contenedor}
          className={sobreLetra ? `absolute inset-0 pointer-events-none ${className}` : `w-full flex flex-col pt-1.5 ${compacto ? 'gap-2.5' : 'gap-3.5'} ${className}`}>
       {lista.map((r, i) => (
-        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra} alDerecha={alDerecha}
+        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra} alDerecha={alDerecha} soloVer={soloVer}
               onAlternar={() => setAbiertaId(a => (a === r.id ? null : r.id))} onCerrarOpciones={() => setAbiertaId(null)}
               onEditar={editar} onBorrar={pedirBorrar} />
       ))}
@@ -354,6 +407,28 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/** Con el celular girado (1.9.10, Josué): los post-it que van SOBRE LA LETRA (y >= 0) quedan en su lugar; los que
+ *  se dejaron arriba del título (y < 0) o sin mover no caben ahí: se muestran como acotación arriba del título. */
+export const vaSobreLetra = (r: Recordatorio) => !!r.pos && r.pos.y >= 0;
+
+/** Acotaciones (celular girado, 1.9.10): mini post-it + texto del tamaño del título, en fila hacia la derecha, arriba
+ *  del título. Solo para ver. El contenedor debe tener container-type inline-size (el tamaño sigue al de la letra). */
+export function AcotacionesPostit({ notas, className = '' }: { notas: Recordatorio[]; className?: string }) {
+  const lista = notas.filter(r => !vaSobreLetra(r));
+  if (lista.length === 0) return null;
+  return (
+    <div className={`flex flex-wrap items-center gap-x-[1.6em] gap-y-[0.3em] ${className}`}
+         style={{ fontSize: 'clamp(13px, 3.4cqw, 34px)', lineHeight: 1.25 }}>
+      {lista.map(r => (
+        <span key={r.id} className="inline-flex items-center gap-[0.4em] min-w-0 max-w-full">
+          <MiniPostit tam={16} mas={false} />
+          <span className="whitespace-pre-wrap break-words min-w-0 text-foreground" style={{ fontFamily: LETRA_POSTIT }}>{r.texto}</span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -571,13 +646,20 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
           </DialogTitle>
         </DialogHeader>
 
-        <Textarea
-          value={texto}
-          onChange={e => setTexto(e.target.value.slice(0, 300))}
-          placeholder={t.rec_placeholder}
-          rows={3}
-          className="text-sm resize-none"
-        />
+        <div className="relative">
+          <Textarea
+            value={texto}
+            onChange={e => setTexto(e.target.value.slice(0, MAX_TEXTO))}
+            maxLength={MAX_TEXTO}
+            placeholder={t.rec_placeholder}
+            rows={3}
+            className="text-sm resize-none pb-5"
+          />
+          {/* Cuenta regresiva de letras (1.9.10, Josué). */}
+          <span className={`absolute right-2.5 bottom-1.5 text-[11px] tabular-nums pointer-events-none ${MAX_TEXTO - texto.length <= 10 ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {MAX_TEXTO - texto.length}
+          </span>
+        </div>
 
         {minutaId && (
           <div className="flex flex-wrap gap-2.5">

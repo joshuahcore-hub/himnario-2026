@@ -10,7 +10,7 @@ import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal'
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
-import { BotonRecordatorio, NotasRecordatorio, PanelRecordatorio } from '@/components/Recordatorios';
+import { AcotacionesPostit, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, vaSobreLetra } from '@/components/Recordatorios';
 import ZoomableImage from '@/components/ZoomableImage';
 import Zoomable from '@/components/Zoomable';
 import HimnoRecortado, { vistaRecortada } from '@/components/HimnoRecortado';
@@ -312,13 +312,14 @@ export default function HymnDetail() {
              style={{ transform: `translateX(${offset * 100}%)`, overscrollBehavior: 'contain',
                       padding: '3.25rem env(safe-area-inset-right, 0px) 1rem env(safe-area-inset-left, 0px)' }}>
           <Zoomable className="w-full m-auto" reiniciarCon={num}>
-            {/* Los post-it sin mover FLOTAN sobre la esquina superior derecha de la letra (1.9.2, Josué: en la fila
-                empujaban la letra hacia abajo al agregarlos y la subían al moverlos). */}
-            <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`}>
-              <NotasRecordatorio notas={notasDe(num)} compacto alDerecha onTocar={abrirPanel}
-                                 className="absolute top-1 left-0 right-0 px-2 z-10 pointer-events-none" />
-              <NotasRecordatorio notas={notasDe(num)} compacto sobreLetra onTocar={abrirPanel} />
-            </HimnoRecortado>
+            {/* Girado = solo para ver (1.9.10, Josué): los post-it de la letra en su lugar; los de arriba del título,
+                como acotación pequeña arriba del título. Ninguno se edita ni se mueve. */}
+            <div className="w-full" style={{ containerType: 'inline-size' }}>
+              <AcotacionesPostit notas={notasDe(num)} className="px-[5%] pb-1" />
+              <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`}>
+                <NotasRecordatorio notas={notasDe(num).filter(vaSobreLetra)} compacto sobreLetra soloVer onTocar={abrirPanel} />
+              </HimnoRecortado>
+            </div>
           </Zoomable>
         </div>
       );
@@ -362,13 +363,13 @@ export default function HymnDetail() {
     <div ref={exteriorRef} className={`fixed inset-0 ${horizontal ? 'z-[55]' : 'z-40'} bg-background`} style={{ overflow: 'clip', willChange: 'transform' }}>
       {/* overflow CLIP (no hidden): con hidden el navegador podía desplazarlo solo (al abrir un panel quedaba corrido
           113 px mostrando el himno vecino). clip recorta igual y no se puede desplazar (1.7.0). */}
-      <div className="absolute top-3 left-3 z-20">
+      <div data-tapa-postit className="absolute top-3 left-3 z-20">
         <button {...toqueVolver} style={{ touchAction: 'none' }} className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
           <ArrowLeft size={20} />
         </button>
       </div>
       {/* Arriba a la derecha: añadir recordatorio (1.7.0) y girar a horizontal o volver a vertical (1.6.1). */}
-      <div className="absolute top-3 right-3 z-20 flex gap-2">
+      <div data-tapa-postit className="absolute top-3 right-3 z-20 flex gap-2">
         <BotonRecordatorio onClick={() => abrirPanel(null)} />
         {puedeGirar && (
           <button {...toqueGirar} aria-label="Girar" style={{ touchAction: 'none' }}
@@ -389,10 +390,10 @@ export default function HymnDetail() {
       {/* Contador y, debajo, la barra para saltar a cualquier himno; todo encima de la barra de pestañas (h-16, z-50).
           En horizontal no se muestran: tapaban la letra. */}
       {!horizontal && <>
-      <div className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(var(--barra) + 2.75rem)' }}>
+      <div data-tapa-postit className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(var(--barra) + 2.75rem)' }}>
         <p className="text-muted-foreground/40 text-xs">{(vistaPrevia ?? indiceDestino ?? currentIndex) + 1} / {navNumbers.length}</p>
       </div>
-      <div className="absolute left-0 right-0 z-20" style={{ bottom: 'calc(var(--barra) + 0.25rem)' }}>
+      <div data-tapa-postit className="absolute left-0 right-0 z-20" style={{ bottom: 'calc(var(--barra) + 0.25rem)' }}>
         <BarraHimnos
           total={navNumbers.length}
           indice={indiceDestino ?? currentIndex}

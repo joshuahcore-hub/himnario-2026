@@ -12,7 +12,7 @@ import { RotateCwSquare } from 'lucide-react';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
-import { BotonRecordatorio, NotasRecordatorio, PanelRecordatorio } from '@/components/Recordatorios';
+import { AcotacionesPostit, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, vaSobreLetra } from '@/components/Recordatorios';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
@@ -53,15 +53,14 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
     return (
       // Sin encabezado (Josué, 1.6.2): la imagen ya trae número y título; todo el alto para la letra.
       <Zoomable className="w-full m-auto" reiniciarCon={hymnNumber}>
-        <div className="w-full flex flex-col items-center pt-3">
+        <div className="w-full flex flex-col items-center pt-3" style={{ containerType: 'inline-size' }}>
+          {/* Girado = solo para ver (1.9.10, Josué): ver HymnDetail. */}
+          <AcotacionesPostit notas={notas} className="w-full px-[5%] pb-1" />
           {imgError ? (
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (
             <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)}>
-              {/* Sin mover: flotan sobre la esquina superior derecha de la letra (1.9.2: no la empujan). */}
-              <NotasRecordatorio notas={notas} compacto alDerecha onTocar={onTocarNota}
-                                 className="absolute top-1 left-0 right-0 px-2 z-10 pointer-events-none" />
-              <NotasRecordatorio notas={notas} compacto sobreLetra onTocar={onTocarNota} />
+              <NotasRecordatorio notas={notas.filter(vaSobreLetra)} compacto sobreLetra soloVer onTocar={onTocarNota} />
             </HimnoRecortado>
           )}
         </div>
