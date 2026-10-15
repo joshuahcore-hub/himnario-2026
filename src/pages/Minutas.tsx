@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
 import { createPortal } from 'react-dom';
-import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2, ChevronsLeft, ChevronsRight, EllipsisVertical, Presentation, Download } from 'lucide-react';
+import { useEspacios } from '@/lib/espacios';
+import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2, ChevronsLeft, ChevronsRight, EllipsisVertical, ArrowLeftRight, Presentation, Download } from 'lucide-react';
 import { compartirImagen, imagenDeMinuta } from '@/lib/imagenMinuta';
 import { formatearFecha } from '@/lib/minutaUtils';
 import Portada from '@/components/Portada';
@@ -20,8 +21,8 @@ import { marcarTodasVistas } from '@/lib/notificaciones';
 import PanelProyeccion from '@/components/PanelProyeccion';
 import { esComputador } from '@/lib/proyeccion';
 
-/** Dónde quedó la lista de minutas (se conserva al cambiar de pestaña mientras la app esté abierta). */
-let posicionMinutas: number | null = null;
+/** Dónde quedó la lista de minutas de cada espacio (se conserva al cambiar de pestaña mientras la app esté abierta). */
+const posicionMinutas: Record<string, number> = {};
 
 export default function Minutas() {
   const navigate = useNavigate();
@@ -36,7 +37,11 @@ export default function Minutas() {
   // Avisos de "Nueva minuta" (1.11.0): al entrar a Minutas ya se vieron. Los del administrador se marcan al entrar a
   // Administración (ahí está el historial).
   useEffect(() => { if (!esAdmin) marcarTodasVistas(); }, [esAdmin]);
-  const { minutas, sinConexion, cargando, refrescar } = useMinutas();
+  const { minutas: todas, sinConexion, cargando, refrescar } = useMinutas();
+  // (1.16.0, Josué) Espacios: arriba se ve solo el nombre del espacio actual; tocarlo pasa al otro. Se ven las minutas
+  // de ese espacio (las de antes son de Batuco) y las nuevas se crean en él.
+  const { espacios, actual: espacio, siguiente: otroEspacio } = useEspacios();
+  const minutas = useMemo(() => todas.filter(m => (m.espacio ?? 'batuco') === espacio.id), [todas, espacio.id]);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,16 +70,16 @@ export default function Minutas() {
   if (enfocar.current === null) enfocar.current = tomarParaEnfocar();
   // Si no hay que centrar ninguna, queda donde la persona la dejó (Josué, 1.7.6: ir a otra pestaña y volver no debe
   // devolverla al final). Solo la primera vez (o sin posición guardada) se muestra la más reciente.
-  const ubicada = useRef(false);
+  const ubicada = useRef('');
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el || ordenadas.length === 0) return;
     const tarjeta = enfocar.current && el.querySelector<HTMLElement>(`[data-minuta="${enfocar.current}"]`);
     if (tarjeta) { el.scrollLeft = tarjeta.offsetLeft - (el.clientWidth - tarjeta.offsetWidth) / 2; enfocar.current = ''; }
-    else if (!ubicada.current) el.scrollLeft = posicionMinutas ?? el.scrollWidth;
-    ubicada.current = true;
+    else if (ubicada.current !== espacio.id) el.scrollLeft = posicionMinutas[espacio.id] ?? el.scrollWidth;
+    ubicada.current = espacio.id;
     medirExtremos();
-  }, [ordenadas.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ordenadas.length, espacio.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSelect = (id: string) => setSelected(prev => {
     const next = new Set(prev);
@@ -231,7 +236,16 @@ export default function Minutas() {
         <RefreshCw size={18} className={actualizando ? 'animate-spin' : ''} />
       </div>
       <div className="flex items-center justify-between px-5 pt-4 gap-2 w-full max-w-5xl mx-auto">
-        <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
+        {/* El nombre del espacio en vez de "Minutas"; tocarlo pasa al siguiente (con varios). */}
+        {espacios.length > 1 ? (
+          <BotonSeguro onClick={() => { if (!selectMode) otroEspacio(); }} aria-label={t.minutas_cambiar_espacio}
+                       className="tap-btn -ml-1 px-1 flex items-center gap-2 text-xl font-bold text-foreground">
+            <span key={espacio.id} className="animate-in fade-in duration-200">{espacio.nombre}</span>
+            <ArrowLeftRight size={15} className="text-muted-foreground" />
+          </BotonSeguro>
+        ) : (
+          <h1 className="text-xl font-bold text-foreground">{espacio?.nombre ?? t.minutas_title}</h1>
+        )}
         {/* Al seleccionar, esto y la ayuda de abajo se desvanecen SIN quitar su espacio: si se quitaran,
             la lista (centrada en la pantalla) saltaría hacia arriba justo al mantener presionada una minuta. */}
         <BotonSeguro onClick={refrescar} disabled={selectMode} aria-hidden={selectMode}
@@ -283,7 +297,7 @@ export default function Minutas() {
             // Solo hacia los lados: sin desplazamiento vertical (antes se podía correr arriba/abajo sin sentido).
             // Con una minuta seleccionada la lista queda quieta: no se desliza a los lados (Josué, 1.5.6).
             style={{ overflowY: 'hidden', overflowX: selectMode ? 'hidden' : 'auto', touchAction: selectMode ? 'none' : 'pan-x', overscrollBehavior: 'contain' }}
-            onScroll={e => { posicionMinutas = e.currentTarget.scrollLeft; medirExtremos(); }}
+            onScroll={e => { posicionMinutas[espacio.id] = e.currentTarget.scrollLeft; medirExtremos(); }}
             onWheel={e => {
               if (!selectMode && Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollRef.current?.scrollBy({ left: e.deltaY, behavior: 'smooth' });
             }}

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { espacioActual } from '@/lib/espacios';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
 import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
@@ -405,7 +406,7 @@ export default function EditorMinuta() {
     try {
       const m = id
         ? await api<MinutaData>(`minutas/${id}`, { metodo: 'PATCH', datos })
-        : await api<MinutaData>('minutas', { metodo: 'POST', datos });
+        : await api<MinutaData>('minutas', { metodo: 'POST', datos: { ...datos, espacio: espacioActual() } });
       guardarMinutaLocal(m);
       toast.success(publicar && !yaPublicada ? t.minuta_published_toast
         : yaPublicada ? t.minuta_changes_published_toast

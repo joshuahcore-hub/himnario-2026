@@ -4,7 +4,7 @@
 // y la fecha si viene escrita ("12/10", "12-10-2026").
 import type { ParsedSong } from '@/lib/types';
 import { getHymns, getHymn, normalizar, type CachedHymn } from '@/lib/hymnCache';
-import { cantoDesdeHimno, ORACION, PALABRA } from '@/lib/minutaUtils';
+import { cantoDesdeHimno, especial, ORACION, PALABRA } from '@/lib/minutaUtils';
 
 export interface LecturaMinuta {
   fecha: string | null;
@@ -185,6 +185,10 @@ export function leerMinuta(texto: string, hoy = new Date()): LecturaMinuta {
     if (/\bmiercoles\b/.test(n)) diaEscrito = 'miercoles';
     else if (/\bdomingo\b/.test(n)) diaEscrito = 'domingo';
 
+    // (1.15.2, Josué) "Especial Javiera" / "3. Especial: Javiera" → un Especial con ese nombre (no es un canto).
+    const esp = linea.match(/^(?:\d{1,2}\s*(?:\.-|[.):-])?\s*)?especial\b[\s:.,\-–—]*(.*)$/i);
+    if (esp) { piezas.push({ tipo: 'canto', canto: especial(esp[1].trim()) }); continue; }
+
     // Avisos: "Para pasar a la palabra: 52", "Después de la oración: Consejero" (también con número de lista: "3. Para…").
     const nAviso = n.replace(/^\d{1,2}\s+(?=[a-z])/, '');
     const antes = nAviso.match(AVISO_ANTES) ?? nAviso.match(AVISO_ANTES_2);
@@ -216,7 +220,7 @@ export function leerMinuta(texto: string, hoy = new Date()): LecturaMinuta {
   // Rayas → Oración (miércoles) o Palabra (domingo), solo si el texto no dice ya Palabra/Oración.
   // Se usa la primera raya que tenga cantos antes y después; las demás solo separan.
   const hayMarcas = piezas.some(p => p.tipo === 'marca');
-  const totalCantos = piezas.filter(p => p.tipo === 'canto').length;
+  const totalCantos = piezas.filter(p => p.tipo === 'canto' && !p.canto.isEspecial).length;
   const iRaya = piezas.findIndex((p, i) => p.tipo === 'raya'
     && piezas.slice(0, i).some(q => q.tipo === 'canto') && piezas.slice(i + 1).some(q => q.tipo === 'canto'));
   if (!hayMarcas && iRaya >= 0) {

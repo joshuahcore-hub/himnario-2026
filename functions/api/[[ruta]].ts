@@ -146,7 +146,7 @@ function validarCantos(cantos: unknown): string {
 
 const SELECT_MINUTAS = `
   SELECT m.id, m.titulo, m.fecha, m.cantos, m.texto_original, m.fijada, m.creada, m.actualizada,
-         m.publicada, m.creada_por, m.duplicada_de,
+         m.publicada, m.creada_por, m.duplicada_de, m.espacio,
          c.nombre AS creador_nombre, c.color AS creador_color,
          e.nombre AS editor_nombre, e.color AS editor_color
   FROM minutas m
@@ -170,6 +170,7 @@ function filaAMinuta(f: any, conAutores: boolean, quienId: string | null) {
     creador: conAutores && f.creador_nombre ? { nombre: f.creador_nombre, color: f.creador_color } : null,
     editor: conAutores && f.editor_nombre ? { nombre: f.editor_nombre, color: f.editor_color } : null,
     duplicada: conAutores && !!f.duplicada_de, // el admin ve "Duplicada por" en vez de "Creada por"
+    espacio: f.espacio ?? 'batuco',
   };
 }
 
@@ -189,6 +190,33 @@ async function obtenerMinuta(env: Env, id: string, conAutores: boolean, quienId:
 const registrar = (env: Env, minutaId: string, dispositivoId: string, accion: string, titulo: string) =>
   env.DB.prepare('INSERT INTO historial (minuta_id, dispositivo_id, accion, titulo, fecha) VALUES (?, ?, ?, ?, ?)')
     .bind(minutaId, dispositivoId, accion, titulo, ahora());
+
+// ---------- Espacios (1.16.0, Josué): Batuco, Talca… Cada minuta es de uno. El admin agrega más. ----------
+interface Espacio { id: string; nombre: string }
+async function listaEspacios(env: Env): Promise<Espacio[]> {
+  const { results } = await env.DB.prepare('SELECT id, nombre FROM espacios ORDER BY orden, creado').all<Espacio>();
+  return results;
+}
+async function validarEspacio(env: Env, v: unknown): Promise<Espacio> {
+  const lista = await listaEspacios(env);
+  return lista.find(e => e.id === v) ?? lista[0] ?? { id: 'batuco', nombre: 'Batuco' };
+}
+async function rutasEspacios(request: Request, env: Env): Promise<Response> {
+  if (request.method === 'GET') return json(await listaEspacios(env));
+  if (request.method === 'POST') {
+    const yo = await dispositivoActual(request, env);
+    if (!esAdmin(yo)) throw new ErrorApi(403, 'Solo el administrador agrega espacios.');
+    const body = await leerJson(request);
+    const nombre = typeof body.nombre === 'string' ? body.nombre.trim().replace(/\s+/g, ' ').slice(0, 30) : '';
+    if (!nombre) throw new ErrorApi(400, 'Escribe el nombre del espacio.');
+    const lista = await listaEspacios(env);
+    if (lista.some(e => e.nombre.toLowerCase() === nombre.toLowerCase())) throw new ErrorApi(409, 'Ese espacio ya existe.');
+    const id = crypto.randomUUID();
+    await env.DB.prepare('INSERT INTO espacios (id, nombre, orden, creado) VALUES (?, ?, ?, ?)').bind(id, nombre, lista.length + 1, ahora()).run();
+    return json(await listaEspacios(env), 201);
+  }
+  throw new ErrorApi(405, 'Operación no permitida.');
+}
 
 async function rutasMinutas(request: Request, env: Env, partes: string[]): Promise<Response> {
   const metodo = request.method;
@@ -220,17 +248,18 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     const nueva = crypto.randomUUID();
     const titulo = validarTitulo(body.titulo);
     const publicada = body.publicada === true ? 1 : 0; // por defecto, privada (solo quien la crea)
+    const espacio = await validarEspacio(env, body.espacio);
     const t = ahora();
     await env.DB.batch([
-      env.DB.prepare(`INSERT INTO minutas (id, titulo, fecha, cantos, texto_original, publicada, creada_por, editada_por, creada, actualizada)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      env.DB.prepare(`INSERT INTO minutas (id, titulo, fecha, cantos, texto_original, publicada, creada_por, editada_por, creada, actualizada, espacio)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
         .bind(nueva, titulo, validarFecha(body.fecha), validarCantos(body.cantos),
               typeof body.texto_original === 'string' ? body.texto_original.slice(0, 5000) : null,
-              publicada, yo.id, yo.id, t, t),
+              publicada, yo.id, yo.id, t, t, espacio.id),
       registrar(env, nueva, yo.id, 'creada', titulo),
       ...(publicada ? [registrar(env, nueva, yo.id, 'publicada', titulo)] : []),
     ]);
-    avisar(env, { tipo: 'creada', autorId: yo.id, autor: yo.nombre, minutaId: nueva, titulo: tituloAviso(titulo, body.fecha), publica: !!publicada });
+    avisar(env, { tipo: 'creada', autorId: yo.id, autor: yo.nombre, minutaId: nueva, titulo: `${tituloAviso(titulo, body.fecha)} · ${espacio.nombre}`, publica: !!publicada });
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
   }
 
@@ -241,10 +270,10 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     const nueva = crypto.randomUUID();
     const t = ahora();
     await env.DB.batch([
-      env.DB.prepare(`INSERT INTO minutas (id, titulo, fecha, cantos, texto_original, publicada, creada_por, editada_por, creada, actualizada, duplicada_de)
-                      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`)
+      env.DB.prepare(`INSERT INTO minutas (id, titulo, fecha, cantos, texto_original, publicada, creada_por, editada_por, creada, actualizada, duplicada_de, espacio)
+                      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`)
         .bind(nueva, original.titulo, original.fecha, JSON.stringify(original.cantos), original.texto_original,
-              yo.id, yo.id, t, t, id),
+              yo.id, yo.id, t, t, id, original.espacio),
       registrar(env, nueva, yo.id, 'duplicada', original.titulo),
       // Los recordatorios "solo en esta minuta" pasan a la copia SOLO si quien duplica podía verlos (los escribió o
       // eran para él). Los personales de otra persona no se copian: nadie ve recordatorios ajenos (Josué, 1.7.0).
@@ -291,7 +320,8 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     const soloFijar = cambios.length === 3 && body.fijada !== undefined;
     if (!soloFijar) {
       avisar(env, { tipo: cambioVisibilidad ?? 'editada', autorId: yo.id, autor: yo.nombre, minutaId: id,
-                    titulo: tituloAviso(titulo, body.fecha ?? actual.fecha), publica: cambioVisibilidad === 'publicada' });
+                    titulo: `${tituloAviso(titulo, body.fecha ?? actual.fecha)} · ${(await validarEspacio(env, actual.espacio)).nombre}`,
+                    publica: cambioVisibilidad === 'publicada' });
     }
     // Sin verificar visibilidad: si el administrador dejó privada la minuta de otro, igual recibe la respuesta.
     return json(await obtenerMinuta(env, id, conAutores, yo.id, false));
@@ -1216,6 +1246,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env: envBase, par
   try {
     switch (partes[0]) {
       case 'minutas': return await rutasMinutas(request, env, partes);
+      case 'espacios': return await rutasEspacios(request, env);
       case 'acceso': return await rutasAcceso(request, env, partes, ip);
       case 'admin': return await rutasAdmin(request, env, partes, ip);
       case 'ia': return await rutasIa(request, env, partes);

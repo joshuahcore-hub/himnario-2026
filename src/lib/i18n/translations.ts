@@ -127,6 +127,11 @@ export interface Translations {
   minutas_ir_primera: string;
   minutas_ir_ultima: string;
   minutas_pin: string;
+  minutas_cambiar_espacio: string;
+  admin_espacios: string;
+  admin_espacio_nuevo: string;
+  admin_espacio_agregar: string;
+  admin_espacio_texto: string;
   minutas_unpin: string;
   minutas_opciones: string;
   minuta_bajar_imagen: string;
@@ -485,6 +490,11 @@ export const es: Translations = {
   minutas_ir_primera: 'Ir a la primera',
   minutas_ir_ultima: 'Ir a la última',
   minutas_pin: 'Fijar',
+  minutas_cambiar_espacio: 'Cambiar de espacio',
+  admin_espacios: 'Espacios de minutas',
+  admin_espacio_nuevo: 'Nombre del espacio nuevo',
+  admin_espacio_agregar: 'Agregar',
+  admin_espacio_texto: 'Arriba en Minutas se cambia de espacio; cada minuta nueva queda en el que se está viendo.',
   minutas_unpin: 'Desfijar',
   minutas_opciones: 'Opciones',
   minuta_bajar_imagen: 'Descargar imagen',
@@ -843,6 +853,11 @@ export const en: Translations = {
   minutas_ir_primera: 'Go to the first',
   minutas_ir_ultima: 'Go to the last',
   minutas_pin: 'Pin',
+  minutas_cambiar_espacio: 'Switch space',
+  admin_espacios: 'Service spaces',
+  admin_espacio_nuevo: 'New space name',
+  admin_espacio_agregar: 'Add',
+  admin_espacio_texto: 'Switch spaces at the top of Services; each new service goes to the space being viewed.',
   minutas_unpin: 'Unpin',
   minutas_opciones: 'Options',
   minuta_bajar_imagen: 'Download image',
@@ -1201,6 +1216,11 @@ export const pt: Translations = {
   minutas_ir_primera: 'Ir para a primeira',
   minutas_ir_ultima: 'Ir para a última',
   minutas_pin: 'Fixar',
+  minutas_cambiar_espacio: 'Mudar de espaço',
+  admin_espacios: 'Espaços de minutas',
+  admin_espacio_nuevo: 'Nome do novo espaço',
+  admin_espacio_agregar: 'Adicionar',
+  admin_espacio_texto: 'No topo de Minutas se muda de espaço; cada minuta nova fica no espaço que está sendo visto.',
   minutas_unpin: 'Desafixar',
   minutas_opciones: 'Opções',
   minuta_bajar_imagen: 'Baixar imagem',

@@ -42,4 +42,6 @@ export interface MinutaData {
   editor: Autor | null;
   /** Solo para el admin: es una copia (se muestra "Duplicada por" en vez de "Creada por"). */
   duplicada?: boolean;
+  /** (1.16.0) Espacio (Batuco, Talca…). Las de antes: Batuco. */
+  espacio?: string;
 }

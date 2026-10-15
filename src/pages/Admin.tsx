@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowLeft, EyeOff, RefreshCw } from 'lucide-react';
+import { ArrowLeft, EyeOff, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChipAutor } from '@/components/Portada';
@@ -9,6 +9,8 @@ import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { revisarPendientes } from '@/hooks/usePendientes';
+import { Input } from '@/components/ui/input';
+import { agregarEspacio, useEspacios } from '@/lib/espacios';
 
 interface DispositivoAdmin {
   id: string;
@@ -219,6 +221,7 @@ export default function Admin() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-2">
+        <SeccionEspacios />
         {iaCreadores !== null && (
           <button
             onClick={() => cambiarIaCreadores(!iaCreadores)}
@@ -258,6 +261,40 @@ export default function Admin() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/** (1.16.0, Josué) Espacios de minutas (Batuco, Talca…): la lista y agregar uno nuevo. */
+function SeccionEspacios() {
+  const { t } = useI18n();
+  const { espacios } = useEspacios();
+  const [nombre, setNombre] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const agregar = async () => {
+    const n = nombre.trim();
+    if (!n || guardando) return;
+    setGuardando(true);
+    try { await agregarEspacio(n); setNombre(''); }
+    catch (e: any) { toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message); }
+    finally { setGuardando(false); }
+  };
+  return (
+    <div className="bg-card rounded-xl border border-border p-3 space-y-2 mb-2">
+      <p className="text-[11px] font-semibold text-muted-foreground">{t.admin_espacios}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {espacios.map(e => (
+          <span key={e.id} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{e.nombre}</span>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground">{t.admin_espacio_texto}</p>
+      <div className="flex gap-2">
+        <Input value={nombre} onChange={e => setNombre(e.target.value.slice(0, 30))} placeholder={t.admin_espacio_nuevo}
+               onKeyDown={e => { if (e.key === 'Enter') agregar(); }} className="h-9 text-sm" />
+        <Button className="h-9 px-3 text-sm gap-1 shrink-0" onClick={agregar} disabled={!nombre.trim()} style={{ opacity: guardando ? 0.6 : undefined }}>
+          {guardando ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}{t.admin_espacio_agregar}
+        </Button>
+      </div>
     </div>
   );
 }
