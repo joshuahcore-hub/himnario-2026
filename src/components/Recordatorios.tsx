@@ -462,7 +462,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       {/* Tirador para estirar (solo con el post-it tocado): SEPARADO de la esquina de abajo a la derecha (no tapa el
           post-it) y siempre del mismo tamaño y distancia a la vista, aunque haya zoom (1.9.8, Josué). El ancla mide 0 y
           está en la esquina; dentro, todo va "des-ampliado". */}
-      {r.autor && !soloVer && (nuevoRecibido || abierta) && (
+      {r.autor && !soloVer && nuevoRecibido && (
         // Recibido (1.13.2): la primera vez "Te lo envió X" (celeste); después, al tocarlo, una acotación leve
         // "Enviado por X". Fuera del papel, flotando arriba.
         <div className={`absolute bottom-full left-0 mb-1.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap pointer-events-none transition-opacity duration-200 ${
@@ -500,11 +500,11 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
            style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 0' }}>
         <div ref={opciones} className="absolute flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
              style={{
-               left: ubic.dx, ...(ubic.arriba ? { bottom: r.autor ? 32 : 8 } : { top: 10 + ubic.baja }),
+               left: ubic.dx, ...(ubic.arriba ? { bottom: 8 } : { top: 10 + ubic.baja }),
                opacity: abierta ? 1 : 0, transform: abierta ? 'none' : `translateY(${ubic.arriba ? 4 : -4}px) scale(0.96)`,
                pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out, transform 160ms ease-out',
              }}>
-          {r.mio && (
+          {(r.mio || r.autor) && (
             <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} text-foreground whitespace-nowrap`} {...toqueEditar}>
               <PenLine size={13} />{t.rec_edit}
             </button>
@@ -778,7 +778,9 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
 
   // Para otra persona: solo el admin y quienes él autorice. En una minuta privada, "solo esta minuta" no puede ir a
   // otro (no la vería).
-  const conPersonas = puedeDejarAOtros && !ant?.local && personas.length > 0;
+  // (1.15.1, Josué) Uno que me ENVIARON: lo edito solo para mí (texto o símbolo); sin alcance ni "Para".
+  const recibido = !!ant?.autor;
+  const conPersonas = puedeDejarAOtros && !ant?.local && personas.length > 0 && !recibido;
   const bloqueoPrivada = soloMinuta && !!minutaId && !minutaPublicada;
   useEffect(() => { if (bloqueoPrivada) { setParaId(null); setEnviar(false); } }, [bloqueoPrivada]);
 
@@ -897,9 +899,15 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
           </>
         ) : (<>
         <DialogHeader>
-          <DialogTitle className="text-sm flex items-center gap-2">
+          <DialogTitle className="text-sm flex items-center gap-2 pr-6">
             <MiniPostit tam={17} mas={false} className="mr-0.5" />
             {ant ? t.rec_title_edit : t.rec_title_new}
+            {/* Recibido: a la derecha del título, quién lo envió (como recordatorio). */}
+            {ant?.autor && (
+              <span className="ml-auto flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+                <Punto color={ant.autor.color} />{t.rec_enviado_por(ant.autor.nombre)}
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -942,7 +950,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
         )}
 
         {/* Alcance (1.13.1, Josué): interruptor largo. Por defecto, en una minuta: "Solo esta minuta". */}
-        {minutaId && (
+        {minutaId && !recibido && (
           <Conmutador izquierda={t.rec_this_minuta} derecha={t.rec_always} derechaActiva={!soloMinuta} dosLineas
                       onCambiar={siempre => setSoloMinuta(!siempre)} />
         )}

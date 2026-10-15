@@ -685,7 +685,7 @@ async function validarPara(env: Env, para: unknown, yo: Dispositivo): Promise<st
 
 const SELECT_RECORDATORIOS = `
   SELECT r.id, r.himno, r.texto, r.minuta_id, r.estado, r.pos_x, r.pos_y, r.tam, r.creado, r.actualizado, r.autor_id, r.para_id,
-         r.pos_x_para, r.pos_y_para, r.tam_para,
+         r.pos_x_para, r.pos_y_para, r.tam_para, r.texto_para,
          a.nombre AS autor_nombre, a.color AS autor_color, p.nombre AS para_nombre, p.color AS para_color
   FROM recordatorios r
   LEFT JOIN dispositivos a ON a.id = r.autor_id
@@ -698,7 +698,7 @@ function filaARecordatorio(f: any, yo: Dispositivo) {
   const posPara = f.pos_x_para != null && f.pos_y_para != null ? { x: f.pos_x_para, y: f.pos_y_para } : null;
   const recibido = f.para_id === yo.id && f.autor_id !== yo.id;
   return {
-    id: f.id, himno: f.himno, texto: f.texto, estado: f.estado ?? 'enviado', minuta: f.minuta_id ?? null,
+    id: f.id, himno: f.himno, texto: recibido ? (f.texto_para ?? f.texto) : f.texto, estado: f.estado ?? 'enviado', minuta: f.minuta_id ?? null,
     pos: recibido ? (posPara ?? posAutor) : posAutor,
     tam: recibido ? (f.tam_para ?? f.tam ?? null) : (f.tam ?? null),
     ...(f.autor_id === yo.id && f.para_id && f.para_id !== yo.id ? { posPara: posPara ?? posAutor, tamPara: f.tam_para ?? f.tam ?? null } : {}),
@@ -788,15 +788,23 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
       await env.DB.prepare("UPDATE recordatorios SET estado = 'eliminado' WHERE id = ?").bind(id).run();
       return json({ ok: true });
     }
-    // Editar: solo quien lo escribió.
+    // (1.15.1, Josué) Quien lo RECIBIÓ también lo edita, pero solo para sí (texto_para): es su cuaderno.
+    if (actual.para_id === yo.id && actual.autor_id !== yo.id) {
+      const body = await leerJson(request);
+      await env.DB.prepare('UPDATE recordatorios SET texto_para = ? WHERE id = ?').bind(validarTexto(body.texto), id).run();
+      const f = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.id = ?`).bind(id).first();
+      return json(filaARecordatorio(f, yo));
+    }
+    // Editar el texto que ven los dos: solo quien lo escribió.
     if (actual.autor_id !== yo.id) throw new ErrorApi(403, 'Solo quien escribió el recordatorio puede cambiarlo.');
     const body = await leerJson(request);
     const texto = validarTexto(body.texto);
     const para = await validarPara(env, body.para, yo);
     const minuta = validarMinutaId(body.minuta);
     // Cambiado: vuelve a "enviado" (la otra persona lo verá de nuevo, aunque lo hubiera borrado).
-    await env.DB.prepare(`UPDATE recordatorios SET texto = ?, para_id = ?, minuta_id = ?, actualizado = ?, estado = 'enviado'
-                          WHERE id = ?`)
+    // Su versión nueva reemplaza lo que la otra persona hubiera cambiado (texto_para).
+    await env.DB.prepare(`UPDATE recordatorios SET texto = ?, para_id = ?, minuta_id = ?, actualizado = ?, estado = 'enviado',
+                          texto_para = NULL WHERE id = ?`)
       .bind(texto, para, minuta, ahora(), id).run();
     const f = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.id = ?`).bind(id).first();
     return json(filaARecordatorio(f, yo));

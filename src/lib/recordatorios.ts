@@ -142,6 +142,19 @@ export async function guardarRecordatorio(
     else fijarLocales([...locales, { id: crypto.randomUUID(), himno, texto, minuta, estado: 'enviado', creado: new Date().toISOString(), mio: true, autor: null, para: null, local: true }]);
     return;
   }
+  // (1.15.1) Uno que me ENVIARON: lo cambio solo para mí (el servidor lo guarda aparte).
+  if (anterior?.autor) {
+    const antes = anterior;
+    fijarServidor(delServidor.map(x => (x.id === antes.id ? { ...x, texto } : x)));
+    try {
+      const r = await api<Recordatorio>(`recordatorios/${antes.id}`, { metodo: 'PATCH', datos: { texto } });
+      fijarServidor(delServidor.map(x => (x.id === r.id ? r : x)));
+    } catch (e) {
+      fijarServidor(delServidor.map(x => (x.id === antes.id ? antes : x)));
+      throw e;
+    }
+    return;
+  }
   const para = paraId ? (datos.para ?? (anterior?.para?.id === paraId ? anterior.para : null)) : null;
   if (anterior) {
     const antes = anterior;
