@@ -289,8 +289,10 @@ export default function Admin() {
           </>
         ) : (
           <>
+            {/* Cada acción separada por una línea delgada, sin recuadros (1.11.1, Josué: más elegante). */}
+            <div className="divide-y divide-border">
             {historial.map(h => (
-              <div key={h.id} className="bg-card rounded-xl border border-border px-3 py-2 flex items-center gap-2">
+              <div key={h.id} className="px-1 py-2.5 flex items-center gap-2">
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <p className="text-xs text-foreground truncate">
                     <span className="font-semibold">{etiquetaAccion[h.accion]}</span> · {h.titulo || 'Minuta'}
@@ -307,6 +309,7 @@ export default function Admin() {
                 )}
               </div>
             ))}
+            </div>
             {historial.length === 0 && !cargando && <p className="text-xs text-muted-foreground text-center py-8">{t.notifications_empty}</p>}
           </>
         )}
