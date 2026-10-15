@@ -258,9 +258,12 @@ export default function Minutas() {
           >
             {ordenadas.map(m => (
               <div key={m.id} data-minuta={m.id} className="snap-center shrink-0 w-[280px] md:w-[340px]" onContextMenu={e => e.preventDefault()} onClick={e => e.stopPropagation()}>
-                <div className="mb-2 flex items-center justify-center gap-1.5 h-6">
-                  {m.fijada && <Pin size={10} className="text-primary rotate-45" />}
-                  <p className="text-xs font-semibold text-foreground/80 text-center truncate">{tituloVisible(m)}</p>
+                {/* Título SIEMPRE centrado (1.12.1, Josué): tres columnas parejas; alfiler a la izquierda y la marca
+                    "Pública/Solo tú" a la derecha, sin correr el título. */}
+                <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 h-6">
+                  <span className="flex justify-end">{m.fijada && <Pin size={10} className="text-primary rotate-45" />}</span>
+                  <p className="text-xs font-semibold text-foreground/80 text-center truncate max-w-[180px] md:max-w-[220px]">{tituloVisible(m)}</p>
+                  <span className="flex justify-start min-w-0">
                   {/* Solo en las minutas propias: si la ven todos o solo quien la creó. Los visores no ven esto. */}
                   {m.mia && (
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold shrink-0 ${
@@ -270,6 +273,7 @@ export default function Minutas() {
                       {m.publicada ? t.minuta_badge_public : t.minuta_badge_private}
                     </span>
                   )}
+                  </span>
                 </div>
                 <div
                   className={`relative cursor-pointer ${m.fijada ? 'ring-2 ring-primary/40 rounded-xl' : ''}`}

@@ -40,13 +40,15 @@ export default function SeccionPdf() {
   return (
     <div className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
       <div className="flex-1 min-w-0 space-y-1.5">
+        {/* Fecha y peso: a la derecha del título, tenues, como dato secundario (1.12.1, Josué). */}
         <div className="flex items-center gap-2">
-          <FileDown size={14} className="text-muted-foreground" />
+          <FileDown size={14} className="text-muted-foreground shrink-0" />
           <span className="text-xs font-medium text-foreground">{t.pdf_title}</span>
+          <span className="ml-auto text-[10px] font-normal text-muted-foreground/60 whitespace-nowrap">
+            {t.pdf_updated} {formatearFecha(pdf.actualizado)} · {Math.round(pdf.bytes / 1024)} KB
+          </span>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          {t.pdf_description} {t.pdf_updated} {formatearFecha(pdf.actualizado)} · {Math.round(pdf.bytes / 1024)} KB
-        </p>
+        <p className="text-[11px] text-muted-foreground">{t.pdf_description}</p>
       </div>
       <a
         href={pdf.archivo}

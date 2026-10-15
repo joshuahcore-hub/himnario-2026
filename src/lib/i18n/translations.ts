@@ -335,7 +335,7 @@ export const es: Translations = {
   tab_settings: 'Ajustes',
 
   hymnal_title: 'Himnario',
-  hymnal_search_placeholder: 'Buscar por nombre, número o tonalidad...',
+  hymnal_search_placeholder: 'Buscar por nombre o número',
   hymnal_loading: 'Cargando himnario...',
   hymnal_no_results: 'No se encontraron himnos',
   hymnal_filters: 'Filtros',
@@ -655,7 +655,7 @@ export const en: Translations = {
   tab_settings: 'Settings',
 
   hymnal_title: 'Hymnal',
-  hymnal_search_placeholder: 'Search by name, number, or key...',
+  hymnal_search_placeholder: 'Search by name or number',
   hymnal_loading: 'Loading hymnal...',
   hymnal_no_results: 'No hymns found',
   hymnal_filters: 'Filters',
@@ -975,7 +975,7 @@ export const pt: Translations = {
   tab_settings: 'Ajustes',
 
   hymnal_title: 'Hinário',
-  hymnal_search_placeholder: 'Buscar por nome, número ou tom...',
+  hymnal_search_placeholder: 'Buscar por nome ou número',
   hymnal_loading: 'Carregando hinário...',
   hymnal_no_results: 'Nenhum hino encontrado',
   hymnal_filters: 'Filtros',

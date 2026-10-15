@@ -8,6 +8,7 @@
 //   deshabilitado       → aviso
 // "Activar como administrador" no aparece en ningún lado: se abre tocando 5 veces la versión en Ajustes.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Bell, Check, Clock, EllipsisVertical, Eye, Loader2, PenLine, RefreshCw, Shield, ShieldCheck, ShieldX, UserRound, UserRoundPlus } from 'lucide-react';
@@ -245,7 +246,15 @@ export default function MenuAcceso() {
   return (
     <>
       {/* ⋮ y su menú desplegable (tocar fuera lo cierra). */}
-      <div ref={menuRef} className="relative">
+      {/* Velo (1.12.1, Josué): con el menú abierto el resto de la pantalla se oscurece un poco, con suavidad. Siempre
+          presente y solo cambia su opacidad (aparece y se va suave); no recibe toques (tocar fuera lo maneja
+          useAlTocarFuera). Cubre también la barra de pestañas. */}
+      {createPortal(
+        <div aria-hidden className="fixed inset-0 z-[55] bg-black pointer-events-none"
+             style={{ opacity: menuAbierto ? 0.28 : 0, transition: 'opacity 180ms ease-out' }} />,
+        document.body,
+      )}
+      <div ref={menuRef} className="relative" data-menu-abierto={menuAbierto ? '' : undefined}>
         <button onClick={() => setMenuAbierto(a => !a)} className="tap-btn relative p-2 -mr-2 text-muted-foreground" aria-label={t.settings_more}>
           <EllipsisVertical size={20} />
           {pendientes > 0 && <span className="absolute top-1.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-background" />}

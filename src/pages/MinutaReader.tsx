@@ -364,7 +364,8 @@ export default function MinutaReader() {
               <Presentation size={15} />{t.proy_titulo}
             </button>
           )}
-          <div className="transition-opacity duration-200" style={{ opacity: cantoVisible ? 1 : 0, pointerEvents: cantoVisible ? 'auto' : 'none' }}>
+          {/* Girado = solo para ver (1.12.1, Josué): sin el botón de crear post-it. */}
+          <div className="transition-opacity duration-200" style={{ opacity: cantoVisible && !horizontal ? 1 : 0, pointerEvents: cantoVisible && !horizontal ? 'auto' : 'none' }}>
             <BotonRecordatorio onClick={() => abrirPanel(null)} />
           </div>
           {puedeGirar && (

@@ -15,6 +15,16 @@ const LANGUAGES: { code: Locale; label: string }[] = [
   { code: 'pt', label: 'Português' },
 ];
 
+/** Nombre del idioma en el idioma ACTUAL de la app (1.12.1, Josué): en inglés "Spanish, English, Portuguese". */
+function nombreIdioma(codigo: Locale, en: Locale): string {
+  try {
+    const n = new Intl.DisplayNames([en], { type: 'language' }).of(codigo) ?? codigo;
+    return n.charAt(0).toLocaleUpperCase(en) + n.slice(1);
+  } catch {
+    return LANGUAGES.find(l => l.code === codigo)?.label ?? codigo;
+  }
+}
+
 export default function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
   const { theme, color } = useTheme();
@@ -37,7 +47,7 @@ export default function SettingsPage() {
     <div className="px-5 pt-4 pb-24 space-y-5 overflow-y-auto w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - var(--barra))' }}>
       {/* Título y, a la derecha, el menú ⋮ con las opciones avanzadas (creador, perfil, administración). */}
       {/* relative z-30: el menú desplegado queda por encima de las tarjetas de abajo. */}
-      <div className="relative z-30 flex items-center justify-between">
+      <div className="relative z-30 [&:has([data-menu-abierto])]:z-[60] flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">{t.settings_title}</h1>
         <MenuAcceso />
       </div>
@@ -52,7 +62,7 @@ export default function SettingsPage() {
           titulo={t.settings_language}
           icono={<Globe size={13} className="text-muted-foreground" />}
           valor={locale}
-          opciones={LANGUAGES.map(l => ({ valor: l.code, etiqueta: l.label }))}
+          opciones={LANGUAGES.map(l => ({ valor: l.code, etiqueta: nombreIdioma(l.code, locale) }))}
           onElegir={setLocale}
         />
         <Desplegable<'light' | 'dark'>

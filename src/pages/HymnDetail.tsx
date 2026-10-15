@@ -372,7 +372,8 @@ export default function HymnDetail() {
       </div>
       {/* Arriba a la derecha: añadir recordatorio (1.7.0) y girar a horizontal o volver a vertical (1.6.1). */}
       <div data-tapa-postit className="absolute top-3 right-3 z-20 flex gap-2">
-        <BotonRecordatorio onClick={() => abrirPanel(null)} />
+        {/* Girado = solo para ver (1.12.1, Josué): sin el botón de crear post-it. */}
+        {!horizontal && <BotonRecordatorio onClick={() => abrirPanel(null)} />}
         {puedeGirar && (
           <button {...toqueGirar} aria-label="Girar" style={{ touchAction: 'none' }}
                   className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">

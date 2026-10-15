@@ -51,13 +51,21 @@ function zonaVisible(marco: HTMLElement, pagina: HTMLElement) {
 
 /** Lo que no cambia mientras se arrastra: se mide UNA vez al despegar (1.9.10, Josué: medir en cada movimiento
  *  obligaba al teléfono a recalcular la página y el arrastre daba saltitos). */
-type Zona = { m: DOMRect; z: { left: number; top: number; right: number; bottom: number }; tapas: DOMRect[] };
+type Caja = { left: number; top: number; right: number; bottom: number };
+type Zona = { m: DOMRect; z: Caja; tapas: DOMRect[]; abajo: number };
 function medirZona(postit: HTMLElement): Zona | undefined {
   const pagina = postit.closest<HTMLElement>('[data-pagina]');
   const marco = pagina?.querySelector<HTMLElement>('[data-marco-letra]');
   if (!pagina || !marco) return undefined;
   const tapas = [...document.querySelectorAll<HTMLElement>('[data-tapa-postit]')].map(el => el.getBoundingClientRect()).filter(t => t.width > 0);
-  return { m: marco.getBoundingClientRect(), z: zonaVisible(marco, pagina), tapas };
+  const m = marco.getBoundingClientRect();
+  // Hasta dónde puede bajar (1.12.1, Josué): el espacio que en el HIMNARIO queda entre el fin de la letra y el contador
+  // (en este teléfono, de pie). Igual en la minuta, aunque ahí no haya contador: así el post-it "de siempre" nunca queda
+  // tapado en el himnario. Página del himnario: 60 px arriba + 124 px abajo (botones, contador y barra); letra centrada.
+  const alto = Math.max(innerHeight, innerWidth), ancho = Math.min(Math.min(innerHeight, innerWidth), 512);
+  const sobra = ((alto - 184) - ancho * (m.height / m.width)) / 2 - 6;
+  const abajo = m.bottom + Math.max(0, sobra / ancho) * m.width;
+  return { m, z: zonaVisible(marco, pagina), tapas, abajo };
 }
 
 /** Dónde queda (1.9.1, Josué): en cualquier parte de la pantalla (también arriba del título o a los lados). Se guarda
@@ -65,11 +73,29 @@ function medirZona(postit: HTMLElement): Zona | undefined {
  *  puede ser < 0 o > 1 (fuera de la letra). `fuera` (1.9.10, Josué): ahí NO se puede dejar (se marca en rojo, vibra y
  *  al soltar vuelve a donde estaba): toca el borde de lo visible, queda MÁS ABAJO que la letra (el post-it "de siempre"
  *  se ve también en el himnario, donde abajo están el contador y la barra) o encima de botones (data-tapa-postit). */
-function evaluar(n: { left: number; top: number; right: number; bottom: number }, { m, z, tapas }: Zona) {
+function evaluar(n: Caja, texto: Caja, { m, z, tapas, abajo }: Zona) {
   const tapa = tapas.some(t => n.left < t.right && n.right > t.left && n.top < t.bottom && n.bottom > t.top);
-  const fuera = n.left < z.left + 2 || n.top < z.top + 2 || n.right > z.right - 2 || n.bottom > z.bottom - 2
-    || n.bottom > m.bottom + 4 || tapa;
+  // A los lados el papel puede asomar fuera del borde mientras el TEXTO se vea entero (1.12.1, Josué).
+  const fuera = texto.left < z.left + 2 || texto.right > z.right - 2 || n.top < z.top + 2
+    || n.bottom > Math.min(z.bottom - 2, abajo) || tapa;
   return { x: (n.left - m.left) / m.width, y: (n.top - m.top) / m.height, fuera };
+}
+
+const mover = (c: Caja, dx: number, dy: number): Caja => ({ left: c.left + dx, right: c.right + dx, top: c.top + dy, bottom: c.bottom + dy });
+
+/** Soltado donde no se puede (1.12.1, Josué): en vez de volver al inicio, el lugar permitido MÁS CERCANO. */
+function acomodar(n: Caja, texto: Caja, zona: Zona, dx: number, dy: number): [number, number] | null {
+  const { z, tapas, abajo } = zona;
+  const minX = z.left + 2 - texto.left, maxX = z.right - 2 - texto.right;
+  const minY = z.top + 2 - n.top, maxY = Math.min(z.bottom - 2, abajo) - n.bottom;
+  if (minX > maxX || minY > maxY) return null;
+  const x = Math.min(maxX, Math.max(minX, dx));
+  const candidatos = [Math.min(maxY, Math.max(minY, dy))];
+  for (const t of tapas) candidatos.push(t.bottom + 2 - n.top, t.top - 2 - n.bottom);
+  const validos = candidatos.filter(y => y >= minY && y <= maxY && !evaluar(mover(n, x, y), mover(texto, x, y), zona).fuera);
+  if (!validos.length) return null;
+  validos.sort((a, b) => Math.abs(a - dy) - Math.abs(b - dy));
+  return [x, validos[0]];
 }
 
 function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, soloVer = false, escalaLetra = 1, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
@@ -111,7 +137,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   // escala: cuánto está ampliada la letra (zoom). El movimiento se divide por ella para que el post-it siga al dedo
   // (1.9.5, Josué: con zoom "saltaba lejos": se movía el doble que el dedo).
   const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean; escala: number;
-    fuera?: boolean; zona?: Zona; inicio?: DOMRect } | null>(null);
+    fuera?: boolean; zona?: Zona; inicio?: DOMRect; texto?: DOMRect; dx?: number; dy?: number } | null>(null);
   const [levantado, setLevantado] = useState(false);
 
   // Opciones (Editar/Eliminar) hacia donde HAYA ESPACIO (1.9.1, Josué: pegado al borde izquierdo se salían de la
@@ -124,13 +150,34 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   // 1.9.10 (Josué): ARRIBA si caben; si no (post-it en el tope), abajo, pero NUNCA encima del tirador: corridas a
   // la izquierda de él y, si no caben ahí, más abajo que el tirador. `baja` = px extra hacia abajo.
   const [ubic, setUbic] = useState<{ dx: number; arriba: boolean; baja: number }>({ dx: 0, arriba: true, baja: 0 });
+  // Lado del tirador (1.12.1, Josué): NUNCA oculto tras el borde. Normalmente abajo a la derecha; si no cabe a la
+  // derecha pasa a la izquierda, y si no cabe abajo pasa arriba.
+  const [lado, setLado] = useState<{ izq: boolean; arriba: boolean }>({ izq: false, arriba: false });
   useLayoutEffect(() => {
     if (!abierta || !caja.current || !opciones.current) return;
     const n = caja.current.getBoundingClientRect(), o = opciones.current.getBoundingClientRect();
     const pagina = caja.current.closest<HTMLElement>('[data-pagina]')?.getBoundingClientRect();
     const izq = Math.max(pagina?.left ?? 0, 0) + 6, der = Math.min(pagina?.right ?? innerWidth, innerWidth) - 6;
+    const abajoLim = Math.min(pagina?.bottom ?? innerHeight, innerHeight) - 6;
+    const espacio = TIRADOR_SEP + TIRADOR_TAM;
+    const tIzq = n.right + espacio > der && n.left - espacio >= izq;
+    const tArriba = n.bottom + espacio > abajoLim;
+    setLado({ izq: tIzq, arriba: tArriba });
+    // Dónde queda el tirador en la pantalla (para que las opciones no lo tapen).
+    const tir = {
+      left: tIzq ? n.left - espacio : n.right + TIRADOR_SEP, right: tIzq ? n.left - TIRADOR_SEP : n.right + espacio,
+      top: tArriba ? n.top - espacio : n.bottom + TIRADOR_SEP, bottom: tArriba ? n.top - TIRADOR_SEP : n.bottom + espacio,
+    };
+    const choca = (l: number, t: number) => l < tir.right && l + o.width > tir.left && t < tir.bottom && t + o.height > tir.top;
     const centro = n.left + n.width / 2;
     let left = Math.min(Math.max(centro - o.width / 2, izq), der - o.width);
+    if (tArriba && choca(left, n.top - o.height - 8)) {
+      // Tirador arriba: las opciones van abajo (si caben) o arriba corridas para no taparlo.
+      if (n.bottom + 10 + o.height <= abajoLim) { setUbic({ dx: left - centro, arriba: false, baja: 0 }); return; }
+      left = tIzq ? Math.min(der - o.width, tir.right + 8) : Math.max(izq, tir.left - 8 - o.width);
+      setUbic({ dx: left - centro, arriba: true, baja: 0 });
+      return;
+    }
     // Arriba sin meterse bajo los botones que flotan sobre la página (volver, girar…).
     let arribaLim = Math.max(pagina?.top ?? 0, 0) + 6;
     for (const el of document.querySelectorAll<HTMLElement>('[data-tapa-postit]')) {
@@ -138,12 +185,11 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       if (t.width > 0 && t.bottom <= n.top && t.left < left + o.width && t.right > left) arribaLim = Math.max(arribaLim, t.bottom + 6);
     }
     if (n.top - o.height - 8 >= arribaLim) { setUbic({ dx: left - centro, arriba: true, baja: 0 }); return; }
-    // Abajo: el tirador ocupa desde n.right + TIRADOR_SEP hacia la derecha.
-    const limite = n.right + TIRADOR_SEP - 8 - o.width;
-    if (left > limite) left = limite;
-    if (left >= izq) { setUbic({ dx: left - centro, arriba: false, baja: 0 }); return; }
+    // Abajo, sin tapar el tirador: corridas hacia el lado contrario al tirador y, si no caben, más abajo que él.
+    if (choca(left, n.bottom + 10)) left = tIzq ? Math.max(left, tir.right + 8) : Math.min(left, tir.left - 8 - o.width);
+    if (left >= izq && left + o.width <= der && !choca(left, n.bottom + 10)) { setUbic({ dx: left - centro, arriba: false, baja: 0 }); return; }
     left = Math.min(Math.max(centro - o.width / 2, izq), der - o.width);
-    setUbic({ dx: left - centro, arriba: false, baja: TIRADOR_SEP + TIRADOR_TAM });
+    setUbic({ dx: left - centro, arriba: false, baja: tArriba ? 0 : espacio });
   }, [abierta, escala, r.tam]);
 
   // Tirador de la esquina para agrandar/achicar (1.9.1, Josué): sigue el dedo (zoom directo, sin estado de React) y
@@ -153,7 +199,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   const estirar = useRef<{ x: number; y: number; ancho: number; tam: number; id: number } | null>(null);
   const tamAl = (e: React.PointerEvent) => {
     const g = estirar.current!;
-    const d = (e.clientX - g.x + (e.clientY - g.y)) / 2;
+    // Tirador a la izquierda o arriba: estirar hacia AFUERA (izquierda/arriba) también agranda.
+    const d = ((e.clientX - g.x) * (lado.izq ? -1 : 1) + (e.clientY - g.y) * (lado.arriba ? -1 : 1)) / 2;
     return Math.min(TAM_MAX, Math.max(TAM_MIN, g.tam * (1 + d / g.ancho)));
   };
   // Mientras se estira NO se cambia el zoom (eso vuelve a acomodar el texto en cada movimiento y, con la pantalla
@@ -169,7 +216,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     const { w, h } = base.current;
     p.style.transition = 'none';
     p.style.transform = `translate(${((k - 1) * w) / 2}px, ${((k - 1) * h) / 2}px) ${transformPapel} scale(${k})`;
-    if (a) a.style.transform = `translate(${(k - 1) * w}px, ${(k - 1) * h}px) ${transformAncla}`;
+    if (a) a.style.transform = `translate(${lado.izq ? 0 : (k - 1) * w}px, ${lado.arriba ? 0 : (k - 1) * h}px) ${transformAncla}`;
   };
   const dejarDeEstirar = (zoomFinal: number) => {
     const p = papel.current, a = anclaTirador.current;
@@ -206,29 +253,49 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     onTouchEnd: (e: React.TouchEvent) => e.stopPropagation(),
   };
 
-  const marcarFuera = (fuera: boolean) => {
-    if (papel.current) papel.current.style.outline = fuera ? '2.5px solid hsl(0 72% 52%)' : '';
+  // Contorno rojo de "aquí no": siempre del mismo grosor a la vista (1.12.1, Josué), aunque el post-it esté agrandado
+  // o la letra con zoom (el papel lleva CSS zoom = tam × letra y la página puede estar ampliada).
+  const marcarFuera = (fuera: boolean, escalaVista = 1) => {
+    const p = papel.current;
+    if (!p) return;
+    const z = (tam * f) * escalaVista;
+    p.style.outline = fuera ? `${2.5 / z}px solid hsl(0 72% 52%)` : '';
   };
-  const soltar = () => {
+  const soltar = (g: NonNullable<typeof gesto.current>) => {
     const el = caja.current;
     if (!el || !papel.current) return;
-    const zona = medirZona(papel.current);
-    const pos = zona ? evaluar(papel.current.getBoundingClientRect(), zona) : undefined;
     marcarFuera(false);
     el.style.willChange = '';
-    if (!pos || pos.fuera) {
-      // Tocaba el borde: vuelve suavemente a donde estaba (no se guarda nada).
+    const { zona, inicio, texto } = g;
+    let dx = g.dx ?? 0, dy = g.dy ?? 0;
+    if (!zona || !inicio || !texto) { setLevantado(false); el.style.transform = ''; return; }
+    // Se calcula con el tamaño REAL (sin el 5 % de "levantado"): al soltar se achica desde el centro y queda justo donde
+    // se veía (1.12.1, Josué: antes se achicaba hacia la esquina de arriba a la izquierda y parecía moverse).
+    let valida = !evaluar(mover(inicio, dx, dy), mover(texto, dx, dy), zona).fuera;
+    let animar = false;
+    if (!valida) {
+      const otra = acomodar(inicio, texto, zona, dx, dy);
+      if (otra) { [dx, dy] = otra; valida = true; animar = true; }
+    }
+    if (!valida) {
+      // Ni acomodándolo cabe: vuelve suavemente a donde estaba (no se guarda nada).
       setLevantado(false);
       el.style.transition = 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)';
       el.style.transform = '';
       window.setTimeout(() => { if (caja.current) caja.current.style.transition = ''; }, 280);
       return;
     }
-    flushSync(() => {
-      setLevantado(false);
-      moverRecordatorio(r, { x: pos.x, y: pos.y });
-    });
-    el.style.transform = '';
+    const n = mover(inicio, dx, dy);
+    const pos = { x: (n.left - zona.m.left) / zona.m.width, y: (n.top - zona.m.top) / zona.m.height };
+    const fijar = () => {
+      flushSync(() => { setLevantado(false); moverRecordatorio(r, pos); });
+      if (caja.current) { caja.current.style.transition = ''; caja.current.style.transform = ''; }
+    };
+    if (!animar) { fijar(); return; }
+    // Se desliza al lugar permitido más cercano y ahí queda.
+    el.style.transition = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)';
+    el.style.transform = `translate3d(${dx / g.escala}px, ${dy / g.escala}px, 0)`;
+    window.setTimeout(fijar, 210);
   };
   const eventos = {
     onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
@@ -244,7 +311,12 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
           g.arrastrando = true;
           navigator.vibrate?.(15);
           try { caja.current?.setPointerCapture(id); } catch { /* sin captura igual funciona */ }
-          if (papel.current) { g.zona = medirZona(papel.current); g.inicio = papel.current.getBoundingClientRect(); }
+          if (papel.current) {
+            g.zona = medirZona(papel.current);
+            g.inicio = papel.current.getBoundingClientRect();
+            // El texto (para permitir que el papel asome por los lados sin cortarlo).
+            g.texto = (papel.current.querySelector('[data-texto-postit]') ?? papel.current).getBoundingClientRect();
+          }
           if (caja.current) caja.current.style.willChange = 'transform'; // capa propia: moverlo no repinta nada
           onCerrarOpciones();
           setLevantado(true);
@@ -260,11 +332,12 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         return;
       }
       if (caja.current) caja.current.style.transform = `translate3d(${dx / g.escala}px, ${dy / g.escala}px, 0)`;
+      g.dx = dx; g.dy = dy;
       const a = g.inicio;
-      const fuera = !!(a && g.zona && evaluar({ left: a.left + dx, top: a.top + dy, right: a.right + dx, bottom: a.bottom + dy }, g.zona).fuera);
+      const fuera = !!(a && g.texto && g.zona && evaluar(mover(a, dx, dy), mover(g.texto, dx, dy), g.zona).fuera);
       if (fuera !== !!g.fuera) {
         g.fuera = fuera;
-        marcarFuera(fuera);
+        marcarFuera(fuera, g.escala);
         if (fuera) navigator.vibrate?.([30, 40, 30]);
       }
     },
@@ -274,7 +347,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       gesto.current = null;
       if (!g) return;
       window.clearTimeout(g.timer);
-      if (g.arrastrando) { soltar(); return; }
+      if (g.arrastrando) { soltar(g); return; }
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) < 12 && !r.id.startsWith('tmp-')) {
         const c = caja.current;
         setEscala(c && c.offsetWidth ? c.getBoundingClientRect().width / c.offsetWidth : 1);
@@ -286,7 +359,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       gesto.current = null;
       if (!g) return;
       window.clearTimeout(g.timer);
-      if (g.arrastrando) soltar();
+      if (g.arrastrando) soltar(g);
     },
     // Mientras se arrastra, el gesto es del post-it: la página no se desliza ni se cierra.
     onTouchMove: (e: React.TouchEvent) => { if (gesto.current?.arrastrando) e.stopPropagation(); },
@@ -331,7 +404,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
             {dejadaAOtro && <span className={colorEstado}>· {textoEstado}</span>}
           </span>
         )}
-        <span className="block whitespace-pre-wrap break-words"
+        <span data-texto-postit className="block whitespace-pre-wrap break-words"
               style={{ fontFamily: LETRA_POSTIT, fontSize: compacto ? 15 : 17.5, lineHeight: 1.2 }}>
           {r.texto}
         </span>
@@ -342,10 +415,12 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
           post-it) y siempre del mismo tamaño y distancia a la vista, aunque haya zoom (1.9.8, Josué). El ancla mide 0 y
           está en la esquina; dentro, todo va "des-ampliado". */}
       {!soloVer && <>
-      <div ref={anclaTirador} className="absolute right-0 bottom-0 w-0 h-0 z-20" style={{ transform: transformAncla, transformOrigin: '0 0' }}>
+      <div ref={anclaTirador} className={`absolute ${lado.izq ? 'left-0' : 'right-0'} ${lado.arriba ? 'top-0' : 'bottom-0'} w-0 h-0 z-20`}
+           style={{ transform: transformAncla, transformOrigin: '0 0' }}>
         <div {...tirador} aria-label="Tamaño"
              className="absolute rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
-             style={{ left: TIRADOR_SEP, top: TIRADOR_SEP, width: TIRADOR_TAM, height: TIRADOR_TAM, touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
+             style={{ left: lado.izq ? -(TIRADOR_SEP + TIRADOR_TAM) : TIRADOR_SEP, top: lado.arriba ? -(TIRADOR_SEP + TIRADOR_TAM) : TIRADOR_SEP,
+                      width: TIRADOR_TAM, height: TIRADOR_TAM, touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
           <MoveDiagonal2 size={14} />
         </div>
       </div>

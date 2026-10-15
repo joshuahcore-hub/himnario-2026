@@ -38,12 +38,27 @@ function Pestana({ activa, etiqueta, Icono, aviso, onTocar }: {
   );
 }
 
+// Última pantalla vista DENTRO del himnario (lista o un himno abierto): al volver a la pestaña Himnario desde otra se
+// regresa ahí (1.12.1, Josué: antes volvía siempre a la lista).
+let ultimaDelHimnario = '/';
+const esDelHimnario = (p: string) => p === '/' || p.startsWith('/hymnal');
+
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
   const { puedeEditar, puedeVerMinutas, registrado } = useAcceso();
   const pendientes = usePendientes();
+  useEffect(() => { if (esDelHimnario(location.pathname)) ultimaDelHimnario = location.pathname + location.search; }, [location]);
+  const irA = (path: string) => {
+    if (path === '/' && !esDelHimnario(location.pathname) && ultimaDelHimnario !== '/') {
+      // Primero la lista y encima el himno: así "atrás" desde el himno vuelve a la lista, como siempre.
+      navigate('/');
+      navigate(ultimaDelHimnario);
+      return;
+    }
+    navigate(path);
+  };
 
   // Notificaciones (1.11.0): al abrir la app, si ya dio permiso, se renueva la suscripción en silencio.
   useEffect(() => { if (registrado) mantenerSuscripcion(); }, [registrado]);
@@ -72,8 +87,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <nav className="fixed bottom-0 left-0 right-0 bg-[hsl(var(--barra-fondo))] border-t border-[hsl(var(--barra-linea))] z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-stretch h-16 max-w-lg mx-auto px-2">
           {tabs.map(tab => (
-            <Pestana key={tab.path} activa={location.pathname === tab.path} etiqueta={tab.label} Icono={tab.icon}
-                     aviso={tab.path === '/settings' && pendientes > 0} onTocar={() => intentarSalir(() => navigate(tab.path))} />
+            <Pestana key={tab.path} activa={tab.path === "/" ? esDelHimnario(location.pathname) : location.pathname === tab.path} etiqueta={tab.label} Icono={tab.icon}
+                     aviso={tab.path === '/settings' && pendientes > 0} onTocar={() => intentarSalir(() => irA(tab.path))} />
           ))}
         </div>
       </nav>
