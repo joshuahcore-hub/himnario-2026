@@ -6,6 +6,14 @@ export interface ParsedSong {
   found: boolean;
   isPalabra?: boolean;
   isOracion?: boolean;
+  /** (1.13.0) "Especial" + nombre (p. ej. "Especial Javiera"): no es alabanza, no lleva número. */
+  isEspecial?: boolean;
+  /** Nombre del especial (lo que va después de "Especial"). */
+  nombre?: string;
+  /** (1.13.0) Alabanza que NO está en el himnario (escrita a mano): sin número; tonalidad e imagen opcionales. */
+  fuera?: boolean;
+  /** Id de la imagen subida para una alabanza fuera del himnario (sustituto provisorio de la letra). */
+  imagen?: string | null;
   isGrouped?: boolean;
   groupedWith?: ParsedSong | null;
   firstLine?: string | null;

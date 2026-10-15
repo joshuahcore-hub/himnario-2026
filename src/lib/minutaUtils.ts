@@ -16,7 +16,19 @@ export function cantoDesdeHimno(h: CachedHymn): ParsedSong {
 export const PALABRA: ParsedSong = { position: 0, title: 'PALABRA', key: null, hymnNumber: null, found: true, isPalabra: true };
 export const ORACION: ParsedSong = { position: 0, title: 'ORACIÓN', key: null, hymnNumber: null, found: true, isOracion: true };
 
-export const esMarcador = (c: ParsedSong) => !!(c.isPalabra || c.isOracion);
+/** (1.13.0) Especial: "Especial" fijo + el nombre que se escriba. */
+export const especial = (nombre: string): ParsedSong =>
+  ({ position: 0, title: 'ESPECIAL', key: null, hymnNumber: null, found: true, isEspecial: true, nombre: nombre.trim() });
+
+/** (1.13.0) Alabanza fuera del himnario. */
+export const cantoFuera = (titulo: string, tonalidad: string | null, imagen: string | null): ParsedSong =>
+  ({ position: 0, title: titulo.trim(), key: tonalidad || null, hymnNumber: null, found: true, fuera: true, imagen });
+
+/** Palabra, Oración y Especial: no son alabanzas (no llevan número). */
+export const esMarcador = (c: ParsedSong) => !!(c.isPalabra || c.isOracion || c.isEspecial);
+
+/** "Especial Javiera" (sin punto, pedido de Josué). */
+export const textoEspecial = (c: ParsedSong, palabra = 'Especial') => (c.nombre ? `${palabra} ${c.nombre}` : palabra);
 
 /** Numera los cantos 1, 2, 3…; PALABRA/ORACIÓN llevan 0 y un canto agrupado ocupa dos números (como la app original). */
 export function renumerar(cantos: ParsedSong[]): ParsedSong[] {
@@ -46,6 +58,7 @@ export function textoParaCompartir(m: Pick<MinutaData, 'id' | 'titulo' | 'fecha'
   for (const c of renumerar(m.cantos)) {
     if (c.isPalabra) lineas.push('— PALABRA —');
     else if (c.isOracion) lineas.push('— ORACIÓN —');
+    else if (c.isEspecial) lineas.push(`— ${textoEspecial(c, 'ESPECIAL')} —`);
     else {
       lineas.push(linea(c, c.position));
       if (c.groupedWith) lineas.push(linea(c.groupedWith, c.position + 1));

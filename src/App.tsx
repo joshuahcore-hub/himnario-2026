@@ -10,6 +10,7 @@ import Minutas from "@/pages/Minutas";
 import MinutaReader from "@/pages/MinutaReader";
 import EditorMinuta from "@/pages/EditorMinuta";
 import Admin from "@/pages/Admin";
+import { CancionFuera, ListaCancionesFuera } from "@/pages/CancionesFuera";
 
 // Sin login: cualquiera que abre la app ve el himnario. Las minutas, solo registrado y con el permiso "Ver minutas"
 // que da el administrador (1.11.0, Josué). Crear/editar minutas también lo activa el administrador.
@@ -32,6 +33,8 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<HymnalPage />} />
                   <Route path="/hymnal" element={<HymnalPage />} />
+                  <Route path="/hymnal/extra" element={<ListaCancionesFuera />} />
+                  <Route path="/hymnal/extra/:id" element={<CancionFuera />} />
                   <Route path="/hymnal/:number" element={<HymnDetail />} />
                   <Route path="/minutas" element={<SoloConMinutas><Minutas /></SoloConMinutas>} />
                   <Route path="/crear" element={<EditorMinuta />} />

@@ -8,7 +8,8 @@ import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
-import { Presentation, RotateCwSquare } from 'lucide-react';
+import { Music2, Presentation, RotateCwSquare } from 'lucide-react';
+import { urlImagen } from '@/lib/cancionesExtra';
 import PanelProyeccion from '@/components/PanelProyeccion';
 import { esComputador } from '@/lib/proyeccion';
 import { useAcceso } from '@/hooks/useAcceso';
@@ -95,6 +96,46 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
             </HimnoRecortado>
           </div>
         )}
+      </div>
+    </Zoomable>
+  );
+}
+
+/** (1.13.0, Josué) Alabanza que no está en el himnario. Con imagen subida: se ve con un CONTORNO y la marca "Imagen
+ *  subida" (que se note que no es parte de la app: es un sustituto provisorio), con zoom. Sin imagen: página limpia. */
+function PaginaFuera({ canto, horizontal }: { canto: ParsedSong; horizontal: boolean }) {
+  const { t } = useI18n();
+  const [error, setError] = useState(false);
+  const cabecera = (
+    <div className="text-center shrink-0 pt-4 px-4">
+      <h2 className="text-lg font-bold text-foreground">{canto.title}</h2>
+      <div className="flex items-center justify-center gap-2">
+        {canto.key && <span translate="no" className="font-semibold text-hymn-key">{canto.key}</span>}
+        <span className="rounded-md border border-border px-1.5 py-px text-[10px] text-muted-foreground">{t.fuera_etiqueta}</span>
+      </div>
+    </div>
+  );
+  if (!canto.imagen || error) {
+    return (
+      <div className="m-auto flex flex-col items-center gap-2 text-center px-6">
+        <Music2 size={34} className="text-muted-foreground/60" />
+        <span className="text-2xl font-semibold text-foreground">{canto.title}</span>
+        {canto.key && <span translate="no" className="text-xl font-semibold text-hymn-key">{canto.key}</span>}
+        <span className="text-xs text-muted-foreground mt-2">{t.fuera_no_esta}</span>
+      </div>
+    );
+  }
+  return (
+    <Zoomable className={horizontal ? 'w-full m-auto' : 'w-full h-full'} reiniciarCon={canto.imagen}>
+      <div className={`w-full flex flex-col items-center px-3 ${horizontal ? 'pt-3' : 'h-full'}`}>
+        {!horizontal && cabecera}
+        <div className={`relative w-full max-w-lg ${horizontal ? '' : 'flex-1 min-h-0 flex items-center justify-center py-3'}`}>
+          <div className="relative rounded-lg border-2 border-dashed border-muted-foreground/40 p-1.5 max-h-full">
+            <span className="absolute -top-2.5 left-3 bg-background px-1.5 text-[10px] text-muted-foreground">{t.fuera_imagen_subida}</span>
+            <img src={urlImagen(canto.imagen)} alt={canto.title} draggable={false} onError={() => setError(true)}
+                 className={`block w-full rounded ${horizontal ? 'h-auto' : 'max-h-[70dvh] object-contain'}`} />
+          </div>
+        </div>
       </div>
     </Zoomable>
   );
@@ -293,7 +334,7 @@ export default function MinutaReader() {
   const renderPage = (pageIdx: number, offset: number) => {
     if (pageIdx < 0 || pageIdx >= totalPages) return null;
     const item = itemAt(pageIdx);
-    const esCanto = !!item && !item.isPalabra && !item.isOracion;
+    const esCanto = !!item && !item.isPalabra && !item.isOracion && !item.isEspecial;
     // key: cada página con su propio nodo (en horizontal cada una guarda su desplazamiento y empieza arriba).
     // La portada lleva su margen DENTRO del zoom: si no, al ampliarla se recortaba 20 px antes del borde (1.6.5).
     const portada = pageIdx === 0;
@@ -327,6 +368,14 @@ export default function MinutaReader() {
           <span className="m-auto text-3xl font-bold text-palabra">{t.portada_palabra}</span>
         ) : item?.isOracion ? (
           <span className="m-auto text-3xl font-bold text-oracion">{t.portada_oracion}</span>
+        ) : item?.isEspecial ? (
+          // (1.13.0) Especial: solo texto, como Oración; el nombre debajo.
+          <div className="m-auto flex flex-col items-center gap-1 text-center px-6">
+            <span className="text-3xl font-bold text-especial">{t.especial.toLocaleUpperCase()}</span>
+            {item.nombre && <span className="text-2xl font-medium text-foreground">{item.nombre}</span>}
+          </div>
+        ) : item?.fuera ? (
+          <PaginaFuera canto={item} horizontal={horizontal} />
         ) : item ? (
           <SongPage song={item} horizontal={horizontal} notas={notasDe(item.hymnNumber)} onTocarNota={abrirPanel} />
         ) : null}

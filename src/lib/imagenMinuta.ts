@@ -9,6 +9,9 @@ export interface TextosPortada {
   palabra: string;
   oracion: string;
   noEncontrado: string;
+  /** (1.13.0) "Especial" y la etiqueta de las alabanzas fuera del himnario. */
+  especial?: string;
+  fuera?: string;
 }
 
 const ANCHO = 1080;
@@ -36,7 +39,7 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
   const col = {
     fondo: colorDe('--background'), texto: colorDe('--foreground'), suave: colorDe('--muted-foreground'),
     tono: colorDe('--hymn-key'), numero: colorDe('--hymn-number'), palabra: colorDe('--palabra'),
-    oracion: colorDe('--oracion'), raya: colorDe('--border'),
+    oracion: colorDe('--oracion'), raya: colorDe('--border'), especial: colorDe('--especial'),
   };
   const fs = 14 * S;             // text-sm
   const alto = fs * 1.45;
@@ -80,12 +83,21 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
     if (s.key) trozos.push({ texto: `  ${s.key}`, color: col.tono, peso: 600, tam: fs });
     if (s.hymnNumber) trozos.push({ texto: ` (${s.hymnNumber})`, color: col.numero, peso: 500, tam: fs });
     if (s.found === false) trozos.push({ texto: `  ${txt.noEncontrado}`, color: col.suave, peso: 400, tam: 10 * S, italica: true });
+    if (s.fuera && txt.fuera) trozos.push({ texto: `  · ${txt.fuera}`, color: col.suave, peso: 400, tam: 10 * S, italica: true });
     escribir(trozos, sangria);
   };
 
   renumerar(cantos).forEach((s, i) => {
     if (i > 0) y += 8 * S; // space-y-2
-    if (s.isPalabra || s.isOracion) {
+    if (s.isEspecial) {
+      // "Especial Javiera" (1.13.0): "Especial" en celeste y el nombre en el color del texto.
+      y += 8 * S;
+      escribir([
+        { texto: txt.especial ?? 'Especial', color: col.especial, peso: 600, tam: fs },
+        ...(s.nombre ? [{ texto: ` ${s.nombre}`, color: col.texto, peso: 500, tam: fs }] : []),
+      ]);
+      y += 8 * S;
+    } else if (s.isPalabra || s.isOracion) {
       y += 8 * S;
       escribir([{ texto: s.isPalabra ? txt.palabra : txt.oracion, color: s.isPalabra ? col.palabra : col.oracion, peso: 600, tam: fs }]);
       y += 8 * S;

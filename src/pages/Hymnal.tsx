@@ -1,7 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { ChevronRight, FolderOpen, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useCancionesExtra, normalizarTitulo } from '@/lib/cancionesExtra';
 import { getHymns, preloadHymnImageBoth, normalizar } from '@/lib/hymnCache';
 import {
   getFilters, setFilters as saveFilters,
@@ -29,6 +30,11 @@ export default function HymnalPage() {
   const [selectedKey, setSelectedKey] = useState<string | null>(persisted.selectedKey);
   const [selectedTempo, setSelectedTempo] = useState<TempoFilter>(persisted.selectedTempo);
   const [showFilters, setShowFilters] = useState(false);
+  const extras = useCancionesExtra();
+  const extrasBuscadas = useMemo(() => {
+    const n = normalizarTitulo(search);
+    return n ? extras.filter(c => normalizarTitulo(c.titulo).includes(n)) : [];
+  }, [search, extras]);
   const fondoTocado = useRef(false);
 
   const { hymns, ready } = getHymns();
@@ -218,6 +224,33 @@ export default function HymnalPage() {
               <X size={10} />
             </BotonSeguro>
           )}
+        </div>
+      )}
+
+      {/* (1.13.0, Josué) Antes de la 1: las canciones que no están en el himnario, como una subcarpeta. Al buscar,
+          las que coinciden aparecen arriba, con su etiqueta. */}
+      {!search.trim() && !selectedKey && selectedTempo === 'all' && (
+        <button onClick={() => navigate('/hymnal/extra')}
+                className="tap-btn w-full flex items-center gap-2 py-2.5 px-2.5 mb-1 rounded-lg bg-card border border-border text-left">
+          <FolderOpen size={16} className="text-muted-foreground shrink-0" />
+          <span className="flex-1 text-xs font-medium text-foreground">{t.fuera_seccion}</span>
+          <span className="text-[11px] text-muted-foreground">{extras.length}</span>
+          <ChevronRight size={14} className="text-muted-foreground" />
+        </button>
+      )}
+      {extrasBuscadas.length > 0 && (
+        <div className="space-y-0.5 mb-1">
+          {extrasBuscadas.map(c => (
+            <button key={c.id} onClick={() => navigate(`/hymnal/extra/${c.id}`)}
+                    className="tap-btn flex items-center gap-2 py-2 px-2.5 rounded-lg w-full text-left">
+              <span className="w-5 shrink-0" />
+              <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                <span className="text-foreground text-xs font-medium truncate">{c.titulo}</span>
+                <span className="shrink-0 rounded-md border border-border px-1.5 py-px text-[10px] text-muted-foreground">{t.fuera_etiqueta}</span>
+              </div>
+              {c.tonalidad && <span translate="no" className="text-hymn-key font-semibold text-xs w-7 shrink-0 text-center">{c.tonalidad}</span>}
+            </button>
+          ))}
         </div>
       )}
 

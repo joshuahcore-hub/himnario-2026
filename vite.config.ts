@@ -85,6 +85,9 @@ export default defineConfig({
         // Notificaciones (1.11.0): el service worker carga public/sw-push.js (push, tocar, "Marcar como vista").
         importScripts: ["sw-push.js"],
         runtimeCaching: [
+          // Imágenes subidas (canciones fuera del himnario, 1.13.0): no cambian nunca; se guardan para verlas sin internet.
+          { urlPattern: ({ url }) => url.pathname.startsWith("/api/imagenes/"), handler: "CacheFirst",
+            options: { cacheName: "imagenes-subidas", expiration: { maxEntries: 300 } } },
           { urlPattern: ({ url }) => url.pathname.startsWith("/api/"), handler: "NetworkOnly" },
         ],
       },

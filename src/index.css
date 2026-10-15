@@ -55,6 +55,8 @@
     --hymn-number: 168 40% 42%;
     --palabra: 120 35% 35%;
     --oracion: 120 35% 35%;
+    /* Especial (1.13.0, Josué): azul tirado a celeste. */
+    --especial: 201 80% 43%;
     --preview-badge: 45 80% 55%;
 
     --sidebar-background: 36 20% 96%;
@@ -102,6 +104,7 @@
     --hymn-number: 168 35% 55%;
     --palabra: 120 20% 50%;
     --oracion: 120 20% 50%;
+    --especial: 201 75% 64%;
     --preview-badge: 45 70% 50%;
 
     --sidebar-background: 30 8% 10%;

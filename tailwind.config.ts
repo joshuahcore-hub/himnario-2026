@@ -54,6 +54,7 @@ export default {
         "hymn-number": "hsl(var(--hymn-number))",
         palabra: "hsl(var(--palabra))",
         oracion: "hsl(var(--oracion))",
+        especial: "hsl(var(--especial))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

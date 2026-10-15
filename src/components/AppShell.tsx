@@ -52,8 +52,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => { if (esDelHimnario(location.pathname)) ultimaDelHimnario = location.pathname + location.search; }, [location]);
   const irA = (path: string) => {
     if (path === '/' && !esDelHimnario(location.pathname) && ultimaDelHimnario !== '/') {
-      // Primero la lista y encima el himno: así "atrás" desde el himno vuelve a la lista, como siempre.
+      // Se rehace el camino (lista → carpeta → canción): así "atrás" vuelve paso a paso, como siempre.
       navigate('/');
+      if (ultimaDelHimnario.startsWith('/hymnal/extra/')) navigate('/hymnal/extra');
       navigate(ultimaDelHimnario);
       return;
     }

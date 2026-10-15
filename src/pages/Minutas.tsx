@@ -137,6 +137,7 @@ export default function Minutas() {
     try {
       const imagen = await imagenDeMinuta(m.fecha, m.cantos, {
         titulo: t.portada_title, palabra: t.portada_palabra, oracion: t.portada_oracion, noEncontrado: t.portada_not_found,
+        especial: t.especial, fuera: t.fuera_etiqueta,
       });
       await compartirImagen(imagen, `Minuta ${formatearFecha(m.fecha)}`);
       salirSeleccion();

@@ -1084,6 +1084,62 @@ async function rutasProyeccion(request: Request, env: Env, partes: string[]): Pr
   throw new ErrorApi(404, 'Ruta no encontrada.');
 }
 
+// ---------- Canciones fuera del himnario e imágenes (1.13.0, Josué) ----------
+// Una alabanza que no está en el himnario se escribe a mano (título, tonalidad opcional) y puede llevar una IMAGEN
+// subida (foto o captura con letra y acordes: sustituto provisorio). Queda GUARDADA para volver a usarla: aparece en
+// Himnario → "Canciones que no están en el himnario" y en los buscadores. Las imágenes van a KV ("img-<id>").
+const IMG_MAX = 4 * 1024 * 1024;
+const TIPOS_IMG = ['image/webp', 'image/jpeg', 'image/png'];
+
+const claveTitulo = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+async function rutasImagenes(request: Request, env: Env, partes: string[]): Promise<Response> {
+  if (!env.PROYECCION) throw new ErrorApi(503, 'Las imágenes no están configuradas en el servidor.');
+  if (request.method === 'GET' && partes[1] && /^[\w-]{10,60}$/.test(partes[1])) {
+    const v = await env.PROYECCION.getWithMetadata<{ tipo: string }>(`img-${partes[1]}`, 'stream');
+    if (!v.value) throw new ErrorApi(404, 'Imagen no encontrada.');
+    // No cambia nunca (id nuevo por imagen): el celular la guarda para verla sin internet.
+    return new Response(v.value, { headers: { 'content-type': v.metadata?.tipo || 'image/webp', 'cache-control': 'public, max-age=31536000, immutable' } });
+  }
+  if (request.method === 'POST' && !partes[1]) {
+    exigirEditor(await dispositivoActual(request, env));
+    const tipo = (request.headers.get('content-type') || '').split(';')[0];
+    if (!TIPOS_IMG.includes(tipo)) throw new ErrorApi(400, 'Formato de imagen no válido.');
+    const datos = await request.arrayBuffer();
+    if (datos.byteLength > IMG_MAX) throw new ErrorApi(413, 'La imagen es demasiado grande.');
+    const id = crypto.randomUUID();
+    await env.PROYECCION.put(`img-${id}`, datos, { metadata: { tipo } });
+    return json({ id }, 201);
+  }
+  throw new ErrorApi(404, 'Ruta no encontrada.');
+}
+
+async function rutasCancionesExtra(request: Request, env: Env, partes: string[]): Promise<Response> {
+  if (request.method === 'GET' && !partes[1]) {
+    const { results } = await env.DB.prepare('SELECT id, titulo, tonalidad, imagen, actualizado FROM canciones_extra ORDER BY clave').all();
+    return json(results);
+  }
+  if (request.method === 'POST' && !partes[1]) {
+    const yo = exigirEditor(await dispositivoActual(request, env));
+    const body = await leerJson(request);
+    const titulo = typeof body.titulo === 'string' ? body.titulo.trim().replace(/\s+/g, ' ') : '';
+    if (titulo.length < 1 || titulo.length > 80) throw new ErrorApi(400, 'El título debe tener entre 1 y 80 letras.');
+    const tonalidad = typeof body.tonalidad === 'string' && body.tonalidad.length <= 8 ? body.tonalidad : null;
+    const imagen = typeof body.imagen === 'string' && /^[\w-]{10,60}$/.test(body.imagen) ? body.imagen : null;
+    const t = ahora();
+    // Misma canción (mismo título) = se actualiza; la imagen solo se reemplaza si viene una nueva.
+    await env.DB.prepare(`INSERT INTO canciones_extra (id, clave, titulo, tonalidad, imagen, creada_por, creado, actualizado)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                          ON CONFLICT (clave) DO UPDATE SET titulo = excluded.titulo, tonalidad = excluded.tonalidad,
+                            imagen = COALESCE(excluded.imagen, canciones_extra.imagen), actualizado = excluded.actualizado`)
+      .bind(crypto.randomUUID(), claveTitulo(titulo), titulo, tonalidad, imagen, yo.id, t, t).run();
+    return json(await env.DB.prepare('SELECT id, titulo, tonalidad, imagen, actualizado FROM canciones_extra WHERE clave = ?')
+      .bind(claveTitulo(titulo)).first());
+  }
+  throw new ErrorApi(404, 'Ruta no encontrada.');
+}
+
 export const onRequest: PagesFunction<Env> = async ({ request, env: envBase, params, waitUntil }) => {
   const env: Env = { ...envBase, esperar: p => waitUntil(p) };
   const partes = (Array.isArray(params.ruta) ? params.ruta : [params.ruta]).filter(Boolean) as string[];
@@ -1099,6 +1155,8 @@ export const onRequest: PagesFunction<Env> = async ({ request, env: envBase, par
       case 'personas': return await rutasPersonas(request, env);
       case 'notificaciones': return await rutasNotificaciones(request, env, partes);
       case 'proyeccion': return await rutasProyeccion(request, env, partes);
+      case 'imagenes': return await rutasImagenes(request, env, partes);
+      case 'canciones-extra': return await rutasCancionesExtra(request, env, partes);
       case 'salud': return json({ ok: true });
       default: throw new ErrorApi(404, 'Ruta no encontrada.');
     }

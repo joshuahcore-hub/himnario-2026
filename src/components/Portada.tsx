@@ -35,6 +35,7 @@ export default function Portada({ date, songs, compact = false, creador, editor,
       {s.key && <span translate="no" className="text-hymn-key font-semibold shrink-0 ml-1">{s.key}</span>}
       {s.hymnNumber && <span className="text-hymn-number font-medium shrink-0">({s.hymnNumber})</span>}
       {s.found === false && <span className="text-muted-foreground text-[10px] italic ml-1">{t.portada_not_found}</span>}
+      {s.fuera && <span className="shrink-0 self-center rounded-md border border-border px-1.5 py-px text-[10px] text-muted-foreground whitespace-nowrap">{t.fuera_etiqueta}</span>}
     </div>
   );
 
@@ -52,6 +53,15 @@ export default function Portada({ date, songs, compact = false, creador, editor,
             return (
               <div key={`palabra-${i}`} className={compact ? 'py-1' : 'py-2'}>
                 <span className={`font-semibold text-palabra ${compact ? 'text-xs' : 'text-sm'}`}>{t.portada_palabra}</span>
+              </div>
+            );
+          }
+          if (song.isEspecial) {
+            // "Especial Javiera" en celeste, sin número (1.13.0, Josué).
+            return (
+              <div key={`especial-${i}`} className={compact ? 'py-1' : 'py-2'}>
+                <span className={`font-semibold text-especial ${compact ? 'text-xs' : 'text-sm'}`}>{t.especial}</span>
+                {song.nombre && <span className={`font-medium text-foreground ${compact ? 'text-xs' : 'text-sm'}`}> {song.nombre}</span>}
               </div>
             );
           }
