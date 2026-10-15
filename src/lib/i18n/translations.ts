@@ -124,7 +124,12 @@ export interface Translations {
   minutas_offline: string;
   minutas_hint_select: string;
   minutas_hint_share: string;
+  minutas_ir_primera: string;
+  minutas_ir_ultima: string;
   minutas_pin: string;
+  minutas_unpin: string;
+  minutas_opciones: string;
+  minuta_bajar_imagen: string;
 
   // Editor de minutas
   editor_title_edit: string;
@@ -169,6 +174,8 @@ export interface Translations {
   fuera_imagen: string;
   fuera_elegir_imagen: string;
   fuera_quitar_imagen: string;
+  fuera_otra_imagen: (n: number, max: number) => string;
+  fuera_max_imagenes: (max: number) => string;
   fuera_falta_titulo: string;
   fuera_etiqueta: string;
   fuera_no_esta: string;
@@ -201,6 +208,7 @@ export interface Translations {
   access_check: string;
   access_approved: string;
   access_registered: string;
+  access_visor: string;
   access_can_remind_others: string;
   admin_can_view: string;
   admin_can_create: string;
@@ -238,6 +246,11 @@ export interface Translations {
   proy_generar: string;
   proy_listo: string;
   proy_error: string;
+  proy_guardar_en: string;
+  proy_descargas: string;
+  proy_elegir_carpeta: string;
+  proy_cambiar: string;
+  proy_guardado: (carpeta: string) => string;
   admin_hide_title: (nombre: string) => string;
   admin_hide_text: string;
   notif_title: string;
@@ -467,7 +480,12 @@ export const es: Translations = {
   minutas_offline: 'Sin conexión: mostrando las minutas guardadas en este celular.',
   minutas_hint_select: 'Mantén presionada una minuta para seleccionarla, compartirla, fijarla o borrarla.',
   minutas_hint_share: 'Mantén presionada una minuta para compartirla como imagen.',
+  minutas_ir_primera: 'Ir a la primera',
+  minutas_ir_ultima: 'Ir a la última',
   minutas_pin: 'Fijar',
+  minutas_unpin: 'Desfijar',
+  minutas_opciones: 'Opciones',
+  minuta_bajar_imagen: 'Descargar imagen',
 
   editor_title_edit: 'Editar minuta',
   editor_mode_manual: 'Manual',
@@ -505,16 +523,18 @@ export const es: Translations = {
   editor_add_song: 'Alabanza',
   editor_done: 'Listo',
   especial: 'Especial',
-  especial_nombre: 'Nombre (p. ej. Javiera)',
+  especial_nombre: 'Nombre',
   editor_add: 'Agregar',
   fuera_boton: 'Una que no está en el himnario',
   fuera_titulo: 'Alabanza fuera del himnario',
   fuera_texto: 'Queda guardada para volver a usarla.',
   fuera_nombre: 'Título',
   fuera_tonalidad: 'Tonalidad (opcional)',
-  fuera_imagen: 'Imagen (opcional)',
+  fuera_imagen: 'Imágenes (opcional)',
   fuera_elegir_imagen: 'Elegir imagen de la galería',
   fuera_quitar_imagen: 'Quitar imagen',
+  fuera_otra_imagen: (n, max) => `Agregar otra imagen (${n} de ${max})`,
+  fuera_max_imagenes: max => `Máximo ${max} imágenes`,
   fuera_falta_titulo: 'Escribe el título.',
   fuera_etiqueta: 'fuera del himnario',
   fuera_no_esta: 'No está en el himnario',
@@ -545,7 +565,8 @@ export const es: Translations = {
   access_pending: 'Tu solicitud está enviada. Espera a que el administrador la apruebe.',
   access_check: 'Revisar estado',
   access_approved: 'Eres creador: puedes crear, editar y borrar minutas.',
-  access_registered: 'Estás registrado: te pueden dejar recordatorios en las alabanzas. Para ver o crear minutas, pídeselo al administrador.',
+  access_registered: 'Estás registrado: te pueden dejar recordatorios en las alabanzas.',
+  access_visor: 'Eres visor: puedes ver las minutas y te pueden dejar recordatorios en las alabanzas.',
   access_can_remind_others: 'Puedes dejar recordatorios a otras personas.',
   admin_can_view: 'Ver minutas',
   admin_can_create: 'Crear minutas',
@@ -571,7 +592,7 @@ export const es: Translations = {
   admin_hide: 'Quitar',
   admin_can_project: 'Generar proyección',
   proy_titulo: 'Generar proyección',
-  proy_texto: 'Elige la escritura de la portada. Se descarga el PowerPoint del culto con las alabanzas de esta minuta.',
+  proy_texto: 'Elige la escritura de la portada. Se guarda el PowerPoint del culto con las alabanzas de esta minuta.',
   proy_libro: 'Libro',
   proy_capitulo: 'Capítulo',
   proy_versiculo: 'Versículo',
@@ -582,6 +603,11 @@ export const es: Translations = {
   proy_generar: 'Generar',
   proy_listo: 'Descargado',
   proy_error: 'No se pudo generar la proyección.',
+  proy_guardar_en: 'Guardar en',
+  proy_descargas: 'Descargas',
+  proy_elegir_carpeta: 'Elegir carpeta',
+  proy_cambiar: 'Cambiar',
+  proy_guardado: c => `Guardado en «${c}»`,
   admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
   admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
   notif_title: 'Notificaciones',
@@ -595,7 +621,7 @@ export const es: Translations = {
   notif_tipo: {
     registro: 'Alguien se registra', creada: 'Se crea una minuta', editada: 'Se edita una minuta',
     publicada: 'Se publica una minuta', privada: 'Una minuta pasa a privada', duplicada: 'Se duplica una minuta',
-    borrada: 'Se elimina una minuta', restaurada: 'Se restaura una minuta', nueva_minuta: 'Se publica una minuta nueva', recordatorio: 'Alguien me deja un recordatorio',
+    borrada: 'Se elimina una minuta', restaurada: 'Se restaura una minuta', nueva_minuta: 'Se publica una minuta nueva', recordatorio: 'Alguien me deja un recordatorio', proyeccion: 'Alguien genera una proyección',
   },
   admin_requested: 'Se registró el',
   admin_this_device: 'este celular',
@@ -810,7 +836,12 @@ export const en: Translations = {
   minutas_offline: 'Offline: showing the services saved on this phone.',
   minutas_hint_select: 'Press and hold a service to select, share, pin or delete it.',
   minutas_hint_share: 'Press and hold a service to share it as an image.',
+  minutas_ir_primera: 'Go to the first',
+  minutas_ir_ultima: 'Go to the last',
   minutas_pin: 'Pin',
+  minutas_unpin: 'Unpin',
+  minutas_opciones: 'Options',
+  minuta_bajar_imagen: 'Download image',
 
   editor_title_edit: 'Edit service',
   editor_mode_manual: 'Manual',
@@ -848,16 +879,18 @@ export const en: Translations = {
   editor_add_song: 'Song',
   editor_done: 'Done',
   especial: 'Special',
-  especial_nombre: 'Name (e.g. Javiera)',
+  especial_nombre: 'Name',
   editor_add: 'Add',
   fuera_boton: 'One that is not in the hymnal',
   fuera_titulo: 'Song not in the hymnal',
   fuera_texto: 'It is saved to use again.',
   fuera_nombre: 'Title',
   fuera_tonalidad: 'Key (optional)',
-  fuera_imagen: 'Image (optional)',
+  fuera_imagen: 'Images (optional)',
   fuera_elegir_imagen: 'Choose image from gallery',
   fuera_quitar_imagen: 'Remove image',
+  fuera_otra_imagen: (n, max) => `Add another image (${n} of ${max})`,
+  fuera_max_imagenes: max => `Up to ${max} images`,
   fuera_falta_titulo: 'Enter the title.',
   fuera_etiqueta: 'not in the hymnal',
   fuera_no_esta: 'Not in the hymnal',
@@ -888,7 +921,8 @@ export const en: Translations = {
   access_pending: 'Your request has been sent. Wait for the administrator to approve it.',
   access_check: 'Check status',
   access_approved: 'You are a creator: you can create, edit and delete services.',
-  access_registered: 'You are signed up: others can leave you reminders on songs. To view or create services, ask the administrator.',
+  access_registered: 'You are signed up: others can leave you reminders on songs.',
+  access_visor: 'You are a viewer: you can view services, and others can leave you reminders on songs.',
   access_can_remind_others: 'You can leave reminders for other people.',
   admin_can_view: 'View services',
   admin_can_create: 'Create services',
@@ -914,7 +948,7 @@ export const en: Translations = {
   admin_hide: 'Remove',
   admin_can_project: 'Generate projection',
   proy_titulo: 'Generate projection',
-  proy_texto: 'Choose the cover scripture. The service PowerPoint with this service’s songs is downloaded.',
+  proy_texto: 'Choose the cover scripture. The service PowerPoint with this service’s songs is saved.',
   proy_libro: 'Book',
   proy_capitulo: 'Chapter',
   proy_versiculo: 'Verse',
@@ -925,6 +959,11 @@ export const en: Translations = {
   proy_generar: 'Generate',
   proy_listo: 'Downloaded',
   proy_error: 'Could not generate the projection.',
+  proy_guardar_en: 'Save to',
+  proy_descargas: 'Downloads',
+  proy_elegir_carpeta: 'Choose folder',
+  proy_cambiar: 'Change',
+  proy_guardado: c => `Saved to “${c}”`,
   admin_hide_title: n => `Remove ${n} from the list?`,
   admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
   notif_title: 'Notifications',
@@ -938,7 +977,7 @@ export const en: Translations = {
   notif_tipo: {
     registro: 'Someone signs up', creada: 'A service is created', editada: 'A service is edited',
     publicada: 'A service is published', privada: 'A service is made private', duplicada: 'A service is duplicated',
-    borrada: 'A service is deleted', restaurada: 'A service is restored', nueva_minuta: 'A new service is published', recordatorio: 'Someone leaves me a reminder',
+    borrada: 'A service is deleted', restaurada: 'A service is restored', nueva_minuta: 'A new service is published', recordatorio: 'Someone leaves me a reminder', proyeccion: 'Someone generates a slideshow',
   },
   admin_requested: 'Signed up on',
   admin_this_device: 'this phone',
@@ -1153,7 +1192,12 @@ export const pt: Translations = {
   minutas_offline: 'Sem conexão: mostrando as minutas salvas neste celular.',
   minutas_hint_select: 'Mantenha pressionada uma minuta para selecioná-la, compartilhá-la, fixá-la ou excluí-la.',
   minutas_hint_share: 'Mantenha pressionada uma minuta para compartilhá-la como imagem.',
+  minutas_ir_primera: 'Ir para a primeira',
+  minutas_ir_ultima: 'Ir para a última',
   minutas_pin: 'Fixar',
+  minutas_unpin: 'Desafixar',
+  minutas_opciones: 'Opções',
+  minuta_bajar_imagen: 'Baixar imagem',
 
   editor_title_edit: 'Editar minuta',
   editor_mode_manual: 'Manual',
@@ -1191,16 +1235,18 @@ export const pt: Translations = {
   editor_add_song: 'Louvor',
   editor_done: 'Pronto',
   especial: 'Especial',
-  especial_nombre: 'Nome (ex. Javiera)',
+  especial_nombre: 'Nome',
   editor_add: 'Adicionar',
   fuera_boton: 'Uma que não está no hinário',
   fuera_titulo: 'Louvor fora do hinário',
   fuera_texto: 'Fica salvo para usar de novo.',
   fuera_nombre: 'Título',
   fuera_tonalidad: 'Tom (opcional)',
-  fuera_imagen: 'Imagem (opcional)',
+  fuera_imagen: 'Imagens (opcional)',
   fuera_elegir_imagen: 'Escolher imagem da galeria',
   fuera_quitar_imagen: 'Remover imagem',
+  fuera_otra_imagen: (n, max) => `Adicionar outra imagem (${n} de ${max})`,
+  fuera_max_imagenes: max => `Máximo ${max} imagens`,
   fuera_falta_titulo: 'Escreva o título.',
   fuera_etiqueta: 'fora do hinário',
   fuera_no_esta: 'Não está no hinário',
@@ -1231,7 +1277,8 @@ export const pt: Translations = {
   access_pending: 'Sua solicitação foi enviada. Aguarde o administrador aprovar.',
   access_check: 'Verificar status',
   access_approved: 'Você é criador: pode criar, editar e excluir minutas.',
-  access_registered: 'Você está cadastrado: podem deixar lembretes para você nos louvores. Para ver ou criar minutas, peça ao administrador.',
+  access_registered: 'Você está cadastrado: podem deixar lembretes para você nos louvores.',
+  access_visor: 'Você é visor: pode ver as minutas e podem deixar lembretes para você nos louvores.',
   access_can_remind_others: 'Você pode deixar lembretes para outras pessoas.',
   admin_can_view: 'Ver minutas',
   admin_can_create: 'Criar minutas',
@@ -1257,7 +1304,7 @@ export const pt: Translations = {
   admin_hide: 'Remover',
   admin_can_project: 'Gerar projeção',
   proy_titulo: 'Gerar projeção',
-  proy_texto: 'Escolha a escritura da capa. Baixa o PowerPoint do culto com os louvores desta minuta.',
+  proy_texto: 'Escolha a escritura da capa. O PowerPoint do culto com os louvores desta minuta é salvo.',
   proy_libro: 'Livro',
   proy_capitulo: 'Capítulo',
   proy_versiculo: 'Versículo',
@@ -1268,6 +1315,11 @@ export const pt: Translations = {
   proy_generar: 'Gerar',
   proy_listo: 'Baixado',
   proy_error: 'Não foi possível gerar a projeção.',
+  proy_guardar_en: 'Salvar em',
+  proy_descargas: 'Downloads',
+  proy_elegir_carpeta: 'Escolher pasta',
+  proy_cambiar: 'Mudar',
+  proy_guardado: c => `Salvo em «${c}»`,
   admin_hide_title: n => `Remover ${n} da lista?`,
   admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
   notif_title: 'Notificações',
@@ -1281,7 +1333,7 @@ export const pt: Translations = {
   notif_tipo: {
     registro: 'Alguém se cadastra', creada: 'Uma minuta é criada', editada: 'Uma minuta é editada',
     publicada: 'Uma minuta é publicada', privada: 'Uma minuta fica privada', duplicada: 'Uma minuta é duplicada',
-    borrada: 'Uma minuta é excluída', restaurada: 'Uma minuta é restaurada', nueva_minuta: 'Uma nova minuta é publicada', recordatorio: 'Alguém me deixa um lembrete',
+    borrada: 'Uma minuta é excluída', restaurada: 'Uma minuta é restaurada', nueva_minuta: 'Uma nova minuta é publicada', recordatorio: 'Alguém me deixa um lembrete', proyeccion: 'Alguém gera uma projeção',
   },
   admin_requested: 'Cadastrou-se em',
   admin_this_device: 'este celular',

@@ -12,7 +12,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       // En el celular sonner pone ancho 100 % además de los márgenes y quedaba corrido: ancho automático.
-      className="toaster group !w-auto"
+      // (1.13.4) En el computador (≥ 600 px, donde sonner centra con left 50 %) el ancho automático se encogía a CERO
+      // y el aviso salía como una columna gris con las letras una bajo otra: ahí, ancho fijo (la píldora se centra dentro).
+      className="toaster group max-[599px]:!w-auto min-[600px]:!w-[min(520px,calc(100vw-32px))]"
       offset={margen}
       mobileOffset={margen}
       gap={8}

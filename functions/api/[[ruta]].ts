@@ -827,7 +827,7 @@ async function rutasPersonas(request: Request, env: Env): Promise<Response> {
 //  - Los demás: SOLO "Nueva minuta" (cuando se publica una) y solo si tienen "Ver minutas". No se enteran de nada más.
 // Nadie recibe aviso de lo que hizo él mismo.
 
-const TIPOS_ADMIN = ['registro', 'creada', 'editada', 'publicada', 'privada', 'duplicada', 'borrada', 'restaurada', 'recordatorio'] as const;
+const TIPOS_ADMIN = ['registro', 'creada', 'editada', 'publicada', 'privada', 'duplicada', 'borrada', 'restaurada', 'recordatorio', 'proyeccion'] as const;
 // (1.13.2) "recordatorio" = alguien te dejó un post-it. Le llega a cualquiera (también al admin).
 const TIPOS_OTROS = ['nueva_minuta', 'recordatorio'] as const;
 type TipoAviso = (typeof TIPOS_ADMIN)[number] | (typeof TIPOS_OTROS)[number];
@@ -865,6 +865,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       restaurada: ['Minuta restaurada', (a, t) => `${a} restauró «${t}».`],
       nueva_minuta: ['Nueva minuta', (a, t) => `«${t}» · ${a}`],
       recordatorio: ['Nuevo recordatorio', (a, t) => `${a} te dejó un recordatorio en «${t}».`],
+      proyeccion: ['Proyección generada', (a, t) => `${a} generó la proyección de «${t}».`],
     },
   },
   en: {
@@ -880,6 +881,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       restaurada: ['Service restored', (a, t) => `${a} restored “${t}”.`],
       nueva_minuta: ['New service', (a, t) => `“${t}” · ${a}`],
       recordatorio: ['New reminder', (a, t) => `${a} left you a reminder on “${t}”.`],
+      proyeccion: ['Slideshow generated', (a, t) => `${a} generated the slideshow for “${t}”.`],
     },
   },
   pt: {
@@ -895,6 +897,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       restaurada: ['Minuta restaurada', (a, t) => `${a} restaurou «${t}».`],
       nueva_minuta: ['Nova minuta', (a, t) => `«${t}» · ${a}`],
       recordatorio: ['Novo lembrete', (a, t) => `${a} deixou um lembrete para você em «${t}».`],
+      proyeccion: ['Projeção gerada', (a, t) => `${a} gerou a projeção de «${t}».`],
     },
   },
 };
@@ -915,7 +918,7 @@ async function enviarAvisos(env: Env, a: Aviso) {
   const { results: admins } = await env.DB.prepare(
     `SELECT id, notif_apagadas FROM dispositivos WHERE rol = 'admin' AND estado = 'aprobado' AND notif_activas = 1 AND id != ?`,
   ).bind(a.autorId).all<Fila>();
-  const urlAdmin = a.tipo === 'registro' ? '/admin' : '/admin?ver=historial';
+  const urlAdmin = a.tipo === 'registro' ? '/admin' : a.tipo === 'proyeccion' && a.minutaId ? `/minuta/${a.minutaId}` : '/admin?ver=historial';
   for (const d of admins) if (!apagadasDe(d.notif_apagadas).includes(a.tipo)) destinos.push({ id: d.id, tipo: a.tipo, url: urlAdmin });
   if (a.publica && a.minutaId) {
     const { results: otros } = await env.DB.prepare(
@@ -1097,8 +1100,17 @@ async function rutasProyeccion(request: Request, env: Env, partes: string[]): Pr
   const yo = await dispositivoActual(request, env);
   if (!yo || yo.estado !== 'aprobado' || (yo.rol !== 'admin' && !yo.proyeccion)) throw new ErrorApi(403, 'No tienes permiso para generar la proyección.');
   if (!env.PROYECCION) throw new ErrorApi(503, 'La proyección no está configurada en el servidor.');
-  if (request.method !== 'GET') throw new ErrorApi(405, 'Operación no permitida.');
   const accion = partes[1];
+  // (1.13.4, Josué) Aviso al administrador: "X generó la proyección de «Minuta…»".
+  if (accion === 'generada' && request.method === 'POST') {
+    const body = await leerJson(request);
+    const m = typeof body.minutaId === 'string'
+      ? await env.DB.prepare('SELECT id, titulo, fecha FROM minutas WHERE id = ?').bind(body.minutaId).first<{ id: string; titulo: string; fecha: string }>()
+      : null;
+    avisar(env, { tipo: 'proyeccion', autorId: yo.id, autor: yo.nombre, minutaId: m?.id, titulo: m ? tituloAviso(m.titulo, m.fecha) : 'Minuta' });
+    return json({ ok: true });
+  }
+  if (request.method !== 'GET') throw new ErrorApi(405, 'Operación no permitida.');
   if (accion === 'meta') {
     const meta = await env.PROYECCION.get('meta');
     if (!meta) throw new ErrorApi(404, 'Todavía no se subió el PowerPoint maestro.');
@@ -1161,7 +1173,7 @@ async function rutasCancionesExtra(request: Request, env: Env, partes: string[])
     const titulo = typeof body.titulo === 'string' ? body.titulo.trim().replace(/\s+/g, ' ') : '';
     if (titulo.length < 1 || titulo.length > 80) throw new ErrorApi(400, 'El título debe tener entre 1 y 80 letras.');
     const tonalidad = typeof body.tonalidad === 'string' && body.tonalidad.length <= 8 ? body.tonalidad : null;
-    const imagen = typeof body.imagen === 'string' && /^[\w-]{10,60}$/.test(body.imagen) ? body.imagen : null;
+    const imagen = typeof body.imagen === 'string' && /^[\w-]{10,60}(,[\w-]{10,60}){0,9}$/.test(body.imagen) ? body.imagen : null; // hasta 10 ids (1.13.4)
     const t = ahora();
     // Misma canción (mismo título) = se actualiza; la imagen solo se reemplaza si viene una nueva.
     await env.DB.prepare(`INSERT INTO canciones_extra (id, clave, titulo, tonalidad, imagen, creada_por, creado, actualizado)

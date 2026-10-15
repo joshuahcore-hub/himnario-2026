@@ -17,3 +17,22 @@ export function direccionFirme(dx: number, dy: number): boolean | null {
   if (ay >= 8) return false;
   return null;
 }
+
+/**
+ * Rueda del mouse en el computador (1.13.4, Josué): UNA canción por muesca. Devuelve 1 / -1 cuando hay que pasar,
+ * o 0. Suma los movimientos chicos (panel táctil) hasta lo que mide una muesca y deja un respiro entre pasos, para que
+ * un solo giro no salte varias.
+ */
+export function rueda(e: { deltaX: number; deltaY: number; deltaMode: number }, estado: { acum: number; ultimo: number; paso: number }): 1 | -1 | 0 {
+  const ahora = Date.now();
+  let delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (e.deltaMode === 1) delta *= 40; // en líneas (Firefox)
+  if (ahora - estado.ultimo > 250) estado.acum = 0;
+  estado.ultimo = ahora;
+  estado.acum += delta;
+  if (Math.abs(estado.acum) < 60 || ahora - estado.paso < 160) return 0;
+  const d = estado.acum > 0 ? 1 : -1;
+  estado.acum = 0;
+  estado.paso = ahora;
+  return d;
+}

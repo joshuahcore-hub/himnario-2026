@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2, ChevronsLeft, ChevronsRight, EllipsisVertical, Presentation, Download } from 'lucide-react';
 import { compartirImagen, imagenDeMinuta } from '@/lib/imagenMinuta';
 import { formatearFecha } from '@/lib/minutaUtils';
 import Portada from '@/components/Portada';
@@ -16,6 +17,8 @@ import { useAcceso } from '@/hooks/useAcceso';
 import { cargarRecordatorios } from '@/lib/recordatorios';
 import BotonSeguro from '@/components/BotonSeguro';
 import { marcarTodasVistas } from '@/lib/notificaciones';
+import PanelProyeccion from '@/components/PanelProyeccion';
+import { esComputador } from '@/lib/proyeccion';
 
 /** Dónde quedó la lista de minutas (se conserva al cambiar de pestaña mientras la app esté abierta). */
 let posicionMinutas: number | null = null;
@@ -23,7 +26,13 @@ let posicionMinutas: number | null = null;
 export default function Minutas() {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { puedeEditar, esAdmin } = useAcceso();
+  const { puedeEditar, esAdmin, puedeProyectar } = useAcceso();
+  // Computador (1.13.4, Josué): cada minuta con un menú ⋮ con lo que en el celular sale al mantener presionada
+  // (y "Generar proyección", que antes estaba dentro de la minuta). Sin las ayudas de "mantén presionada".
+  const [enComputador] = useState(esComputador);
+  const [menu, setMenu] = useState<{ m: MinutaData; x: number; y: number } | null>(null);
+  const [proyectar, setProyectar] = useState<MinutaData | null>(null);
+  const [proyAbierta, setProyAbierta] = useState(false);
   // Avisos de "Nueva minuta" (1.11.0): al entrar a Minutas ya se vieron. Los del administrador se marcan al entrar a
   // Administración (ahí está el historial).
   useEffect(() => { if (!esAdmin) marcarTodasVistas(); }, [esAdmin]);
@@ -31,6 +40,14 @@ export default function Minutas() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
+  // ¿La lista está en un extremo? (para atenuar la doble flecha que no sirve)
+  const [extremo, setExtremo] = useState({ inicio: true, fin: false });
+  const medirExtremos = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const inicio = el.scrollLeft < 8, fin = el.scrollLeft + el.clientWidth > el.scrollWidth - 8;
+    setExtremo(e => (e.inicio === inicio && e.fin === fin ? e : { inicio, fin }));
+  };
   const longPress = useRef<ReturnType<typeof setTimeout>>();
   // El toque que termina un "mantener presionado" no debe desmarcar la minuta recién seleccionada.
   const ignorarSiguienteToque = useRef(false);
@@ -56,7 +73,8 @@ export default function Minutas() {
     if (tarjeta) { el.scrollLeft = tarjeta.offsetLeft - (el.clientWidth - tarjeta.offsetWidth) / 2; enfocar.current = ''; }
     else if (!ubicada.current) el.scrollLeft = posicionMinutas ?? el.scrollWidth;
     ubicada.current = true;
-  }, [ordenadas.length]);
+    medirExtremos();
+  }, [ordenadas.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSelect = (id: string) => setSelected(prev => {
     const next = new Set(prev);
@@ -97,11 +115,11 @@ export default function Minutas() {
   // Editar y borrar SOLO las propias, también el administrador (Josué, 1.5.4). En las ajenas: ver y duplicar.
   const puedeEditar1 = !!unaSeleccionada?.mia;
   const todasPropias = selected.size > 0 && [...selected].every(id => minutas.find(m => m.id === id)?.mia);
-  const cambiarVisibilidad = async () => {
-    if (!unaSeleccionada) return;
-    const publicar = !unaSeleccionada.publicada;
+  const cambiarVisibilidad = async (m: MinutaData | undefined = unaSeleccionada) => {
+    if (!m) return;
+    const publicar = !m.publicada;
     try {
-      guardarMinutaLocal(await api<MinutaData>(`minutas/${unaSeleccionada.id}`, { metodo: 'PATCH', datos: { publicada: publicar } }));
+      guardarMinutaLocal(await api<MinutaData>(`minutas/${m.id}`, { metodo: 'PATCH', datos: { publicada: publicar } }));
       toast.success(publicar ? t.minuta_published_toast : t.minuta_private_toast);
       salirSeleccion();
     } catch (e: any) {
@@ -111,11 +129,11 @@ export default function Minutas() {
 
   // Duplicar: crea una copia privada de quien duplica (la puede editar y dejar solo para sí).
   const [duplicando, setDuplicando] = useState(false);
-  const duplicar = async () => {
-    if (!unaSeleccionada || duplicando) return;
+  const duplicar = async (m: MinutaData | undefined = unaSeleccionada) => {
+    if (!m || duplicando) return;
     setDuplicando(true);
     try {
-      const copia = await api<MinutaData>(`minutas/${unaSeleccionada.id}/duplicar`, { metodo: 'POST' });
+      const copia = await api<MinutaData>(`minutas/${m.id}/duplicar`, { metodo: 'POST' });
       enfocar.current = copia.id; // al aparecer en la lista, queda al centro (junto a la original, misma fecha)
       guardarMinutaLocal(copia);
       cargarRecordatorios(true, true); // la copia trae los recordatorios "solo en esta minuta" de quien duplica
@@ -130,9 +148,8 @@ export default function Minutas() {
 
   // Compartir (1.10.0, Josué): la portada de la minuta como imagen, por WhatsApp u otra app.
   const [compartiendo, setCompartiendo] = useState(false);
-  const compartir = async () => {
-    if (!unaSeleccionada || compartiendo) return;
-    const m = unaSeleccionada;
+  const compartir = async (m: MinutaData | undefined = unaSeleccionada) => {
+    if (!m || compartiendo) return;
     setCompartiendo(true);
     try {
       const imagen = await imagenDeMinuta(m.fecha, m.cantos, {
@@ -231,7 +248,7 @@ export default function Minutas() {
         </div>
       )}
       {ordenadas.length > 0 && (
-        <p className={`px-5 pt-2 text-[10px] text-muted-foreground/70 transition-opacity duration-200 w-full max-w-5xl mx-auto ${selectMode ? 'opacity-0' : ''}`}>
+        <p className={`px-5 pt-2 text-[10px] text-muted-foreground/70 transition-opacity duration-200 w-full max-w-5xl mx-auto ${selectMode || enComputador ? 'opacity-0' : ''}`}>
           {puedeEditar ? t.minutas_hint_select : t.minutas_hint_share}
         </p>
       )}
@@ -243,7 +260,21 @@ export default function Minutas() {
           </p>
         </div>
       ) : (
-        <div className="flex-1 flex items-center overflow-hidden">
+        <div className="relative flex-1 flex items-center overflow-hidden">
+          {/* Doble flecha (1.13.4, Josué): ir a la primera / a la última sin pasar una por una. Atenuada (sin efecto)
+              cuando ya se está en ese extremo; se esconde mientras se seleccionan minutas. */}
+          {!selectMode && ordenadas.length > 2 && (['izq', 'der'] as const).map(lado => {
+            const apagada = lado === 'izq' ? extremo.inicio : extremo.fin;
+            return (
+              <BotonSeguro key={lado} aria-label={lado === 'izq' ? t.minutas_ir_primera : t.minutas_ir_ultima}
+                onClick={() => { const el = scrollRef.current; if (el && !apagada) el.scrollTo({ left: lado === 'izq' ? 0 : el.scrollWidth, behavior: 'smooth' }); }}
+                className={`absolute top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200 ${
+                  lado === 'izq' ? 'left-1.5' : 'right-1.5'}`}
+                style={{ opacity: apagada ? 0.25 : 1, pointerEvents: apagada ? 'none' : 'auto' }}>
+                {lado === 'izq' ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}
+              </BotonSeguro>
+            );
+          })}
           <div
             ref={scrollRef}
             // Computador: a todo el ancho (se ven varias minutas a los lados) y tarjetas más grandes (340 px);
@@ -252,7 +283,7 @@ export default function Minutas() {
             // Solo hacia los lados: sin desplazamiento vertical (antes se podía correr arriba/abajo sin sentido).
             // Con una minuta seleccionada la lista queda quieta: no se desliza a los lados (Josué, 1.5.6).
             style={{ overflowY: 'hidden', overflowX: selectMode ? 'hidden' : 'auto', touchAction: selectMode ? 'none' : 'pan-x', overscrollBehavior: 'contain' }}
-            onScroll={e => { posicionMinutas = e.currentTarget.scrollLeft; }}
+            onScroll={e => { posicionMinutas = e.currentTarget.scrollLeft; medirExtremos(); }}
             onWheel={e => {
               if (!selectMode && Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollRef.current?.scrollBy({ left: e.deltaY, behavior: 'smooth' });
             }}
@@ -273,6 +304,13 @@ export default function Minutas() {
                       {m.publicada ? <Globe size={10} /> : <Lock size={10} />}
                       {m.publicada ? t.minuta_badge_public : t.minuta_badge_private}
                     </span>
+                  )}
+                  {enComputador && (
+                    <button type="button" aria-label={t.minutas_opciones} title={t.minutas_opciones}
+                            onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ m, x: r.right, y: r.bottom + 4 }); }}
+                            className={`ml-auto shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground ${menu?.m.id === m.id ? 'bg-muted text-foreground' : ''}`}>
+                      <EllipsisVertical size={15} />
+                    </button>
                   )}
                   </span>
                 </div>
@@ -345,7 +383,7 @@ export default function Minutas() {
             </BotonSeguro>
           )}
           <BotonSeguro
-            onClick={compartir}
+            onClick={() => compartir()}
             disabled={selected.size !== 1 || compartiendo}
             className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
             aria-label={t.minuta_share_image}
@@ -354,7 +392,7 @@ export default function Minutas() {
           </BotonSeguro>
           {puedeEditar && (
             <BotonSeguro
-              onClick={duplicar}
+              onClick={() => duplicar()}
               disabled={selected.size !== 1 || duplicando}
               className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
               aria-label={t.minuta_duplicate}
@@ -364,7 +402,7 @@ export default function Minutas() {
           )}
           {puedeCambiarVisibilidad && (
             <BotonSeguro
-              onClick={cambiarVisibilidad}
+              onClick={() => cambiarVisibilidad()}
               className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
               aria-label={unaSeleccionada?.publicada ? t.minuta_make_private : t.minuta_publish}
             >
@@ -384,15 +422,30 @@ export default function Minutas() {
       )}
     </div>
 
+    {/* Menú ⋮ (computador): en un portal, fijo bajo el botón; tocar fuera o Esc lo cierra. */}
+    {menu && createPortal(<MenuMinuta x={menu.x} y={menu.y} onCerrar={() => setMenu(null)} acciones={[
+      ...(menu.m.mia ? [{ icono: <Pencil size={15} />, texto: t.create_edit, hacer: () => navigate(`/editar/${menu.m.id}`) }] : []),
+      { icono: <Download size={15} />, texto: t.minuta_bajar_imagen, hacer: () => compartir(menu.m) },
+      ...(puedeEditar ? [{ icono: <Copy size={15} />, texto: t.minuta_duplicate, hacer: () => duplicar(menu.m) }] : []),
+      ...(menu.m.mia ? [
+        { icono: menu.m.publicada ? <Lock size={15} /> : <Globe size={15} />, texto: menu.m.publicada ? t.minuta_make_private : t.minuta_publish, hacer: () => cambiarVisibilidad(menu.m) },
+        { icono: <Pin size={15} />, texto: menu.m.fijada ? t.minutas_unpin : t.minutas_pin, hacer: () => fijar(menu.m) },
+      ] : []),
+      ...(puedeProyectar ? [{ icono: <Presentation size={15} />, texto: t.proy_titulo, hacer: () => { setProyectar(menu.m); setProyAbierta(true); } }] : []),
+      ...(menu.m.mia ? [{ icono: <Trash2 size={15} />, texto: t.minutas_delete, peligro: true,
+                          hacer: () => { setSelected(new Set([menu.m.id])); setCantidadABorrar(1); setConfirmarBorrar(true); } }] : []),
+    ]} />, document.body)}
+    {proyectar && <PanelProyeccion abierto={proyAbierta} onCerrar={() => setProyAbierta(false)} minuta={proyectar} />}
+
     {/* Confirmar eliminación. Fuera del contenedor: si no, tocar el diálogo saldría del modo selección. */}
-    <Dialog open={confirmarBorrar} onOpenChange={abierto => { if (!abierto && !borrando) setConfirmarBorrar(false); }}>
+    <Dialog open={confirmarBorrar} onOpenChange={abierto => { if (!abierto && !borrando) { setConfirmarBorrar(false); if (!selectMode) setSelected(new Set()); } }}>
       <DialogContent className="max-w-[320px] rounded-2xl gap-3">
         <DialogHeader>
           <DialogTitle className="text-base">{t.minutas_delete_confirm_title(cantidadABorrar)}</DialogTitle>
           <DialogDescription className="text-xs">{t.minutas_delete_confirm_text}</DialogDescription>
         </DialogHeader>
         <div className="flex gap-2 pt-1">
-          <Button variant="outline" className="flex-1 h-10 text-sm" disabled={borrando} onClick={() => setConfirmarBorrar(false)}>
+          <Button variant="outline" className="flex-1 h-10 text-sm" disabled={borrando} onClick={() => { setConfirmarBorrar(false); if (!selectMode) setSelected(new Set()); }}>
             {t.minutas_cancel}
           </Button>
           <Button variant="destructive" className="flex-1 h-10 text-sm gap-1.5" disabled={borrando} onClick={borrar}>
@@ -403,5 +456,43 @@ export default function Minutas() {
       </DialogContent>
     </Dialog>
     </>
+  );
+}
+
+/** Menú ⋮ de una minuta en el computador. Se ubica bajo el botón, alineado a su derecha, sin salirse de la pantalla. */
+function MenuMinuta({ x, y, acciones, onCerrar }: {
+  x: number; y: number; onCerrar: () => void;
+  acciones: { icono: React.ReactNode; texto: string; hacer: () => void; peligro?: boolean }[];
+}) {
+  const caja = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ left: x - 220, top: y });
+  useLayoutEffect(() => {
+    const el = caja.current;
+    if (!el) return;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    setPos({ left: Math.max(8, Math.min(x - w, window.innerWidth - w - 8)), top: y + h > window.innerHeight - 8 ? Math.max(8, y - h - 36) : y });
+  }, [x, y]);
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') onCerrar(); };
+    window.addEventListener('keydown', tecla);
+    window.addEventListener('resize', onCerrar);
+    return () => { window.removeEventListener('keydown', tecla); window.removeEventListener('resize', onCerrar); };
+  }, [onCerrar]);
+  // Cierra solo si el clic EMPEZÓ fuera del menú (regla de la app para los fondos).
+  const inicio = useRef(false);
+  return (
+    <div className="fixed inset-0 z-[65]" onPointerDown={e => { inicio.current = e.target === e.currentTarget; }}
+         onClick={e => { if (inicio.current && e.target === e.currentTarget) onCerrar(); }}
+         onWheel={onCerrar} onContextMenu={e => { e.preventDefault(); onCerrar(); }}>
+      <div ref={caja} role="menu" className="absolute min-w-[200px] rounded-xl border border-border bg-card p-1 shadow-xl animate-in fade-in zoom-in-95 duration-150"
+           style={{ left: pos.left, top: pos.top }}>
+        {acciones.map(a => (
+          <button key={a.texto} type="button" role="menuitem" onClick={() => { onCerrar(); a.hacer(); }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left hover:bg-muted ${a.peligro ? 'text-destructive' : 'text-foreground'}`}>
+            <span className={a.peligro ? '' : 'text-muted-foreground'}>{a.icono}</span>{a.texto}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

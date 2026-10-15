@@ -8,6 +8,12 @@ const tabla = recortes as unknown as Record<string, [number, number, number, num
  * Para una <img> normal (con zoom propio): muestra solo la franja con letra usando object-view-box (Chrome/Android).
  * Donde no se soporta, se ve la imagen completa como antes. (1.7.0: los recordatorios quedan justo sobre la letra.)
  */
+/** Alto ÷ ancho de la franja con letra (para darle a cada himno el ancho que cabe de alto). */
+export function proporcionLetra(num: number): number {
+  const r = tabla[String(num)];
+  return r ? r[2] / r[0] : 1980 / 1400;
+}
+
 export function vistaRecortada(num: number): React.CSSProperties {
   const r = tabla[String(num)];
   if (!r) return {};

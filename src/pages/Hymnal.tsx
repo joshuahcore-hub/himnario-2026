@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } fr
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { ChevronRight, FolderOpen, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useAtrasCierra } from '@/lib/atras';
 import { useCancionesExtra, normalizarTitulo } from '@/lib/cancionesExtra';
 import { getHymns, preloadHymnImageBoth, normalizar } from '@/lib/hymnCache';
 import {
@@ -36,6 +37,7 @@ export default function HymnalPage() {
     return n ? extras.filter(c => normalizarTitulo(c.titulo).includes(n)) : [];
   }, [search, extras]);
   const fondoTocado = useRef(false);
+  useAtrasCierra(showFilters, () => setShowFilters(false)); // "atrás" cierra los filtros (1.13.4)
 
   const { hymns, ready } = getHymns();
 

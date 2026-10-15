@@ -6,6 +6,7 @@
 // y las flechas de arriba no se mueven. Todos los meses con 6 filas: la tira es pareja.
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { useAtrasCierra } from '@/lib/atras';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
 import { es, enUS, ptBR } from 'date-fns/locale';
@@ -35,6 +36,7 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   const idioma = locale === 'es' ? es : locale === 'pt' ? ptBR : enUS;
   const [abierto, setAbierto] = useState(false);
   const fondoTocado = useRef(false);
+  useAtrasCierra(abierto, () => setAbierto(false)); // "atrás" cierra el calendario (1.13.4)
   const [elegida, setElegida] = useState<Date>(() => aFecha(valor));
   const [mes, setMes] = useState<Date>(() => aFecha(valor));
 

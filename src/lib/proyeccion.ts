@@ -94,6 +94,8 @@ export async function bajarMaestro(meta: MetaProyeccion, onProgreso: (p: number)
 export function clavesDeMinuta(m: Pick<MinutaData, 'cantos'>): { clave: string; canto: ParsedSong }[] {
   const out: { clave: string; canto: ParsedSong }[] = [];
   const agregar = (c: ParsedSong) => {
+    // (1.13.4, Josué) Especial: una diapositiva "ESPECIAL <NOMBRE>" (ver armarProyeccion).
+    if (c.isEspecial) { out.push({ clave: `e:${(c.nombre ?? '').toLocaleUpperCase('es')}`, canto: c }); return; }
     if (esMarcador(c)) return;
     out.push({ clave: c.hymnNumber && c.found !== false ? String(c.hymnNumber) : claveTitulo(c.title), canto: c });
   };
@@ -103,9 +105,61 @@ export function clavesDeMinuta(m: Pick<MinutaData, 'cantos'>): { clave: string; 
 
 export const nombreArchivo = (fecha: string) => `PPT Culto ${formatearFecha(fecha)}.pptx`;
 
-/** Arma el PowerPoint y lo entrega como descarga. */
-export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fecha'>, portada: { versiculo: string; referencia: string },
-  onEstado: (e: { etapa: 'bajando' | 'armando'; progreso?: number }) => void): Promise<void> {
+// ---- Carpeta donde se guarda (1.13.4, Josué: "elegirla una vez y que la recuerde", p. ej. el Escritorio del PC del
+// culto). Con la API de archivos del navegador (Chrome/Edge); el permiso de la carpeta queda guardado en IndexedDB.
+// Si el navegador no la tiene, se descarga como antes (carpeta de Descargas).
+type Carpeta = FileSystemDirectoryHandle & {
+  queryPermission(o: { mode: 'readwrite' }): Promise<PermissionState>;
+  requestPermission(o: { mode: 'readwrite' }): Promise<PermissionState>;
+};
+export const puedeElegirCarpeta = () => typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+
+function baseCarpeta(): Promise<IDBDatabase> {
+  return new Promise((ok, mal) => {
+    const r = indexedDB.open('himnario-proyeccion', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('carpeta');
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => mal(r.error);
+  });
+}
+export async function carpetaGuardada(): Promise<Carpeta | null> {
+  if (!puedeElegirCarpeta()) return null;
+  try {
+    const db = await baseCarpeta();
+    return await new Promise(ok => {
+      const r = db.transaction('carpeta').objectStore('carpeta').get('destino');
+      r.onsuccess = () => ok((r.result as Carpeta) ?? null);
+      r.onerror = () => ok(null);
+    });
+  } catch { return null; }
+}
+/** Abre el selector de carpetas (empieza en el Escritorio) y la recuerda. null si se canceló. */
+export async function elegirCarpeta(): Promise<Carpeta | null> {
+  try {
+    const c: Carpeta = await (window as any).showDirectoryPicker({ id: 'proyeccion', mode: 'readwrite', startIn: 'desktop' });
+    const db = await baseCarpeta();
+    await new Promise<void>((ok, mal) => {
+      const tx = db.transaction('carpeta', 'readwrite');
+      tx.objectStore('carpeta').put(c, 'destino');
+      tx.oncomplete = () => ok();
+      tx.onerror = () => mal(tx.error);
+    });
+    return c;
+  } catch { return null; }
+}
+/** Pide (si hace falta) el permiso de escribir en la carpeta. Llamarlo AL TOCAR "Generar" (necesita el toque). */
+export async function permisoCarpeta(c: Carpeta): Promise<boolean> {
+  try {
+    if ((await c.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
+    return (await c.requestPermission({ mode: 'readwrite' })) === 'granted';
+  } catch { return false; }
+}
+
+/** Arma el PowerPoint y lo guarda en la carpeta elegida (o lo descarga). Devuelve dónde quedó. */
+export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fecha'> & { id?: string },
+  portada: { versiculo: string; referencia: string },
+  onEstado: (e: { etapa: 'bajando' | 'armando'; progreso?: number }) => void,
+  carpeta: Carpeta | null = null): Promise<{ carpeta: string | null }> {
   const meta = await leerMeta();
   onEstado({ etapa: 'bajando', progreso: 0 });
   const maestro = await bajarMaestro(meta, p => onEstado({ etapa: 'bajando', progreso: p }));
@@ -117,6 +171,19 @@ export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fec
     type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 },
     mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   });
+  // Aviso al administrador (no atrasa nada; si falla, da igual).
+  if (minuta.id) fetch('/api/proyeccion/generada', {
+    method: 'POST', headers: { ...cabeceras(), 'content-type': 'application/json' }, body: JSON.stringify({ minutaId: minuta.id }),
+  }).catch(() => {});
+  if (carpeta) {
+    try {
+      const archivo = await carpeta.getFileHandle(nombreArchivo(minuta.fecha), { create: true });
+      const w = await (archivo as any).createWritable();
+      await w.write(blob);
+      await w.close();
+      return { carpeta: carpeta.name };
+    } catch { /* sin permiso o carpeta movida: se descarga */ }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -125,6 +192,7 @@ export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fec
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return { carpeta: null };
 }
 
 /** Computador: mouse y pantalla ancha (en el celular la opción no aparece). */

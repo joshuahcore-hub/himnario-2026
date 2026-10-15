@@ -65,20 +65,23 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
     return { id, rid, parte: resolver('ppt/presentation.xml', relPorId.get(rid)!.target) };
   });
 
-  // Orden pedido: portada, alabanzas (las que existen), imágenes fijas.
-  const orden: number[] = [indice.portada];
+  // Orden pedido: portada, alabanzas (las que existen), imágenes fijas. (1.13.4, Josué) Un Especial ("e:" + nombre)
+  // es una copia de la portada que dice "ESPECIAL <NOMBRE>".
+  const orden: { pos: number; especial?: string }[] = [{ pos: indice.portada }];
   for (const n of claves) {
+    if (n.startsWith('e:')) { orden.push({ pos: indice.portada, especial: n.slice(2) }); continue; }
     const r = indice.himnos[n];
-    if (r) for (let i = r[0]; i <= r[1]; i++) orden.push(i);
+    if (r) for (let i = r[0]; i <= r[1]; i++) orden.push({ pos: i });
   }
-  for (let i = indice.fijas[0]; i <= indice.fijas[1]; i++) orden.push(i);
+  for (let i = indice.fijas[0]; i <= indice.fijas[1]; i++) orden.push({ pos: i });
 
   let maxId = Math.max(...slides.map(s => +s.id));
   let maxRid = Math.max(...rels.map(r => +(r.id.match(/\d+/)?.[0] ?? 0)));
   let maxParte = Math.max(...slides.map(s => +(s.parte.match(/slide(\d+)\.xml$/)?.[1] ?? 0)));
   const usadas = new Set<number>();
   const nuevas: { id: string; rid: string; parte: string }[] = [];
-  for (const pos of orden) {
+  const especiales: { parte: string; nombre: string }[] = [];
+  for (const { pos, especial } of orden) {
     const s = slides[pos - 1];
     if (!usadas.has(pos)) { usadas.add(pos); nuevas.push(s); continue; }
     // Repetida (la misma alabanza dos veces en la minuta): copia de la diapositiva, sin sus notas.
@@ -90,6 +93,7 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
     presRels = presRels.replace('</Relationships>', `<Relationship Id="${rid}" Type="${REL_SLIDE}" Target="${parte.replace('ppt/', '')}"/></Relationships>`);
     tipos = tipos.replace('</Types>', `<Override PartName="/${parte}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
     nuevas.push({ id: String(++maxId), rid, parte });
+    if (especial !== undefined) especiales.push({ parte, nombre: especial });
   }
   pres = pres.replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,
     `<p:sldIdLst>${nuevas.map(s => `<p:sldId id="${s.id}" r:id="${s.rid}"/>`).join('')}</p:sldIdLst>`);
@@ -124,6 +128,7 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
   // el otro, la referencia. Se conserva el formato de su primer trozo de texto.
   const portadaParte = nuevas[0].parte;
   zip.file(portadaParte, cambiarPortada(await leer(portadaParte), portada, pres));
+  for (const e of especiales) zip.file(e.parte, cambiarEspecial(await leer(e.parte), e.nombre, pres));
 
   zip.file('ppt/presentation.xml', pres);
   zip.file(presRelsPath, presRels);
@@ -173,6 +178,15 @@ function cambiarPortada(xml: string, portada: Portada, pres: string): string {
   }
   if (referencia) xml = xml.replace(referencia, reemplazarTexto(referencia, portada.referencia));
   return xml;
+}
+
+/** Especial: en el cuadro del versículo "ESPECIAL <NOMBRE>" (centrado), sin la referencia. */
+function cambiarEspecial(xml: string, nombre: string, pres: string): string {
+  const cuadros = [...xml.matchAll(/<p:sp>[\s\S]*?<\/p:sp>/g)].map(m => m[0]).filter(sp => textoDe(sp).trim());
+  cuadros.sort((a, b) => textoDe(b).length - textoDe(a).length);
+  const referencia = cuadros[1];
+  if (referencia) xml = xml.replace(referencia, '');
+  return cambiarPortada(xml, { versiculo: `ESPECIAL ${nombre}`.trim(), referencia: '' }, pres);
 }
 
 /** Si el versículo es largo, la letra se achica para que quepa en la diapositiva (la plantilla usa 58 pt). */

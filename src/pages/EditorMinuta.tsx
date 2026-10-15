@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowDown, ArrowUp, Check, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -14,6 +14,7 @@ import { getHymns, normalizar } from '@/lib/hymnCache';
 import { cantoDesdeHimno, cantoFuera, esMarcador, especial, ORACION, PALABRA, renumerar } from '@/lib/minutaUtils';
 import { DialogEspecial, DialogFuera, type DatosFuera } from '@/components/DialogosMinuta';
 import { useCancionesExtra, normalizarTitulo } from '@/lib/cancionesExtra';
+import { useAtrasCierra } from '@/lib/atras';
 import { getMinuta, guardarMinutaLocal, marcarParaEnfocar } from '@/lib/minutaCache';
 import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
@@ -47,15 +48,36 @@ export interface BorradorMinuta {
 /** Duración del cambio a verde al marcar un canto en el buscador. */
 const MARCAR_MS = 180;
 
+/** Círculo + / ✓ del buscador (cambia de color y de ícono en un solo cambio suave). */
+function Circulo({ marcado }: { marcado: boolean }) {
+  return (
+    <span className={`relative w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+      marcado ? 'bg-green-600 text-white' : 'bg-primary/10 text-primary'
+    }`} style={{ transition: `background-color ${MARCAR_MS}ms ease-out, color ${MARCAR_MS}ms ease-out` }}>
+      <Plus size={14} className="absolute" style={{
+        opacity: marcado ? 0 : 1, transform: marcado ? 'scale(0.6) rotate(90deg)' : 'none',
+        transition: `opacity ${MARCAR_MS}ms ease-out, transform ${MARCAR_MS}ms ease-out`,
+      }} />
+      <Check size={14} className="absolute" style={{
+        opacity: marcado ? 1 : 0, transform: marcado ? 'none' : 'scale(0.6)',
+        transition: `opacity ${MARCAR_MS}ms ease-out, transform ${MARCAR_MS}ms ease-out`,
+      }} />
+    </span>
+  );
+}
+
 /** Distintivo de una alabanza que no está en el himnario (Josué eligió la etiqueta). */
 export function EtiquetaFuera() {
   const { t } = useI18n();
   return <span className="shrink-0 rounded-md border border-border px-1.5 py-px text-[10px] text-muted-foreground whitespace-nowrap">{t.fuera_etiqueta}</span>;
 }
 
-function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onFuera }: {
+function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onFuera, seleccionadosFuera, onRemoveFuera }: {
   /** (1.13.0) Agregar una que no está en el himnario (abre su cuadro). */
   onFuera: () => void;
+  /** (1.13.4) Canciones fuera del himnario marcadas en esta búsqueda (títulos normalizados) y desmarcarlas. */
+  seleccionadosFuera: string[];
+  onRemoveFuera: (titulo: string) => void;
   onAdd: (c: ParsedSong) => void;
   onRemove: (hymnNumber: number) => void;
   onClose: () => void;
@@ -82,6 +104,35 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
     const n = normalizarTitulo(q);
     return n ? extras.filter(c => normalizarTitulo(c.titulo).includes(n)) : [];
   }, [q, extras]);
+  // (1.13.4, Josué) Subcarpeta "Canciones que no están en el himnario" dentro del buscador.
+  const [carpeta, setCarpeta] = useState(false);
+  // "Atrás" del celular: dentro de la subcarpeta vuelve a la lista; si no, cierra el buscador sin "Listo" (descarta).
+  useAtrasCierra(true, onCancel);
+  useAtrasCierra(carpeta, () => setCarpeta(false));
+  const marcadosFuera = new Set(seleccionadosFuera);
+  const extrasCarpeta = useMemo(() => {
+    const n = normalizarTitulo(q);
+    return n ? extras.filter(c => normalizarTitulo(c.titulo).includes(n)) : extras;
+  }, [q, extras]);
+  // Una canción guardada: se marca en verde y se desmarca igual que las del himnario.
+  const filaExtra = (c: typeof extras[number]) => {
+    const marcado = marcadosFuera.has(normalizarTitulo(c.titulo));
+    return (
+      <button key={c.id} type="button" aria-pressed={marcado}
+              onClick={() => (marcado ? onRemoveFuera(normalizarTitulo(c.titulo)) : onAdd(cantoFuera(c.titulo, c.tonalidad, c.imagen)))}
+              className="flex items-center gap-2 py-2.5 px-2 rounded-lg w-full text-left"
+              style={{ WebkitTapHighlightColor: 'transparent', backgroundColor: marcado ? 'rgb(22 163 74 / 0.15)' : 'transparent',
+                       transition: `background-color ${MARCAR_MS}ms ease-out` }}>
+        <span className="w-7 shrink-0" />
+        <div className="flex-1 min-w-0 flex items-center gap-1.5">
+          <span className="text-foreground text-sm font-medium truncate">{c.titulo}</span>
+          <EtiquetaFuera />
+        </div>
+        {c.tonalidad && <span translate="no" className="text-hymn-key font-semibold text-xs w-7 text-center">{c.tonalidad}</span>}
+        <Circulo marcado={marcado} />
+      </button>
+    );
+  };
 
   return (
     // z-[60]: por encima de la barra de pestañas de abajo (z-50), que si no tapa el botón "Listo".
@@ -103,23 +154,34 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
         </BotonSeguro>
       </div>
       <div className="flex-1 overflow-y-auto px-3 pt-2 pb-28 space-y-0.5">
-        {/* (1.13.0, Josué) Antes de la 1: agregar una que no está en el himnario. */}
-        <button type="button" onClick={onFuera}
-                className="w-full flex items-center gap-2 py-2.5 px-3 mb-1 rounded-lg border border-dashed border-border text-sm text-muted-foreground text-left">
-          <Plus size={15} className="shrink-0" />{t.fuera_boton}
-        </button>
-        {extrasCoinciden.map(c => (
-          <button key={c.id} type="button" onClick={() => onAdd(cantoFuera(c.titulo, c.tonalidad, c.imagen))}
-                  className="flex items-center gap-2 py-2.5 px-2 rounded-lg w-full text-left">
-            <span className="w-7 shrink-0" />
-            <div className="flex-1 min-w-0 flex items-center gap-1.5">
-              <span className="text-foreground text-sm font-medium truncate">{c.titulo}</span>
-              <EtiquetaFuera />
-            </div>
-            {c.tonalidad && <span translate="no" className="text-hymn-key font-semibold text-xs w-7 text-center">{c.tonalidad}</span>}
-            <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-primary/10 text-primary"><Plus size={14} /></span>
+        {carpeta ? (<>
+          {/* Dentro de la subcarpeta: volver, crear otra y las guardadas (se marcan en verde). */}
+          <button type="button" onClick={() => setCarpeta(false)}
+                  className="w-full flex items-center gap-2 py-2.5 px-2 mb-1 rounded-lg text-sm font-semibold text-foreground text-left">
+            <ChevronLeft size={16} className="shrink-0" />{t.fuera_seccion}
           </button>
-        ))}
+          <button type="button" onClick={onFuera}
+                  className="w-full flex items-center gap-2 py-2.5 px-3 mb-1 rounded-lg border border-dashed border-border text-sm text-muted-foreground text-left">
+            <Plus size={15} className="shrink-0" />{t.fuera_boton}
+          </button>
+          {extrasCarpeta.map(filaExtra)}
+        </>) : (<>
+        {/* (1.13.0/1.13.4, Josué) Antes de la 1: la subcarpeta con las guardadas (o, si no hay ninguna, crear una). */}
+        {extras.length > 0 ? (
+          <button type="button" onClick={() => setCarpeta(true)}
+                  className="w-full flex items-center gap-2 py-2.5 px-3 mb-1 rounded-lg bg-card border border-border text-sm text-foreground text-left">
+            <FolderOpen size={15} className="shrink-0 text-muted-foreground" />
+            <span className="flex-1">{t.fuera_seccion}</span>
+            <span className="text-xs text-muted-foreground">{extras.length}</span>
+            <ChevronRight size={15} className="text-muted-foreground" />
+          </button>
+        ) : (
+          <button type="button" onClick={onFuera}
+                  className="w-full flex items-center gap-2 py-2.5 px-3 mb-1 rounded-lg border border-dashed border-border text-sm text-muted-foreground text-left">
+            <Plus size={15} className="shrink-0" />{t.fuera_boton}
+          </button>
+        )}
+        {extrasCoinciden.map(filaExtra)}
         {resultados.map(h => {
           const marcado = marcados.has(h.hymn_number);
           return (
@@ -159,7 +221,8 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
             </button>
           );
         })}
-        {resultados.length === 0 && <p className="text-muted-foreground text-xs text-center py-8">{t.hymnal_no_results}</p>}
+        {resultados.length === 0 && extrasCoinciden.length === 0 && <p className="text-muted-foreground text-xs text-center py-8">{t.hymnal_no_results}</p>}
+        </>)}
       </div>
       {/* "Listo" flotando abajo, al alcance del pulgar */}
       <div className="absolute left-0 right-0 bottom-0 px-5 pt-6 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none"
@@ -187,7 +250,7 @@ export default function EditorMinuta() {
   const [cantos, setCantos] = useState<Fila[]>(() => (existente?.cantos ?? borrador?.cantos ?? []).map(conClave));
   const [buscando, setBuscando] = useState(false);
   // (1.13.0) Cuadros de Especial y de alabanza fuera del himnario: k = fila que se edita (null = nueva).
-  const [dlgEspecial, setDlgEspecial] = useState<{ abierto: boolean; k: number | null; nombre: string }>({ abierto: false, k: null, nombre: '' });
+  const [dlgEspecial, setDlgEspecial] = useState<{ abierto: boolean; k: number | null; nombre: string; imagen?: string | null }>({ abierto: false, k: null, nombre: '' });
   const [dlgFuera, setDlgFuera] = useState<{ abierto: boolean; k: number | null; datos: DatosFuera }>({ abierto: false, k: null, datos: { titulo: '', tonalidad: null, imagen: null } });
   // Toque corto en una fila = editar (mantener presionado sigue siendo mover la fila).
   const toqueFila = useRef<{ x: number; y: number; t: number } | null>(null);
@@ -197,7 +260,7 @@ export default function EditorMinuta() {
       const t0 = toqueFila.current;
       toqueFila.current = null;
       if (!t0 || Date.now() - t0.t > 350 || Math.hypot(e.clientX - t0.x, e.clientY - t0.y) > 8) return;
-      if (c.isEspecial) setDlgEspecial({ abierto: true, k: c._k!, nombre: c.nombre ?? '' });
+      if (c.isEspecial) setDlgEspecial({ abierto: true, k: c._k!, nombre: c.nombre ?? '', imagen: c.imagen ?? null });
       else if (c.fuera) setDlgFuera({ abierto: true, k: c._k!, datos: { titulo: c.title, tonalidad: c.key, imagen: c.imagen ?? null } });
     },
   });
@@ -457,6 +520,7 @@ export default function EditorMinuta() {
                     <div {...tocarFila(c)} className="pl-6 text-sm truncate cursor-pointer">
                       <span className="text-especial font-semibold">{t.especial}</span>
                       {c.nombre && <span className="text-especial font-semibold"> {c.nombre}</span>}
+                      {c.imagen && <ImageIcon size={13} className="inline-block ml-1.5 text-muted-foreground align-[-2px]" />}
                     </div>
                   ) : c.fuera ? (
                     <div {...tocarFila(c)} className="cursor-pointer">{filaCanto(c, c.position)}</div>
@@ -560,11 +624,11 @@ export default function EditorMinuta() {
         </DialogContent>
       </Dialog>
 
-      <DialogEspecial abierto={dlgEspecial.abierto} nombreInicial={dlgEspecial.nombre} nuevo={dlgEspecial.k === null}
+      <DialogEspecial abierto={dlgEspecial.abierto} nombreInicial={dlgEspecial.nombre} imagenInicial={dlgEspecial.imagen ?? null} nuevo={dlgEspecial.k === null}
         onCerrar={() => setDlgEspecial(d => ({ ...d, abierto: false }))}
-        onListo={nombre => {
-          if (dlgEspecial.k === null) agregar(especial(nombre));
-          else setCantos(prev => prev.map(x => (x._k === dlgEspecial.k ? { ...x, nombre } : x)));
+        onListo={(nombre, imagen) => {
+          if (dlgEspecial.k === null) agregar({ ...especial(nombre), imagen });
+          else setCantos(prev => prev.map(x => (x._k === dlgEspecial.k ? { ...x, nombre, imagen } : x)));
           setDlgEspecial(d => ({ ...d, abierto: false }));
         }} />
       <DialogFuera abierto={dlgFuera.abierto} inicial={dlgFuera.datos} nuevo={dlgFuera.k === null}
@@ -577,6 +641,13 @@ export default function EditorMinuta() {
       {buscando && (
         <BuscadorCantos
           onFuera={() => setDlgFuera({ abierto: true, k: null, datos: { titulo: '', tonalidad: null, imagen: null } })}
+          seleccionadosFuera={cantos.slice(inicioBusqueda).filter(c => c.fuera).map(c => normalizarTitulo(c.title))}
+          onRemoveFuera={titulo => setCantos(prev => {
+            for (let k = prev.length - 1; k >= inicioBusqueda; k--) {
+              if (prev[k].fuera && normalizarTitulo(prev[k].title) === titulo) return prev.filter((_, j) => j !== k);
+            }
+            return prev;
+          })}
           seleccionados={seleccionadosEnBusqueda}
           onAdd={agregar}
           onRemove={desmarcar}

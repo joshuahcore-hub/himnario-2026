@@ -15,19 +15,74 @@ import TonalityPicker from '@/components/TonalityPicker';
 import { useI18n } from '@/lib/i18n/index';
 import { ErrorDeRed } from '@/lib/api';
 import { buscarCancionExtra, guardarCancionExtra, subirImagen, urlImagen } from '@/lib/cancionesExtra';
+import { MAX_IMAGENES, imagenesDe, unirImagenes } from '@/components/ImagenesSubidas';
 
-export function DialogEspecial({ abierto, nombreInicial, nuevo, onListo, onCerrar }: {
-  abierto: boolean; nombreInicial: string; nuevo: boolean; onListo: (nombre: string) => void; onCerrar: () => void;
+/** Elegir imágenes de la galería (opcional, hasta 10; 1.13.4): se achican y se suben. Vista previa en miniaturas con
+ *  su X; el valor es el mismo campo `imagen` con los ids separados por coma. */
+function ElegirImagen({ imagen, onCambiar, onSubiendo }: {
+  imagen: string | null; onCambiar: (ids: string | null) => void; onSubiendo?: (s: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const [subiendo, setSubiendo] = useState(0);
+  const archivo = useRef<HTMLInputElement>(null);
+  const ids = imagenesDe(imagen);
+  const actuales = useRef(ids);
+  actuales.current = ids;
+  const elegir = async (lista: File[]) => {
+    const libres = MAX_IMAGENES - actuales.current.length;
+    if (lista.length > libres) toast.error(t.fuera_max_imagenes(MAX_IMAGENES));
+    const usar = lista.slice(0, Math.max(0, libres));
+    if (!usar.length) return;
+    setSubiendo(usar.length); onSubiendo?.(true);
+    try {
+      for (const f of usar) {
+        const id = await subirImagen(f);
+        actuales.current = [...actuales.current, id];
+        onCambiar(unirImagenes(actuales.current));
+        setSubiendo(n => n - 1);
+      }
+    } catch (e: any) { toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message); }
+    finally { setSubiendo(0); onSubiendo?.(false); }
+  };
+  const quitar = (id: string) => onCambiar(unirImagenes(ids.filter(x => x !== id)));
+  return (<>
+    <input ref={archivo} type="file" accept="image/*" multiple className="hidden"
+           onChange={e => { elegir(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
+    {ids.length > 0 && (
+      <div className="grid grid-cols-3 gap-2">
+        {ids.map(id => (
+          <div key={id} className="relative aspect-square rounded-lg border-2 border-dashed border-border p-0.5">
+            <img src={urlImagen(id)} alt="" className="w-full h-full object-cover rounded" />
+            <button type="button" onClick={() => quitar(id)} aria-label={t.fuera_quitar_imagen}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-card/90 border border-border flex items-center justify-center"><X size={12} /></button>
+          </div>
+        ))}
+      </div>
+    )}
+    {ids.length < MAX_IMAGENES && (
+      <button type="button" onClick={() => archivo.current?.click()} disabled={subiendo > 0}
+              className="h-11 rounded-lg border border-dashed border-border text-sm text-muted-foreground flex items-center justify-center gap-2">
+        {subiendo > 0 ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+        {ids.length ? t.fuera_otra_imagen(ids.length, MAX_IMAGENES) : t.fuera_elegir_imagen}
+      </button>
+    )}
+  </>);
+}
+
+export function DialogEspecial({ abierto, nombreInicial, imagenInicial = null, nuevo, onListo, onCerrar }: {
+  abierto: boolean; nombreInicial: string; imagenInicial?: string | null; nuevo: boolean;
+  onListo: (nombre: string, imagen: string | null) => void; onCerrar: () => void;
 }) {
   const { t } = useI18n();
   const [nombre, setNombre] = useState(nombreInicial);
+  const [imagen, setImagen] = useState<string | null>(imagenInicial);
   // Se reinicia al ABRIR (nunca al cerrar: no se ve el estado anterior mientras se desvanece).
   const [abiertoAntes, setAbiertoAntes] = useState(abierto);
-  if (abierto !== abiertoAntes) { setAbiertoAntes(abierto); if (abierto) setNombre(nombreInicial); }
-  const listo = () => onListo(nombre.trim());
+  if (abierto !== abiertoAntes) { setAbiertoAntes(abierto); if (abierto) { setNombre(nombreInicial); setImagen(imagenInicial); } }
+  const listo = () => onListo(nombre.trim(), imagen);
   return (
     <Dialog open={abierto} onOpenChange={o => { if (!o) onCerrar(); }}>
-      <DialogContent capa="z-[70]" className="max-w-[340px] rounded-2xl gap-3">
+      <DialogContent capa="z-[70]" className="max-w-[340px] rounded-2xl gap-3 max-h-[92dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base text-especial">{t.especial}</DialogTitle>
           <DialogDescription className="sr-only">{t.especial_nombre}</DialogDescription>
@@ -38,6 +93,9 @@ export function DialogEspecial({ abierto, nombreInicial, nuevo, onListo, onCerra
                  onKeyDown={e => { if (e.key === 'Enter') listo(); }}
                  className="flex-1 min-w-0 bg-transparent outline-none text-sm font-semibold text-especial placeholder:font-normal placeholder:text-muted-foreground/55" />
         </div>
+        {/* (1.13.4, Josué) Imagen opcional: p. ej. la letra de una canción escrita para el especial. */}
+        <p className="text-[11px] text-muted-foreground -mb-1">{t.fuera_imagen}</p>
+        <ElegirImagen imagen={imagen} onCambiar={setImagen} />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" className="h-9 px-4 text-sm text-muted-foreground" onClick={onCerrar}>{t.minutas_cancel}</Button>
           <Button className="h-9 px-4 text-sm" onClick={listo}>{nuevo ? t.editor_add : t.editor_done}</Button>
@@ -58,7 +116,6 @@ export function DialogFuera({ abierto, inicial, nuevo, onListo, onCerrar }: {
   const [imagen, setImagen] = useState<string | null>(inicial.imagen);
   const [subiendo, setSubiendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  const archivo = useRef<HTMLInputElement>(null);
   const [abiertoAntes, setAbiertoAntes] = useState(abierto);
   if (abierto !== abiertoAntes) {
     setAbiertoAntes(abierto);
@@ -71,12 +128,6 @@ export function DialogFuera({ abierto, inicial, nuevo, onListo, onCerrar }: {
     if (c) { setTonalidad(v => v ?? c.tonalidad); setImagen(v => v ?? c.imagen); }
   }, [titulo, abierto, nuevo]);
 
-  const fallo = (e: any) => toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
-  const elegirImagen = async (f: File | undefined) => {
-    if (!f) return;
-    setSubiendo(true);
-    try { setImagen(await subirImagen(f)); } catch (e) { fallo(e); } finally { setSubiendo(false); }
-  };
   const listo = async () => {
     const tt = titulo.trim();
     if (!tt) { toast.error(t.fuera_falta_titulo); return; }
@@ -98,19 +149,7 @@ export function DialogFuera({ abierto, inicial, nuevo, onListo, onCerrar }: {
         <p className="text-[11px] text-muted-foreground -mb-1">{t.fuera_tonalidad}</p>
         <TonalityPicker selectedKey={tonalidad} onChange={setTonalidad} />
         <p className="text-[11px] text-muted-foreground -mb-1">{t.fuera_imagen}</p>
-        <input ref={archivo} type="file" accept="image/*" className="hidden" onChange={e => { elegirImagen(e.target.files?.[0]); e.target.value = ''; }} />
-        {imagen ? (
-          <div className="relative rounded-lg border-2 border-dashed border-border p-1">
-            <img src={urlImagen(imagen)} alt="" className="block w-full max-h-48 object-contain rounded" />
-            <button type="button" onClick={() => setImagen(null)} aria-label={t.fuera_quitar_imagen}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-card/90 border border-border flex items-center justify-center"><X size={14} /></button>
-          </div>
-        ) : (
-          <button type="button" onClick={() => archivo.current?.click()} disabled={subiendo}
-                  className="h-11 rounded-lg border border-dashed border-border text-sm text-muted-foreground flex items-center justify-center gap-2">
-            {subiendo ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}{t.fuera_elegir_imagen}
-          </button>
-        )}
+        <ElegirImagen imagen={imagen} onCambiar={setImagen} onSubiendo={setSubiendo} />
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="ghost" className="h-9 px-4 text-sm text-muted-foreground" onClick={onCerrar}>{t.minutas_cancel}</Button>
           <Button className="h-9 px-4 text-sm" onClick={listo} disabled={subiendo}>{nuevo ? t.editor_add : t.editor_done}</Button>

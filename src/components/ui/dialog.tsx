@@ -3,8 +3,13 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useAtrasCierra } from "@/lib/atras";
 
-const Dialog = DialogPrimitive.Root;
+// (1.13.4, Josué) Todo panel: el "atrás" del celular lo cierra (y solo a él). Ver src/lib/atras.ts.
+const Dialog = ({ open, onOpenChange, ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) => {
+  useAtrasCierra(!!open, () => onOpenChange?.(false));
+  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />;
+};
 
 const DialogTrigger = DialogPrimitive.Trigger;
 
@@ -54,7 +59,7 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
+  <div className={cn("flex flex-col space-y-1.5 text-center", className)} {...props} />
 );
 DialogHeader.displayName = "DialogHeader";
 

@@ -8,9 +8,8 @@ import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
-import { Music2, Presentation, RotateCwSquare } from 'lucide-react';
-import { urlImagen } from '@/lib/cancionesExtra';
-import PanelProyeccion from '@/components/PanelProyeccion';
+import { ArrowLeft, ChevronLeft, ChevronRight, Music2, RotateCwSquare } from 'lucide-react';
+import { CabeceraFuera, MarcoImagenes } from '@/components/ImagenesSubidas';
 import { esComputador } from '@/lib/proyeccion';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
@@ -20,7 +19,7 @@ import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
-import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, UMBRAL_LADO } from '@/lib/deslizar';
+import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
 function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
   song: ParsedSong;
   /** (1.13.1) Las notas son las que envié (vista "Enviados"). */
@@ -108,15 +107,6 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
 function PaginaFuera({ canto, horizontal }: { canto: ParsedSong; horizontal: boolean }) {
   const { t } = useI18n();
   const [error, setError] = useState(false);
-  const cabecera = (
-    <div className="text-center shrink-0 pt-4 px-4">
-      <h2 className="text-lg font-bold text-foreground">{canto.title}</h2>
-      <div className="flex items-center justify-center gap-2">
-        {canto.key && <span translate="no" className="font-semibold text-hymn-key">{canto.key}</span>}
-        <span className="rounded-md border border-border px-1.5 py-px text-[10px] text-muted-foreground">{t.fuera_etiqueta}</span>
-      </div>
-    </div>
-  );
   if (!canto.imagen || error) {
     return (
       <div className="m-auto flex flex-col items-center gap-2 text-center px-6">
@@ -127,19 +117,10 @@ function PaginaFuera({ canto, horizontal }: { canto: ParsedSong; horizontal: boo
       </div>
     );
   }
+  // (1.13.4) Hasta 10 imágenes, con flechas dentro del marco.
   return (
-    <Zoomable className={horizontal ? 'w-full m-auto' : 'w-full h-full'} reiniciarCon={canto.imagen}>
-      <div className={`w-full flex flex-col items-center px-3 ${horizontal ? 'pt-3' : 'h-full'}`}>
-        {!horizontal && cabecera}
-        <div className={`relative w-full max-w-lg ${horizontal ? '' : 'flex-1 min-h-0 flex items-center justify-center py-3'}`}>
-          <div className="relative rounded-lg border-2 border-dashed border-muted-foreground/40 p-1.5 max-h-full">
-            <span className="absolute -top-2.5 left-3 bg-background px-1.5 text-[10px] text-muted-foreground">{t.fuera_imagen_subida}</span>
-            <img src={urlImagen(canto.imagen)} alt={canto.title} draggable={false} onError={() => setError(true)}
-                 className={`block w-full rounded ${horizontal ? 'h-auto' : 'max-h-[70dvh] object-contain'}`} />
-          </div>
-        </div>
-      </div>
-    </Zoomable>
+    <MarcoImagenes key={canto.imagen} imagen={canto.imagen} titulo={canto.title} horizontal={horizontal} onError={() => setError(true)}
+                   cabecera={<CabeceraFuera titulo={canto.title} tono={canto.key} etiqueta={!canto.isEspecial} />} />
   );
 }
 
@@ -155,12 +136,14 @@ export default function MinutaReader() {
   const horizontal = useHorizontal();
   const { theme: temaLector } = useTheme();
   // Recordatorios (1.7.0): los "siempre en esta alabanza" y los "solo en esta minuta".
-  const { registrado, puedeProyectar, puedeDejarAOtros } = useAcceso();
+  const { registrado, puedeDejarAOtros } = useAcceso();
   // Vista "Enviados" (1.13.1): los post-it que dejé a otras personas en vez de los míos.
   const [verEnviados, setVerEnviados] = useState(false);
-  // Generar proyección (1.12.0): solo en el computador y con el permiso; en la portada de la minuta.
-  const [proyeccionAbierta, setProyeccionAbierta] = useState(false);
+  // Computador (1.13.4, Josué): flecha para volver, flechas a los lados y la rueda del mouse (una canción por paso).
+  // "Generar proyección" pasó al menú ⋮ de la minuta en la lista.
   const [enComputador] = useState(esComputador);
+  const ruedaRef = useRef({ acum: 0, ultimo: 0, paso: 0 });
+  const pasoRef = useRef<((d: 1 | -1) => void) | null>(null);
   const notasDe = useRecordatorios(registrado, id ?? null);
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
@@ -310,6 +293,23 @@ export default function MinutaReader() {
     terminarPaso.current = () => { clearTimeout(timer); terminar(); };
   };
 
+  // Paso con botón o rueda (computador): igual que deslizar, con la misma animación.
+  // Si hay un paso animándose, se completa (flushSync redibuja al instante) y el siguiente usa la versión NUEVA de
+  // esta función (pasoRef), con la página ya actualizada.
+  pasoRef.current = d => {
+    if (currentPage + d < 0 || currentPage + d >= totalPages) return;
+    animateSlide(-d);
+  };
+  const paso = (d: 1 | -1) => {
+    if (terminarPaso.current) terminarPaso.current();
+    pasoRef.current?.(d);
+  };
+  const alRueda = (e: React.WheelEvent) => {
+    if (e.ctrlKey || !enComputador) return;
+    const d = rueda(e, ruedaRef.current);
+    if (d) paso(d);
+  };
+
   const handleTouchEnd = () => {
     if (!arrastrando.current) return;
     arrastrando.current = false;
@@ -372,6 +372,9 @@ export default function MinutaReader() {
           <span className="m-auto text-3xl font-bold text-palabra">{t.portada_palabra}</span>
         ) : item?.isOracion ? (
           <span className="m-auto text-3xl font-bold text-oracion">{t.portada_oracion}</span>
+        ) : item?.isEspecial && item.imagen ? (
+          // (1.13.4) Especial con imagen: como una alabanza fuera del himnario (imagen subida con contorno y zoom).
+          <PaginaFuera canto={{ ...item, title: `${t.especial} ${item.nombre ?? ''}`.trim(), key: null }} horizontal={horizontal} />
         ) : item?.isEspecial ? (
           // (1.13.0) Especial: solo texto, como Oración; el nombre debajo.
           <div className="m-auto flex flex-col items-center gap-1 text-center px-6">
@@ -400,6 +403,7 @@ export default function MinutaReader() {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onWheel={alRueda}
         // Derecho: todo el gesto lo maneja la app (cambiar de página o salir arriba/abajo). Girado: pan-y para recorrer.
         style={{ touchAction: horizontal ? 'pan-y' : 'none' }}
       >
@@ -411,19 +415,31 @@ export default function MinutaReader() {
         {/* Arriba a la derecha: añadir recordatorio a esta alabanza (1.7.0; solo en páginas de canto) y girar
             (1.6.1). Discretos, para no tapar la letra. */}
         {/* Arriba a la izquierda (1.13.1, Josué: simétrico): los dos de post-it, solo en páginas de canto y de pie. */}
-        <div className="absolute top-2 left-2 z-20 flex gap-2 transition-opacity duration-200"
-             style={{ opacity: cantoVisible && !horizontal ? 1 : 0, pointerEvents: cantoVisible && !horizontal ? 'auto' : 'none' }}>
-          <BotonRecordatorio onClick={() => abrirPanel(null)} />
-          {puedeDejarAOtros && <BotonEnviados activo={verEnviados} onClick={() => setVerEnviados(v => !v)} />}
-        </div>
-        <div className="absolute top-2 right-2 z-20 flex gap-2">
-          {puedeProyectar && enComputador && (
-            <button onClick={() => setProyeccionAbierta(true)} title={t.proy_titulo}
-                    className="tap-btn-overlay h-[37px] px-3 rounded-full bg-card/90 border border-border text-foreground text-xs font-medium flex items-center gap-1.5 transition-opacity duration-200"
-                    style={{ opacity: paginaVisible === 0 ? 1 : 0, pointerEvents: paginaVisible === 0 ? 'auto' : 'none' }}>
-              <Presentation size={15} />{t.proy_titulo}
+        <div className="absolute top-2 left-2 z-20 flex gap-2">
+          {enComputador && (
+            <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/minutas'))} aria-label={t.minutas_title} title={t.minutas_title}
+                    className="tap-btn-overlay p-2 rounded-full bg-card/90 border border-border text-foreground/80">
+              <ArrowLeft size={18} />
             </button>
           )}
+          <div className="flex gap-2 transition-opacity duration-200"
+               style={{ opacity: cantoVisible && !horizontal ? 1 : 0, pointerEvents: cantoVisible && !horizontal ? 'auto' : 'none' }}>
+            <BotonRecordatorio onClick={() => abrirPanel(null)} />
+            {puedeDejarAOtros && <BotonEnviados activo={verEnviados} onClick={() => setVerEnviados(v => !v)} />}
+          </div>
+        </div>
+        {/* Computador: flechas a los lados para pasar de canción (atenuadas y sin efecto en los extremos). */}
+        {enComputador && ([-1, 1] as const).map(d => {
+          const puede = d < 0 ? paginaVisible > 0 : paginaVisible < totalPages - 1;
+          return (
+            <button key={d} onClick={() => paso(d)} aria-label={d < 0 ? '‹' : '›'}
+                    className={`absolute top-1/2 -translate-y-1/2 z-20 ${d < 0 ? 'left-3' : 'right-3'} w-10 h-10 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
+                    style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none' }}>
+              {d < 0 ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            </button>
+          );
+        })}
+        <div className="absolute top-2 right-2 z-20 flex gap-2">
 
           {puedeGirar && (
             <button {...toqueGirar} onTouchStart={e => e.stopPropagation()} aria-label="Girar" style={{ touchAction: 'none' }}
@@ -433,9 +449,6 @@ export default function MinutaReader() {
           )}
         </div>
       </div>
-      {puedeProyectar && enComputador && (
-        <PanelProyeccion abierto={proyeccionAbierta} onCerrar={() => setProyeccionAbierta(false)} minuta={minuta} />
-      )}
       <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={cantoVisible?.hymnNumber ?? null}
                          anterior={notaEditada} enviados={notasDe(cantoVisible?.hymnNumber, 'enviados')} minutaId={minuta.id} minutaPublicada={minuta.publicada} />
 

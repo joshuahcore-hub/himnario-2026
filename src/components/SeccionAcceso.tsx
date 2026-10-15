@@ -229,7 +229,7 @@ export default function MenuAcceso() {
       <div className="space-y-3">
         <p className="text-xs text-foreground flex items-start gap-1.5">
           <ShieldCheck size={14} className="text-green-600 shrink-0 mt-px" />
-          {acceso.esAdmin ? t.access_admin : acceso.puedeEditar ? t.access_approved : t.access_registered}
+          {acceso.esAdmin ? t.access_admin : acceso.puedeEditar ? t.access_approved : acceso.puedeVerMinutas ? t.access_visor : t.access_registered}
         </p>
         {!acceso.esAdmin && acceso.puedeDejarAOtros && <p className="text-[11px] text-muted-foreground">{t.access_can_remind_others}</p>}
         <div className="flex items-center justify-between">

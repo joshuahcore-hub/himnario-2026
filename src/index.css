@@ -250,21 +250,21 @@ html.color-rosa {
 html.dark.color-rosa {
   /* 1.9.3: menos saturado (Josué). */
   --background: 335 17% 11%;
-  --foreground: 340 28% 92%;
-  --card: 335 15% 15%;
-  --card-foreground: 340 28% 92%;
-  --popover: 335 15% 15%;
-  --popover-foreground: 340 28% 92%;
+  --foreground: 0 0% 92%;
+  --card: 0 0% 15%;
+  --card-foreground: 0 0% 92%;
+  --popover: 0 0% 15%;
+  --popover-foreground: 0 0% 92%;
   --primary: 340 50% 76%;
   --primary-foreground: 335 17% 12%;
-  --secondary: 335 12% 19%;
-  --secondary-foreground: 340 28% 92%;
-  --muted: 335 12% 19%;
-  --muted-foreground: 340 11% 66%;
-  --accent: 335 12% 19%;
-  --accent-foreground: 340 28% 92%;
-  --border: 335 12% 24%;
-  --input: 335 12% 24%;
+  --secondary: 0 0% 19%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 19%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 0 0% 19%;
+  --accent-foreground: 0 0% 92%;
+  --border: 0 0% 24%;
+  --input: 0 0% 24%;
   --ring: 340 50% 76%;
   --campo: 335 17% 11%;
   --barra-fondo: 335 15% 15%;
@@ -295,21 +295,21 @@ html.color-lila {
 html.dark.color-lila {
   /* 1.9.3: menos saturado (Josué). */
   --background: 265 18% 12%;
-  --foreground: 270 28% 92%;
-  --card: 265 16% 16%;
-  --card-foreground: 270 28% 92%;
-  --popover: 265 16% 16%;
-  --popover-foreground: 270 28% 92%;
+  --foreground: 0 0% 92%;
+  --card: 0 0% 15%;
+  --card-foreground: 0 0% 92%;
+  --popover: 0 0% 15%;
+  --popover-foreground: 0 0% 92%;
   --primary: 270 45% 78%;
   --primary-foreground: 265 18% 12%;
-  --secondary: 265 13% 20%;
-  --secondary-foreground: 270 28% 92%;
-  --muted: 265 13% 20%;
-  --muted-foreground: 270 12% 66%;
-  --accent: 265 13% 20%;
-  --accent-foreground: 270 28% 92%;
-  --border: 265 13% 25%;
-  --input: 265 13% 25%;
+  --secondary: 0 0% 19%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 19%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 0 0% 19%;
+  --accent-foreground: 0 0% 92%;
+  --border: 0 0% 24%;
+  --input: 0 0% 24%;
   --ring: 270 45% 78%;
   --campo: 265 18% 12%;
   --barra-fondo: 265 16% 16%;
@@ -337,23 +337,25 @@ html.color-damasco {
   --barra-fondo: 25 68% 84.5%;
   --barra-linea: 25 55% 74%;
 }
+/* (1.13.4, Josué) Oscuros de color: SOLO el fondo (y la barra y el color de los botones) llevan el tinte; tarjetas,
+   textos, bordes y casillas en gris neutro. Con todo teñido parecía un filtro sobre la pantalla. */
 html.dark.color-damasco {
   --background: 22 30% 11%;
-  --foreground: 28 60% 92%;
-  --card: 22 28% 15%;
-  --card-foreground: 28 60% 92%;
-  --popover: 22 28% 15%;
-  --popover-foreground: 28 60% 92%;
+  --foreground: 0 0% 92%;
+  --card: 0 0% 15%;
+  --card-foreground: 0 0% 92%;
+  --popover: 0 0% 15%;
+  --popover-foreground: 0 0% 92%;
   --primary: 25 85% 72%;
   --primary-foreground: 22 30% 12%;
-  --secondary: 22 22% 19%;
-  --secondary-foreground: 28 60% 92%;
-  --muted: 22 22% 19%;
-  --muted-foreground: 25 22% 66%;
-  --accent: 22 22% 19%;
-  --accent-foreground: 28 60% 92%;
-  --border: 22 22% 24%;
-  --input: 22 22% 24%;
+  --secondary: 0 0% 19%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 19%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 0 0% 19%;
+  --accent-foreground: 0 0% 92%;
+  --border: 0 0% 24%;
+  --input: 0 0% 24%;
   --ring: 25 85% 72%;
   --campo: 22 30% 11%;
   --barra-fondo: 22 28% 15%;
@@ -384,21 +386,21 @@ html.color-azul {
 html.dark.color-azul {
   /* 1.8.5: menos saturado (Josué). */
   --background: 215 22% 11%;
-  --foreground: 210 30% 92%;
-  --card: 215 20% 15%;
-  --card-foreground: 210 30% 92%;
-  --popover: 215 20% 15%;
-  --popover-foreground: 210 30% 92%;
+  --foreground: 0 0% 92%;
+  --card: 0 0% 15%;
+  --card-foreground: 0 0% 92%;
+  --popover: 0 0% 15%;
+  --popover-foreground: 0 0% 92%;
   --primary: 205 55% 70%;
   --primary-foreground: 215 22% 12%;
-  --secondary: 215 15% 20%;
-  --secondary-foreground: 210 30% 92%;
-  --muted: 215 15% 20%;
-  --muted-foreground: 210 12% 66%;
-  --accent: 215 15% 20%;
-  --accent-foreground: 210 30% 92%;
-  --border: 215 15% 25%;
-  --input: 215 15% 25%;
+  --secondary: 0 0% 19%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 19%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 0 0% 19%;
+  --accent-foreground: 0 0% 92%;
+  --border: 0 0% 24%;
+  --input: 0 0% 24%;
   --ring: 205 55% 70%;
   --campo: 215 22% 11%;
   --barra-fondo: 215 20% 15%;
@@ -429,21 +431,21 @@ html.color-salvia {
 html.dark.color-salvia {
   /* 1.8.4: menos saturado (Josué: el verde oscuro se veía intenso). */
   --background: 150 14% 10%;
-  --foreground: 140 18% 90%;
-  --card: 150 13% 14%;
-  --card-foreground: 140 18% 90%;
-  --popover: 150 13% 14%;
-  --popover-foreground: 140 18% 90%;
+  --foreground: 0 0% 92%;
+  --card: 0 0% 15%;
+  --card-foreground: 0 0% 92%;
+  --popover: 0 0% 15%;
+  --popover-foreground: 0 0% 92%;
   --primary: 140 30% 66%;
   --primary-foreground: 150 16% 11%;
-  --secondary: 150 10% 18%;
-  --secondary-foreground: 140 18% 90%;
-  --muted: 150 10% 18%;
-  --muted-foreground: 140 9% 62%;
-  --accent: 150 10% 18%;
-  --accent-foreground: 140 18% 90%;
-  --border: 150 10% 23%;
-  --input: 150 10% 23%;
+  --secondary: 0 0% 19%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 19%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 0 0% 19%;
+  --accent-foreground: 0 0% 92%;
+  --border: 0 0% 24%;
+  --input: 0 0% 24%;
   --ring: 140 30% 66%;
   --campo: 150 14% 10%;
   --barra-fondo: 150 13% 14%;

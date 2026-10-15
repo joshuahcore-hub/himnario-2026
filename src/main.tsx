@@ -1,5 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
+// Primero: la escucha de "atrás" de los paneles debe registrarse antes que las de React Router y del editor.
+import "@/lib/atras";
 import App from "./App.tsx";
 import "./index.css";
 import { fijarVertical } from "@/hooks/useHorizontal";

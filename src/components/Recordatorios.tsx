@@ -164,7 +164,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   const papel = useRef<HTMLDivElement>(null);
   // escala: cuánto está ampliada la letra (zoom). El movimiento se divide por ella para que el post-it siga al dedo
   // (1.9.5, Josué: con zoom "saltaba lejos": se movía el doble que el dedo).
-  const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean; escala: number;
+  const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean; escala: number; mouse?: boolean;
     fuera?: boolean; zona?: Zona; inicio?: DOMRect; texto?: DOMRect; dx?: number; dy?: number } | null>(null);
   const [levantado, setLevantado] = useState(false);
 
@@ -242,8 +242,11 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     const p = papel.current, a = anclaTirador.current;
     if (!p) return;
     const { w, h } = base.current;
+    // OJO (1.13.4): el translate del papel va en SUS unidades (el navegador lo multiplica por su zoom = tam × letra);
+    // antes se usaba el tamaño ya ampliado y, con el post-it grande (computador), se corría y "saltaba" al soltar.
+    const z = tam * f;
     p.style.transition = 'none';
-    p.style.transform = `translate(${((k - 1) * w) / 2}px, ${((k - 1) * h) / 2}px) ${transformPapel} scale(${k})`;
+    p.style.transform = `translate(${((k - 1) * w) / 2 / z}px, ${((k - 1) * h) / 2 / z}px) ${transformPapel} scale(${k})`;
     if (a) a.style.transform = `translate(${lado.izq ? 0 : (k - 1) * w}px, ${lado.arriba ? 0 : (k - 1) * h}px) ${transformAncla}`;
   };
   const dejarDeEstirar = (zoomFinal: number) => {
@@ -325,30 +328,33 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     el.style.transform = `translate3d(${dx / g.escala}px, ${dy / g.escala}px, 0)`;
     window.setTimeout(fijar, 210);
   };
+  // Despegar el post-it para moverlo: con el dedo, al mantener presionado; con el MOUSE (1.13.4, Josué), apenas se
+  // arrastra (un clic sin mover sigue abriendo las opciones).
+  const despegar = () => {
+    const g = gesto.current;
+    if (!g || g.arrastrando || r.id.startsWith('tmp-') || enviado) return;
+    g.arrastrando = true;
+    navigator.vibrate?.(15);
+    try { caja.current?.setPointerCapture(g.id); } catch { /* sin captura igual funciona */ }
+    if (papel.current) {
+      g.zona = medirZona(papel.current);
+      g.inicio = papel.current.getBoundingClientRect();
+      // El texto (para permitir que el papel asome por los lados sin cortarlo).
+      g.texto = (papel.current.querySelector('[data-texto-postit]') ?? papel.current).getBoundingClientRect();
+    }
+    if (caja.current) caja.current.style.willChange = 'transform'; // capa propia: moverlo no repinta nada
+    onCerrarOpciones();
+    setLevantado(true);
+  };
   const eventos = {
     onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.stopPropagation();
-      const id = e.pointerId;
       gesto.current = {
-        x: e.clientX, y: e.clientY, t: Date.now(), id, arrastrando: false,
+        x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, arrastrando: false,
         escala: caja.current && caja.current.offsetWidth ? caja.current.getBoundingClientRect().width / caja.current.offsetWidth : 1,
-        timer: window.setTimeout(() => {
-          const g = gesto.current;
-          if (!g || r.id.startsWith('tmp-') || enviado) return;
-          g.arrastrando = true;
-          navigator.vibrate?.(15);
-          try { caja.current?.setPointerCapture(id); } catch { /* sin captura igual funciona */ }
-          if (papel.current) {
-            g.zona = medirZona(papel.current);
-            g.inicio = papel.current.getBoundingClientRect();
-            // El texto (para permitir que el papel asome por los lados sin cortarlo).
-            g.texto = (papel.current.querySelector('[data-texto-postit]') ?? papel.current).getBoundingClientRect();
-          }
-          if (caja.current) caja.current.style.willChange = 'transform'; // capa propia: moverlo no repinta nada
-          onCerrarOpciones();
-          setLevantado(true);
-        }, MANTENER_MS),
+        timer: window.setTimeout(despegar, MANTENER_MS),
+        mouse: e.pointerType === 'mouse',
       };
     },
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
@@ -356,8 +362,11 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       if (!g || g.id !== e.pointerId) return;
       const dx = e.clientX - g.x, dy = e.clientY - g.y;
       if (!g.arrastrando) {
-        if (Math.hypot(dx, dy) > MOVER_MAX) { window.clearTimeout(g.timer); gesto.current = null; }
-        return;
+        if (Math.hypot(dx, dy) <= MOVER_MAX) return;
+        window.clearTimeout(g.timer);
+        if (!g.mouse) { gesto.current = null; return; }
+        despegar();
+        if (!g.arrastrando) { gesto.current = null; return; }
       }
       if (caja.current) caja.current.style.transform = `translate3d(${dx / g.escala}px, ${dy / g.escala}px, 0)`;
       g.dx = dx; g.dy = dy;
@@ -698,17 +707,20 @@ export function BotonEnviados({ activo, onClick }: { activo: boolean; onClick: (
 
 /** Interruptor largo de dos lados (1.13.1, Josué): es UN solo botón; cada toque pasa al otro lado (no son dos
  *  botones). El lado elegido se marca con una "píldora" que se desliza. */
-function Conmutador({ izquierda, derecha, derechaActiva, onCambiar, deshabilitado = false }: {
+function Conmutador({ izquierda, derecha, derechaActiva, onCambiar, deshabilitado = false, dosLineas = false }: {
   izquierda: string; derecha: string; derechaActiva: boolean; onCambiar: (derecha: boolean) => void; deshabilitado?: boolean;
+  /** (1.13.4, Josué, opción A) Textos largos en dos renglones: un poco más alto, se lee completo. */
+  dosLineas?: boolean;
 }) {
+  const texto = dosLineas ? 'leading-tight [text-wrap:balance]' : 'truncate';
   return (
     <button type="button" role="switch" aria-checked={derechaActiva} disabled={deshabilitado}
             onClick={() => onCambiar(!derechaActiva)}
-            className="relative w-full h-10 rounded-full bg-muted p-1 grid grid-cols-2 items-center text-[13px] font-medium [touch-action:manipulation] disabled:opacity-50">
-      <span aria-hidden className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-full bg-card shadow-sm"
+            className={`relative w-full ${dosLineas ? 'h-[52px] rounded-[22px]' : 'h-10 rounded-full'} bg-muted p-1 grid grid-cols-2 items-center text-[13px] font-medium [touch-action:manipulation] disabled:opacity-50`}>
+      <span aria-hidden className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] ${dosLineas ? 'rounded-[18px]' : 'rounded-full'} bg-card shadow-sm`}
             style={{ transform: derechaActiva ? 'translateX(100%)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
-      <span className={`relative text-center truncate px-2 transition-colors duration-200 ${derechaActiva ? 'text-muted-foreground' : 'text-foreground'}`}>{izquierda}</span>
-      <span className={`relative text-center truncate px-2 transition-colors duration-200 ${derechaActiva ? 'text-foreground' : 'text-muted-foreground'}`}>{derecha}</span>
+      <span className={`relative text-center ${texto} px-2 transition-colors duration-200 ${derechaActiva ? 'text-muted-foreground' : 'text-foreground'}`}>{izquierda}</span>
+      <span className={`relative text-center ${texto} px-2 transition-colors duration-200 ${derechaActiva ? 'text-foreground' : 'text-muted-foreground'}`}>{derecha}</span>
     </button>
   );
 }
@@ -931,7 +943,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
 
         {/* Alcance (1.13.1, Josué): interruptor largo. Por defecto, en una minuta: "Solo esta minuta". */}
         {minutaId && (
-          <Conmutador izquierda={t.rec_this_minuta} derecha={t.rec_always} derechaActiva={!soloMinuta}
+          <Conmutador izquierda={t.rec_this_minuta} derecha={t.rec_always} derechaActiva={!soloMinuta} dosLineas
                       onCambiar={siempre => setSoloMinuta(!siempre)} />
         )}
 

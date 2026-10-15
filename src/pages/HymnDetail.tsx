@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, RotateCwSquare } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, RotateCwSquare } from 'lucide-react';
 import { getHymns, precargarHimno, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { getFilteredNumbers, marcarUltimoHimno } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
@@ -13,8 +13,9 @@ import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
 import { AcotacionesPostit, BotonEnviados, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
 import ZoomableImage from '@/components/ZoomableImage';
 import Zoomable from '@/components/Zoomable';
-import HimnoRecortado, { vistaRecortada } from '@/components/HimnoRecortado';
-import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, UMBRAL_LADO } from '@/lib/deslizar';
+import HimnoRecortado, { proporcionLetra, vistaRecortada } from '@/components/HimnoRecortado';
+import { esComputador } from '@/lib/proyeccion';
+import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
 /**
  * Barra para saltar a cualquier himno sin pasar uno por uno (pedido de Josué): se arrastra el círculo (o se toca un
  * punto de la barra) y, al soltar, se salta a ese himno. Mientras se arrastra, una burbuja muestra número y título.
@@ -102,6 +103,22 @@ export default function HymnDetail() {
   // Botones de arriba: se activan al soltar el dedo (ver useToque: tras deslizar, el primer click no llegaba).
   const toqueVolver = useToque(() => navigate('/hymnal'));
   const toqueGirar = useToque(() => girarPantalla(horizontal));
+  // Computador (1.13.4, Josué): flechas a los lados, rueda del mouse (un himno por muesca) y la letra más grande
+  // aprovechando el ancho: todos al MISMO ancho (misma letra); los muy altos, al alto que cabe (algo más grandes que antes).
+  const [enComputador] = useState(esComputador);
+  const [pantalla, setPantalla] = useState(() => ({ ancho: window.innerWidth, alto: window.innerHeight }));
+  useEffect(() => {
+    if (!enComputador) return;
+    const medir = () => setPantalla({ ancho: window.innerWidth, alto: window.innerHeight });
+    window.addEventListener('resize', medir);
+    return () => window.removeEventListener('resize', medir);
+  }, [enComputador]);
+  const anchoLetraPc = (n: number) => {
+    const disponible = pantalla.alto - 60 - 64 - 60; // botones de arriba, barra de pestañas y contador
+    return Math.round(Math.min(780, pantalla.ancho * 0.62, disponible / proporcionLetra(n)));
+  };
+  const ruedaRef = useRef({ acum: 0, ultimo: 0, paso: 0 });
+  const pasoRef = useRef<((d: 1 | -1) => void) | null>(null);
 
   const initial = getHymns();
   const [navNumbers, setNavNumbers] = useState<number[]>(() => {
@@ -288,6 +305,21 @@ export default function HymnDetail() {
     terminarPaso.current = () => { clearTimeout(timer); terminar(); };
   };
 
+  // Paso con flecha o rueda (computador). Si hay uno animándose se completa y el siguiente usa la versión nueva.
+  pasoRef.current = d => {
+    if (currentIndex + d < 0 || currentIndex + d >= navNumbers.length) return;
+    animateSlide(-d);
+  };
+  const paso = (d: 1 | -1) => {
+    if (terminarPaso.current) terminarPaso.current();
+    pasoRef.current?.(d);
+  };
+  const alRueda = (e: React.WheelEvent) => {
+    if (e.ctrlKey || !enComputador) return;
+    const d = rueda(e, ruedaRef.current);
+    if (d) paso(d);
+  };
+
   const currentNum = navNumbers[currentIndex];
   // Al salir, la lista del himnario queda a la altura del último himno visto (Josué, 1.7.6).
   useEffect(() => { if (currentNum) marcarUltimoHimno(currentNum); }, [currentNum]);
@@ -336,13 +368,13 @@ export default function HymnDetail() {
            style={{ transform: `translateX(${offset * 100}%)`, paddingTop: '3.75rem', paddingBottom: 'calc(var(--barra) + 3.75rem)' }}>
         {/* Post-it: los que no se han movido van en fila justo arriba de la letra (fuera del flujo: la letra no se corre
             al agregarlos ni al moverlos); los movidos, pegados en su lugar de la letra, encima de la imagen (1.9.0). */}
-        <div className="relative w-full min-h-0 flex justify-center">
+        <div className="relative w-full min-h-0 flex justify-center" style={enComputador ? { width: anchoLetraPc(num), maxWidth: '100%' } : undefined}>
           <NotasRecordatorio notas={notasVista(num)} enviados={verEnviados} onTocar={abrirPanel} className="absolute bottom-full left-0 right-0 mx-auto max-w-lg px-4 pb-3 pointer-events-none" />
           <ZoomableImage
             src={src}
             alt={`${t.hymn_alt}${num}`}
             className="block w-full h-auto"
-            claseMarco="w-full max-w-lg"
+            claseMarco={enComputador ? 'w-full' : 'w-full max-w-lg'}
             estilo={vistaRecortada(num)}
             onEdgeSwipe={handleEdgeSwipe}
           >
@@ -388,13 +420,24 @@ export default function HymnDetail() {
       </div>
       <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={currentNum} anterior={notaEditada}
                          enviados={notasDe(currentNum, 'enviados')} />
-      <div ref={areaRef} className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
+      <div ref={areaRef} className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onWheel={alRueda} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderSlide(prevNum, -1)}
           {renderSlide(currentNum, 0)}
           {renderSlide(nextNum, 1)}
         </div>
       </div>
+      {enComputador && ([-1, 1] as const).map(d => {
+        const i = indiceDestino ?? currentIndex;
+        const puede = d < 0 ? i > 0 : i < navNumbers.length - 1;
+        return (
+          <button key={d} onClick={() => paso(d)} aria-label={d < 0 ? '‹' : '›'}
+                  className={`absolute top-1/2 -translate-y-1/2 z-20 ${d < 0 ? 'left-4' : 'right-4'} w-10 h-10 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
+                  style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none' }}>
+            {d < 0 ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+          </button>
+        );
+      })}
       {/* Contador y, debajo, la barra para saltar a cualquier himno; todo encima de la barra de pestañas (h-16, z-50).
           En horizontal no se muestran: tapaban la letra. */}
       {!horizontal && <>

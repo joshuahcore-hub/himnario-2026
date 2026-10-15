@@ -43,10 +43,13 @@ export default function SeccionPdf() {
         {/* Fecha y peso: a la derecha del título, tenues, como dato secundario (1.12.1, Josué). */}
         <div className="flex items-center gap-2">
           <FileDown size={14} className="text-muted-foreground shrink-0" />
-          <span className="text-xs font-medium text-foreground">{t.pdf_title}</span>
-          <span className="ml-auto text-[10px] font-normal text-muted-foreground/60 whitespace-nowrap">
-            {t.pdf_updated} {formatearFecha(pdf.actualizado)} · {Math.round(pdf.bytes / 1024)} KB
-          </span>
+          {/* (1.13.4, Josué) Título y dato en la MISMA línea base (items-baseline), no centrados a lo alto. */}
+          <div className="flex-1 min-w-0 flex items-baseline gap-2">
+            <span className="text-xs font-medium text-foreground">{t.pdf_title}</span>
+            <span className="ml-auto text-[10px] font-normal text-muted-foreground/60 whitespace-nowrap">
+              {t.pdf_updated} {formatearFecha(pdf.actualizado)} · {Math.round(pdf.bytes / 1024)} KB
+            </span>
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground">{t.pdf_description}</p>
       </div>
