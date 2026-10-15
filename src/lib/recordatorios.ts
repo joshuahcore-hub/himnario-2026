@@ -75,11 +75,11 @@ export async function cargarPersonas(): Promise<Persona[]> {
 export const personasGuardadas = () => personas;
 
 /**
- * Devuelve una función que da los recordatorios de un himno: primero los míos para mí, luego los que me dejaron y
- * al final los que dejé a otros. minutaId: la minuta que se está viendo (null en el himnario): ahí se suman los
+ * Devuelve una función que da los recordatorios de un himno: primero los míos para mí y luego los que me dejaron
+ * (o, con tipo 'enviados', los que dejé a otros). minutaId: la minuta que se está viendo (null en el himnario): ahí se suman los
  * "solo en esta minuta". Se redibuja solo cuando cambian los recordatorios.
  */
-export function useRecordatorios(registrado: boolean, minutaId: string | null = null): (himno: number | null | undefined) => Recordatorio[] {
+export function useRecordatorios(registrado: boolean, minutaId: string | null = null): (himno: number | null | undefined, tipo?: 'visibles' | 'enviados') => Recordatorio[] {
   const [, setVersion] = useState(0);
   useEffect(() => {
     const f = () => setVersion(v => v + 1);
@@ -91,8 +91,11 @@ export function useRecordatorios(registrado: boolean, minutaId: string | null = 
   }, [registrado]);
   const todos = [...locales, ...(registrado ? delServidor : [])];
   const orden = (r: Recordatorio) => (r.para ? 2 : r.autor ? 1 : 0);
-  return himno => (!himno ? [] : todos
+  // 'visibles' (sobre la letra): los míos para mí y los que me dejaron. 'enviados': los que dejé a otras personas;
+  // NO se muestran sobre la letra (Josué, 1.8.3: no son para mí), se ven en el panel → "Enviados".
+  return (himno, tipo = 'visibles') => (!himno ? [] : todos
     .filter(r => r.himno === himno && (r.minuta === null || r.minuta === undefined || r.minuta === minutaId))
+    .filter(r => (tipo === 'enviados' ? !!r.para : !r.para))
     .sort((a, b) => orden(a) - orden(b) || a.creado.localeCompare(b.creado)));
 }
 

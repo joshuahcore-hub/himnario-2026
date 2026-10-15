@@ -5,7 +5,7 @@
 // - BotonRecordatorio: el botón amarillo de arriba.
 // - PanelRecordatorio: escribir / editar / borrar. Para quién y si es "siempre" o "solo esta minuta".
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PenLine, StickyNote, Trash2 } from 'lucide-react';
+import { ArrowLeft, PenLine, Send, StickyNote, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -169,26 +169,41 @@ export function BotonRecordatorio({ onClick, className = '' }: { onClick: () => 
   );
 }
 
-export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId = null, minutaPublicada = true }: {
+export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados = [], minutaId = null, minutaPublicada = true }: {
   abierto: boolean;
   onCerrar: () => void;
   himno: number | null;
   /** null = recordatorio nuevo. */
   anterior: Recordatorio | null;
+  /** Los que dejé a otras personas en esta alabanza (no se ven sobre la letra; aquí, en "Enviados"). */
+  enviados?: Recordatorio[];
   /** La minuta que se está viendo (null en el himnario: ahí solo existe "siempre en esta alabanza"). */
   minutaId?: string | null;
   minutaPublicada?: boolean;
 }) {
   const { t } = useI18n();
   const { registrado, puedeDejarAOtros } = useAcceso();
+  // El recordatorio que se edita: empieza siendo `anterior`, pero desde "Enviados" se puede elegir otro.
+  const [ant, setAnt] = useState<Recordatorio | null>(anterior);
+  const [vista, setVista] = useState<'escribir' | 'enviados'>('escribir');
+  const [porBorrar, setPorBorrar] = useState<string | null>(null);
   const [texto, setTexto] = useState('');
   const [paraId, setParaId] = useState<string | null>(null);
   const [soloMinuta, setSoloMinuta] = useState(false);
   const [personas, setPersonas] = useState<Persona[]>(personasGuardadas);
   const [guardando, setGuardando] = useState(false);
   // Editar uno y dejarlo SIN texto = querer borrarlo: al cerrar (o tocar "Eliminar") se pregunta, en el MISMO panel
-  // (Josué, 1.7.1: el basurero dentro de la edición se veía raro; borrar es manteniendo presionada la nota).
+  // (Josué, 1.7.1: el basurero dentro de la edición se veía raro).
   const [confirmando, setConfirmando] = useState(false);
+
+  const cargar = (r: Recordatorio | null) => {
+    setAnt(r);
+    setTexto(r?.texto ?? '');
+    setParaId(r?.para?.id ?? null);
+    setSoloMinuta(r ? !!r.minuta : !!minutaId);
+    setGuardando(false);
+    setConfirmando(false);
+  };
 
   // Se reinicia al ABRIR, nunca al cerrar (si no, durante el desvanecimiento se vería el estado anterior).
   // 1.8.1: se reinicia DURANTE el dibujo en que se abre (no en un efecto después): con el efecto, el primer cuadro
@@ -196,13 +211,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
   const [abiertoAntes, setAbiertoAntes] = useState(abierto);
   if (abierto !== abiertoAntes) {
     setAbiertoAntes(abierto);
-    if (abierto) {
-      setTexto(anterior?.texto ?? '');
-      setParaId(anterior?.para?.id ?? null);
-      setSoloMinuta(anterior ? !!anterior.minuta : !!minutaId);
-      setGuardando(false);
-      setConfirmando(false);
-    }
+    if (abierto) { cargar(anterior); setVista('escribir'); setPorBorrar(null); }
   }
   useEffect(() => {
     if (abierto && puedeDejarAOtros && !anterior?.local) cargarPersonas().then(setPersonas);
@@ -210,12 +219,12 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
 
   // Para otra persona: solo el admin y quienes él autorice. En una minuta privada, "solo esta minuta" no puede ir a
   // otro (no la vería).
-  const conPersonas = puedeDejarAOtros && !anterior?.local && personas.length > 0;
+  const conPersonas = puedeDejarAOtros && !ant?.local && personas.length > 0;
   const bloqueoPrivada = soloMinuta && !!minutaId && !minutaPublicada;
   useEffect(() => { if (bloqueoPrivada) setParaId(null); }, [bloqueoPrivada]);
 
-  const cambio = texto.trim() !== (anterior?.texto ?? '') || paraId !== (anterior?.para?.id ?? null)
-    || soloMinuta !== (anterior ? !!anterior.minuta : !!minutaId);
+  const cambio = texto.trim() !== (ant?.texto ?? '') || paraId !== (ant?.para?.id ?? null)
+    || soloMinuta !== (ant ? !!ant.minuta : !!minutaId);
   const listo = cambio && texto.trim().length > 0 && !guardando;
 
   // Guardar y borrar se ven AL INSTANTE (1.8.1, Josué: "todo fluido"): el panel se cierra ya y el servidor se
@@ -225,27 +234,29 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
     if (!listo || !himno) return;
     setGuardando(true);
     onCerrar();
+    const para = personas.find(p => p.id === paraId) ?? null;
     guardarRecordatorio({
-      anterior, himno, texto: texto.trim(), paraId, para: personas.find(p => p.id === paraId) ?? null,
-      minuta: soloMinuta && minutaId ? minutaId : null,
+      anterior: ant, himno, texto: texto.trim(), paraId, para, minuta: soloMinuta && minutaId ? minutaId : null,
     }, registrado).catch(avisarError);
+    // Lo enviado a otra persona no queda sobre la letra (1.8.3): un aviso confirma que salió.
+    if (para && !ant) toast.success(t.rec_sent_to(para.nombre));
   };
 
   const borrar = () => {
-    if (!anterior || guardando) return;
+    if (!ant || guardando) return;
     setGuardando(true);
     onCerrar();
-    borrarRecordatorio(anterior).catch(avisarError);
+    borrarRecordatorio(ant).catch(avisarError);
   };
 
-  const vacio = !!anterior && texto.trim().length === 0;
+  const vacio = !!ant && texto.trim().length === 0;
   /** Cerrar (tocar fuera, X, atrás): si quedó vacío, primero pregunta. Ya preguntando, cerrar = no borrar nada. */
   const intentarCerrar = () => {
-    if (vacio && !confirmando && !guardando) setConfirmando(true);
+    if (vista === 'escribir' && vacio && !confirmando && !guardando) setConfirmando(true);
     else if (!guardando) onCerrar();
   };
-  const avisoBorrar = anterior?.para && anterior.estado !== 'eliminado' ? t.rec_delete_both(anterior.para.nombre)
-    : anterior?.autor ? t.rec_delete_received(anterior.autor.nombre) : '';
+  const avisoBorrar = ant?.para && ant.estado !== 'eliminado' ? t.rec_delete_both(ant.para.nombre)
+    : ant?.autor ? t.rec_delete_received(ant.autor.nombre) : '';
 
   // Opciones del panel: alto de 36 px (antes ~28 y costaba acertarles, Josué 1.7.1) y touch-action none (un toque
   // con un poco de movimiento no se cancela).
@@ -253,6 +264,10 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
     `h-9 px-3.5 rounded-full text-[13px] font-medium border select-none [touch-action:none] transition-colors duration-150 ${
       activa ? 'bg-yellow-300/30 border-yellow-500/70 text-foreground' : 'border-border text-muted-foreground'
     }`;
+  const textoEstado = (r: Recordatorio) =>
+    r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
+  const colorEstado = (r: Recordatorio) => (r.estado === 'visto' ? 'text-green-700' : r.estado === 'eliminado' ? 'text-red-700' : '');
+  const letraManuscrita = { fontFamily: "'Caveat', 'Segoe Print', 'Bradley Hand', cursive", fontWeight: 600, fontSize: 18, lineHeight: 1.15 };
 
   return (
     <Dialog open={abierto} onOpenChange={o => { if (!o) intentarCerrar(); }}>
@@ -270,11 +285,58 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
               </Button>
             </div>
           </>
+        ) : vista === 'enviados' ? (
+          // Enviados (1.8.3): los post-it que dejé a otras personas en esta alabanza, con su estado. Tocar uno lo
+          // edita; el basurero pregunta antes de eliminar (en la misma fila).
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <Send size={15} className="text-yellow-500" />{t.rec_sent_title}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 max-h-[55vh] overflow-y-auto py-1 -mx-1 px-1">
+              {enviados.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">{t.rec_sent_none}</p>}
+              {enviados.map(r => (
+                <div key={r.id} className="rounded-sm px-3 py-2" style={{ background: '#FFF3B0', color: '#4A3800', boxShadow: '0 1px 4px rgba(0,0,0,0.14)' }}>
+                  <div className="flex items-start gap-2">
+                    <button type="button" className="flex-1 min-w-0 text-left"
+                            onClick={() => { if (!r.id.startsWith('tmp-')) { cargar(r); setVista('escribir'); } }}>
+                      <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: '#7A6420' }}>
+                        {t.rec_for}: <Punto color={r.para!.color} />{r.para!.nombre}
+                        <span className={colorEstado(r)}>· {textoEstado(r)}</span>
+                      </span>
+                      <span className="block whitespace-pre-wrap break-words" style={letraManuscrita}>{r.texto}</span>
+                    </button>
+                    {porBorrar !== r.id && (
+                      <button type="button" aria-label={t.rec_delete} className="p-1.5 -mr-1 rounded-full text-red-700/80 shrink-0"
+                              onClick={() => setPorBorrar(r.id)}>
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                  {porBorrar === r.id && (
+                    <div className="flex items-center justify-end gap-2 pt-1.5">
+                      <span className="text-[11px] mr-auto" style={{ color: '#7A6420' }}>{t.rec_delete_confirm}</span>
+                      <button type="button" className="h-8 px-3 rounded-full text-xs font-medium border border-black/15"
+                              onClick={() => setPorBorrar(null)}>{t.rec_cancel}</button>
+                      <button type="button" className="h-8 px-3 rounded-full text-xs font-semibold bg-red-600 text-white"
+                              onClick={() => { setPorBorrar(null); borrarRecordatorio(r).catch(avisarError); }}>{t.rec_delete}</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-start pt-1">
+              <Button variant="outline" className="h-9 px-4 text-sm gap-1.5" onClick={() => { cargar(null); setVista('escribir'); }}>
+                <ArrowLeft size={14} />{t.rec_back}
+              </Button>
+            </div>
+          </>
         ) : (<>
         <DialogHeader>
           <DialogTitle className="text-sm flex items-center gap-2">
             <StickyNote size={16} className="text-yellow-500" />
-            {anterior ? t.rec_title_edit : t.rec_title_new}
+            {ant ? t.rec_title_edit : t.rec_title_new}
           </DialogTitle>
         </DialogHeader>
 
@@ -311,16 +373,26 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
           </div>
         )}
 
-        {/* Guardar/Cancelar con su espacio reservado: aparecen (opacidad) solo si algo cambió. Si se borró todo el
-            texto de uno existente, en su lugar "Eliminar" (pregunta antes). */}
-        <div className="flex justify-end gap-2 pt-1 transition-opacity duration-200"
-             style={{ opacity: listo || vacio ? 1 : 0, pointerEvents: listo || vacio ? 'auto' : 'none' }}>
-          <Button variant="outline" className="h-9 px-4 text-sm" tabIndex={listo || vacio ? 0 : -1} onClick={onCerrar}>{t.rec_cancel}</Button>
-          {vacio ? (
-            <Button variant="destructive" className="h-9 px-4 text-sm" onClick={() => setConfirmando(true)}>{t.rec_delete}</Button>
-          ) : (
-            <Button className="h-9 px-4 text-sm" tabIndex={listo ? 0 : -1} onClick={guardar}>{t.rec_save}</Button>
+        {/* Abajo: a la izquierda "Enviados (N)" (si hay, siempre visible); a la derecha Guardar/Cancelar con su espacio
+            reservado, que aparecen (opacidad) solo si algo cambió. Si se borró todo el texto de uno existente, en
+            lugar de Guardar dice "Eliminar" (pregunta antes). */}
+        <div className="flex items-center gap-2 pt-1">
+          {!ant && enviados.length > 0 && (
+            <button type="button" className="flex items-center gap-1.5 h-9 px-1 text-xs font-medium text-muted-foreground"
+                    onClick={() => { setPorBorrar(null); setVista('enviados'); }}>
+              <Send size={13} />{t.rec_sent_count(enviados.length)}
+            </button>
           )}
+          <div className="flex-1" />
+          <div className="flex gap-2 transition-opacity duration-200"
+               style={{ opacity: listo || vacio ? 1 : 0, pointerEvents: listo || vacio ? 'auto' : 'none' }}>
+            <Button variant="outline" className="h-9 px-4 text-sm" tabIndex={listo || vacio ? 0 : -1} onClick={onCerrar}>{t.rec_cancel}</Button>
+            {vacio ? (
+              <Button variant="destructive" className="h-9 px-4 text-sm" onClick={() => setConfirmando(true)}>{t.rec_delete}</Button>
+            ) : (
+              <Button className="h-9 px-4 text-sm" tabIndex={listo ? 0 : -1} onClick={guardar}>{t.rec_save}</Button>
+            )}
+          </div>
         </div>
         </>)}
       </DialogContent>

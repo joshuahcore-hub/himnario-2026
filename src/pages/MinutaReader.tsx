@@ -359,7 +359,7 @@ export default function MinutaReader() {
         </div>
       </div>
       <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={cantoVisible?.hymnNumber ?? null}
-                         anterior={notaEditada} minutaId={minuta.id} minutaPublicada={minuta.publicada} />
+                         anterior={notaEditada} enviados={notasDe(cantoVisible?.hymnNumber, 'enviados')} minutaId={minuta.id} minutaPublicada={minuta.publicada} />
 
       <div className={`flex justify-center gap-1.5 pb-6 pt-2 flex-wrap px-4 ${pantallaCompleta ? 'hidden' : ''}`}>
         {Array.from({ length: totalPages }, (_, i) => (

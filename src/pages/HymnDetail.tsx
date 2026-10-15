@@ -367,7 +367,8 @@ export default function HymnDetail() {
           </button>
         )}
       </div>
-      <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={currentNum} anterior={notaEditada} />
+      <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={currentNum} anterior={notaEditada}
+                         enviados={notasDe(currentNum, 'enviados')} />
       <div ref={areaRef} className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderSlide(prevNum, -1)}

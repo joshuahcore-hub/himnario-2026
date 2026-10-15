@@ -277,6 +277,11 @@ export interface Translations {
   rec_always: string;
   rec_this_minuta: string;
   rec_private_hint: string;
+  rec_sent_to: (nombre: string) => string;
+  rec_sent_count: (n: number) => string;
+  rec_sent_title: string;
+  rec_sent_none: string;
+  rec_back: string;
   rec_sent: string;
   rec_seen: string;
   rec_deleted_by: (nombre: string) => string;
@@ -556,6 +561,11 @@ export const es: Translations = {
   rec_delete_both: nombre => `También se borra para ${nombre}.`,
   rec_delete_received: nombre => `${nombre} verá que lo eliminaste.`,
   rec_private_hint: 'Esta minuta es privada: para dejárselo a otra persona, elige "Siempre en esta alabanza".',
+  rec_sent_to: nombre => `Enviado a ${nombre}`,
+  rec_sent_count: n => `Enviados (${n})`,
+  rec_sent_title: 'Enviados en esta alabanza',
+  rec_sent_none: 'No hay recordatorios enviados aquí.',
+  rec_back: 'Volver',
 };
 
 export const en: Translations = {
@@ -829,6 +839,11 @@ export const en: Translations = {
   rec_delete_both: nombre => `It is also deleted for ${nombre}.`,
   rec_delete_received: nombre => `${nombre} will see that you deleted it.`,
   rec_private_hint: 'This service is private: to leave it for someone else, choose "Always on this song".',
+  rec_sent_to: nombre => `Sent to ${nombre}`,
+  rec_sent_count: n => `Sent (${n})`,
+  rec_sent_title: 'Sent on this song',
+  rec_sent_none: 'No reminders sent here.',
+  rec_back: 'Back',
 };
 
 export const pt: Translations = {
@@ -1102,6 +1117,11 @@ export const pt: Translations = {
   rec_delete_both: nombre => `Também será excluído para ${nombre}.`,
   rec_delete_received: nombre => `${nombre} verá que você o excluiu.`,
   rec_private_hint: 'Esta minuta é privada: para deixar para outra pessoa, escolha "Sempre neste louvor".',
+  rec_sent_to: nombre => `Enviado para ${nombre}`,
+  rec_sent_count: n => `Enviados (${n})`,
+  rec_sent_title: 'Enviados neste louvor',
+  rec_sent_none: 'Nenhum lembrete enviado aqui.',
+  rec_back: 'Voltar',
 };
 
 const translations: Record<Locale, Translations> = { es, en, pt };
