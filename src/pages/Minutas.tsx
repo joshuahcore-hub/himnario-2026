@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2 } from 'lucide-react';
@@ -13,6 +13,9 @@ import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { cargarRecordatorios } from '@/lib/recordatorios';
 import BotonSeguro from '@/components/BotonSeguro';
+
+/** Dónde quedó la lista de minutas (se conserva al cambiar de pestaña mientras la app esté abierta). */
+let posicionMinutas: number | null = null;
 
 export default function Minutas() {
   const navigate = useNavigate();
@@ -37,12 +40,16 @@ export default function Minutas() {
   // Si no hay ninguna, se muestra la más reciente.
   const enfocar = useRef<string | null>(null);
   if (enfocar.current === null) enfocar.current = tomarParaEnfocar();
-  useEffect(() => {
+  // Si no hay que centrar ninguna, queda donde la persona la dejó (Josué, 1.7.6: ir a otra pestaña y volver no debe
+  // devolverla al final). Solo la primera vez (o sin posición guardada) se muestra la más reciente.
+  const ubicada = useRef(false);
+  useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || ordenadas.length === 0) return;
     const tarjeta = enfocar.current && el.querySelector<HTMLElement>(`[data-minuta="${enfocar.current}"]`);
-    if (tarjeta) el.scrollLeft = tarjeta.offsetLeft - (el.clientWidth - tarjeta.offsetWidth) / 2;
-    else el.scrollLeft = el.scrollWidth;
+    if (tarjeta) { el.scrollLeft = tarjeta.offsetLeft - (el.clientWidth - tarjeta.offsetWidth) / 2; enfocar.current = ''; }
+    else if (!ubicada.current) el.scrollLeft = posicionMinutas ?? el.scrollWidth;
+    ubicada.current = true;
   }, [ordenadas.length]);
 
   const toggleSelect = (id: string) => setSelected(prev => {
@@ -172,6 +179,7 @@ export default function Minutas() {
             // Solo hacia los lados: sin desplazamiento vertical (antes se podía correr arriba/abajo sin sentido).
             // Con una minuta seleccionada la lista queda quieta: no se desliza a los lados (Josué, 1.5.6).
             style={{ overflowY: 'hidden', overflowX: selectMode ? 'hidden' : 'auto', touchAction: selectMode ? 'none' : 'pan-x', overscrollBehavior: 'contain' }}
+            onScroll={e => { posicionMinutas = e.currentTarget.scrollLeft; }}
             onWheel={e => {
               if (!selectMode && Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollRef.current?.scrollBy({ left: e.deltaY, behavior: 'smooth' });
             }}

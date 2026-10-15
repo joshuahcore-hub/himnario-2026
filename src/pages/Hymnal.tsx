@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
@@ -71,13 +71,11 @@ export default function HymnalPage() {
     setFilteredNumbers(filtered.map(h => h.hymn_number));
   }, [filtered]);
 
-  useEffect(() => {
+  // Vuelve justo donde estaba (Josué, 1.7.6): la posición se guarda al desplazar (no solo al abrir un himno), así
+  // que ir a Minutas o Crear y volver la conserva. useLayoutEffect: se pone ANTES de dibujar, sin verse arriba primero.
+  useLayoutEffect(() => {
     const savedScroll = getScrollTop();
-    if (savedScroll > 0 && scrollRef.current) {
-      requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo(0, savedScroll);
-      });
-    }
+    if (savedScroll > 0 && scrollRef.current) scrollRef.current.scrollTop = savedScroll;
   }, [ready]);
 
   const [tappedId, setTappedId] = useState<string | null>(null);
@@ -121,6 +119,7 @@ export default function HymnalPage() {
   return (
     <div
       ref={scrollRef}
+      onScroll={e => saveScrollTop(e.currentTarget.scrollTop)}
       className="px-5 pt-4 pb-4 overflow-y-auto"
       style={{ height: 'calc(100dvh - var(--barra))' }}
     >
