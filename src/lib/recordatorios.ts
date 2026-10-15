@@ -96,8 +96,15 @@ export function useRecordatorios(registrado: boolean, minutaId: string | null = 
     .sort((a, b) => orden(a) - orden(b) || a.creado.localeCompare(b.creado)));
 }
 
-/** Crea o cambia un recordatorio. paraId null = para mí. */
-export async function guardarRecordatorio(datos: { anterior: Recordatorio | null; himno: number; texto: string; paraId: string | null; minuta: string | null }, registrado: boolean) {
+/**
+ * Crea o cambia un recordatorio. Se ve AL INSTANTE (1.8.1, Josué: "todo fluido"): la lista local cambia ya y el
+ * servidor se actualiza por detrás; si falla, se deshace y la promesa se rechaza (quien llama muestra el aviso).
+ * paraId null = para mí; para = datos de esa persona (nombre y color, para mostrarlo ya).
+ */
+export async function guardarRecordatorio(
+  datos: { anterior: Recordatorio | null; himno: number; texto: string; paraId: string | null; para?: Persona | null; minuta: string | null },
+  registrado: boolean,
+) {
   const { anterior, himno, texto, paraId, minuta } = datos;
   // Visor (o recordatorio que se guardó cuando era visor): solo en este celular.
   if (!registrado || anterior?.local) {
@@ -105,10 +112,43 @@ export async function guardarRecordatorio(datos: { anterior: Recordatorio | null
     else fijarLocales([...locales, { id: crypto.randomUUID(), himno, texto, minuta, estado: 'enviado', creado: new Date().toISOString(), mio: true, autor: null, para: null, local: true }]);
     return;
   }
-  const r = anterior
-    ? await api<Recordatorio>(`recordatorios/${anterior.id}`, { metodo: 'PATCH', datos: { texto, para: paraId, minuta } })
-    : await api<Recordatorio>('recordatorios', { metodo: 'POST', datos: { himno, texto, para: paraId, minuta } });
-  fijarServidor(anterior ? delServidor.map(x => (x.id === r.id ? r : x)) : [...delServidor, r]);
+  const para = paraId ? (datos.para ?? (anterior?.para?.id === paraId ? anterior.para : null)) : null;
+  if (anterior) {
+    const antes = anterior;
+    fijarServidor(delServidor.map(x => (x.id === antes.id ? { ...x, texto, minuta, para, estado: 'enviado' } : x)));
+    try {
+      const r = await api<Recordatorio>(`recordatorios/${antes.id}`, { metodo: 'PATCH', datos: { texto, para: paraId, minuta } });
+      fijarServidor(delServidor.map(x => (x.id === r.id ? r : x)));
+    } catch (e) {
+      fijarServidor(delServidor.map(x => (x.id === antes.id ? antes : x)));
+      throw e;
+    }
+    return;
+  }
+  const temporal: Recordatorio = {
+    id: 'tmp-' + crypto.randomUUID(), himno, texto, minuta, estado: 'enviado', creado: new Date().toISOString(), mio: true, autor: null, para,
+  };
+  fijarServidor([...delServidor, temporal]);
+  try {
+    const r = await api<Recordatorio>('recordatorios', { metodo: 'POST', datos: { himno, texto, para: paraId, minuta } });
+    fijarServidor(delServidor.map(x => (x.id === temporal.id ? r : x)));
+  } catch (e) {
+    fijarServidor(delServidor.filter(x => x.id !== temporal.id));
+    throw e;
+  }
+}
+
+/** Se quita AL INSTANTE; si el servidor falla, vuelve a aparecer y la promesa se rechaza. */
+export async function borrarRecordatorio(r: Recordatorio) {
+  if (r.local) { fijarLocales(locales.filter(x => x.id !== r.id)); return; }
+  const lista = delServidor;
+  fijarServidor(delServidor.filter(x => x.id !== r.id));
+  try {
+    await api(`recordatorios/${r.id}`, { metodo: 'DELETE' });
+  } catch (e) {
+    fijarServidor(lista);
+    throw e;
+  }
 }
 
 /** Quien lo recibe: avisa (una vez) que le apareció, para que quien lo dejó vea "Visto". Sin internet, otro día. */
@@ -117,10 +157,4 @@ export function marcarVisto(r: Recordatorio) {
   api(`recordatorios/${r.id}/visto`, { metodo: 'POST' })
     .then(() => fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, estado: 'visto' } : x))))
     .catch(() => {});
-}
-
-export async function borrarRecordatorio(r: Recordatorio) {
-  if (r.local) { fijarLocales(locales.filter(x => x.id !== r.id)); return; }
-  await api(`recordatorios/${r.id}`, { metodo: 'DELETE' });
-  fijarServidor(delServidor.filter(x => x.id !== r.id));
 }

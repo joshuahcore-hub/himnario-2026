@@ -40,7 +40,7 @@ function Nota({ r, compacto, abierta, onAlternar, onEditar, onBorrar }: {
 
   const colorEstado = r.estado === 'visto' ? 'text-green-600 dark:text-green-400' : r.estado === 'eliminado' ? 'text-destructive' : '';
   const textoEstado = r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
-  const toqueNota = useToque<HTMLDivElement>(onAlternar);
+  const toqueNota = useToque<HTMLDivElement>(() => { if (!r.id.startsWith('tmp-')) onAlternar(); });
   const toqueEditar = useToque(() => onEditar(r));
   const toqueBorrar = useToque(() => onBorrar(r));
   const opcion = `flex items-center gap-1.5 rounded-full font-medium [touch-action:none] ${compacto ? 'h-7 px-3 text-[11px]' : 'h-8 px-3.5 text-xs'}`;
@@ -106,16 +106,11 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
   const [borrando, setBorrando] = useState(false);
   const pedirBorrar = (r: Recordatorio) => { setAbiertaId(null); setABorrar(r); setBorrando(false); setConfirmar(true); };
   const editar = (r: Recordatorio) => { setAbiertaId(null); onTocar(r); };
-  const borrar = async () => {
+  const borrar = () => {
     if (!aBorrar || borrando) return;
     setBorrando(true);
-    try {
-      await borrarRecordatorio(aBorrar);
-      setConfirmar(false);
-    } catch (e: any) {
-      toast.error(e instanceof ErrorDeRed ? t.rec_needs_internet : e.message);
-      setBorrando(false);
-    }
+    setConfirmar(false); // al instante; si el servidor falla, la nota vuelve a aparecer con el aviso
+    borrarRecordatorio(aBorrar).catch(e => toast.error(e instanceof ErrorDeRed ? t.rec_needs_internet : e.message));
   };
   const aviso = !aBorrar ? '' : aBorrar.autor ? t.rec_delete_received(aBorrar.autor.nombre)
     : aBorrar.para && aBorrar.estado !== 'eliminado' ? t.rec_delete_both(aBorrar.para.nombre) : '';
@@ -188,14 +183,21 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
   const [confirmando, setConfirmando] = useState(false);
 
   // Se reinicia al ABRIR, nunca al cerrar (si no, durante el desvanecimiento se vería el estado anterior).
+  // 1.8.1: se reinicia DURANTE el dibujo en que se abre (no en un efecto después): con el efecto, el primer cuadro
+  // mostraba lo de la vez anterior (p. ej. Guardar/Cancelar visibles) y "parpadeaba" un botón (Josué).
+  const [abiertoAntes, setAbiertoAntes] = useState(abierto);
+  if (abierto !== abiertoAntes) {
+    setAbiertoAntes(abierto);
+    if (abierto) {
+      setTexto(anterior?.texto ?? '');
+      setParaId(anterior?.para?.id ?? null);
+      setSoloMinuta(anterior ? !!anterior.minuta : !!minutaId);
+      setGuardando(false);
+      setConfirmando(false);
+    }
+  }
   useEffect(() => {
-    if (!abierto) return;
-    setTexto(anterior?.texto ?? '');
-    setParaId(anterior?.para?.id ?? null);
-    setSoloMinuta(anterior ? !!anterior.minuta : !!minutaId);
-    setGuardando(false);
-    setConfirmando(false);
-    if (puedeDejarAOtros && !anterior?.local) cargarPersonas().then(setPersonas);
+    if (abierto && puedeDejarAOtros && !anterior?.local) cargarPersonas().then(setPersonas);
   }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Para otra persona: solo el admin y quienes él autorice. En una minuta privada, "solo esta minuta" no puede ir a
@@ -208,28 +210,24 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
     || soloMinuta !== (anterior ? !!anterior.minuta : !!minutaId);
   const listo = cambio && texto.trim().length > 0 && !guardando;
 
-  const guardar = async () => {
+  // Guardar y borrar se ven AL INSTANTE (1.8.1, Josué: "todo fluido"): el panel se cierra ya y el servidor se
+  // actualiza por detrás; si falla, el cambio se deshace solo y aparece el aviso.
+  const avisarError = (e: any) => toast.error(e instanceof ErrorDeRed ? t.rec_needs_internet : e.message);
+  const guardar = () => {
     if (!listo || !himno) return;
     setGuardando(true);
-    try {
-      await guardarRecordatorio({ anterior, himno, texto: texto.trim(), paraId, minuta: soloMinuta && minutaId ? minutaId : null }, registrado);
-      onCerrar();
-    } catch (e: any) {
-      toast.error(e instanceof ErrorDeRed ? t.rec_needs_internet : e.message);
-      setGuardando(false);
-    }
+    onCerrar();
+    guardarRecordatorio({
+      anterior, himno, texto: texto.trim(), paraId, para: personas.find(p => p.id === paraId) ?? null,
+      minuta: soloMinuta && minutaId ? minutaId : null,
+    }, registrado).catch(avisarError);
   };
 
-  const borrar = async () => {
+  const borrar = () => {
     if (!anterior || guardando) return;
     setGuardando(true);
-    try {
-      await borrarRecordatorio(anterior);
-      onCerrar();
-    } catch (e: any) {
-      toast.error(e instanceof ErrorDeRed ? t.rec_needs_internet : e.message);
-      setGuardando(false);
-    }
+    onCerrar();
+    borrarRecordatorio(anterior).catch(avisarError);
   };
 
   const vacio = !!anterior && texto.trim().length === 0;
