@@ -31,6 +31,9 @@ const MANTENER_MS = 420; // mantener presionado para despegar el post-it y mover
 const MOVER_MAX = 7;     // si el dedo se mueve más que esto antes, es un deslizamiento (cambiar de canción), no mover
 const TIRADOR_SEP = 12;  // separación del tirador respecto a la esquina del post-it (1.9.10: "un poco más lejos")
 const TIRADOR_TAM = 30;
+/** Ancho de letra (px) en que un post-it pegado mide su tamaño "normal". Sobre la letra el post-it crece y se achica
+ *  CON la letra (1.10.1, Josué): si tapa una palabra en vertical, al girar sigue tapando la misma palabra. */
+const ANCHO_REF_LETRA = 390;
 
 /** Zona donde se ve el post-it: la página, recortada por los contenedores que no dejan ver lo que se sale. */
 function zonaVisible(marco: HTMLElement, pagina: HTMLElement) {
@@ -68,8 +71,10 @@ function evaluar(n: { left: number; top: number; right: number; bottom: number }
   return { x: (n.left - m.left) / m.width, y: (n.top - m.top) / m.height, fuera };
 }
 
-function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, soloVer = false, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
+function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, soloVer = false, escalaLetra = 1, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
   r: Recordatorio;
+  /** Pegado sobre la letra: ancho de la letra / ANCHO_REF_LETRA (el post-it se escala con ella). */
+  escalaLetra?: number;
   /** Solo para ver (celular girado, 1.9.10): no se toca, no se mueve ni se estira. */
   soloVer?: boolean;
   /** En la fila: pegados a la derecha (celular girado: sobre la esquina del autor) en vez de a la izquierda. */
@@ -143,6 +148,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   // Tirador de la esquina para agrandar/achicar (1.9.1, Josué): sigue el dedo (zoom directo, sin estado de React) y
   // al soltar se guarda; entre TAM_MIN y TAM_MAX.
   const tam = r.tam ?? 1;
+  const f = escalaLetra;
   const estirar = useRef<{ x: number; y: number; ancho: number; tam: number; id: number } | null>(null);
   const tamAl = (e: React.PointerEvent) => {
     const g = estirar.current!;
@@ -159,7 +165,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
       if (!estirar.current || !papel.current) return;
-      papel.current.style.zoom = String(tamAl(e));
+      papel.current.style.zoom = String(tamAl(e) * f);
     },
     onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
@@ -168,9 +174,9 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       estirar.current = null;
       flushSync(() => ajustarRecordatorio(r, { tam: nuevo }));
       // Queda EXACTAMENTE el tamaño que se veía al soltar (1.9.7, Josué: antes se borraba y volvía al normal).
-      if (papel.current) papel.current.style.zoom = String(nuevo);
+      if (papel.current) papel.current.style.zoom = String(nuevo * f);
     },
-    onPointerCancel: () => { estirar.current = null; if (papel.current) papel.current.style.zoom = String(tam); },
+    onPointerCancel: () => { estirar.current = null; if (papel.current) papel.current.style.zoom = String(tam * f); },
     // El gesto es del tirador: la página no se desliza ni se cierra.
     onTouchStart: (e: React.TouchEvent) => e.stopPropagation(),
     onTouchMove: (e: React.TouchEvent) => e.stopPropagation(),
@@ -284,7 +290,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         ref={papel}
         className={`relative text-left ${compacto ? 'px-2.5 pt-1.5 pb-1.5' : 'px-3.5 pt-2.5 pb-2.5'}`}
         style={{
-          zoom: tam,
+          zoom: tam * f,
           background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
           boxShadow: levantado ? '0 10px 24px rgba(0,0,0,0.28)' : '0 2px 6px rgba(0,0,0,0.16)',
           transform: `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg) scale(${levantado ? 1.05 : 1})`,
@@ -369,6 +375,18 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
   const [abiertaId, setAbiertaId] = useState<string | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
   useAlTocarFuera(contenedor, abiertaId !== null, useCallback(() => setAbiertaId(null), []));
+  // Sobre la letra: el post-it se escala con el ancho de la letra (la capa mide lo mismo que el recuadro de la letra;
+  // offsetWidth no incluye el zoom de pellizcar, que ya amplía todo junto).
+  const [escalaLetra, setEscalaLetra] = useState(1);
+  useLayoutEffect(() => {
+    const el = contenedor.current;
+    if (!sobreLetra || !el) return;
+    const medir = () => { if (el.offsetWidth) setEscalaLetra(el.offsetWidth / ANCHO_REF_LETRA); };
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [sobreLetra, lista.length > 0]);
   // Confirmar el borrado. El aviso se fija al ABRIRLO (no cambia mientras se desvanece al cerrar).
   const [aBorrar, setABorrar] = useState<Recordatorio | null>(null);
   const [confirmar, setConfirmar] = useState(false);
@@ -389,7 +407,7 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
     <div ref={contenedor}
          className={sobreLetra ? `absolute inset-0 pointer-events-none ${className}` : `w-full flex flex-col pt-1.5 ${compacto ? 'gap-2.5' : 'gap-3.5'} ${className}`}>
       {lista.map((r, i) => (
-        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra} alDerecha={alDerecha} soloVer={soloVer}
+        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra} alDerecha={alDerecha} soloVer={soloVer} escalaLetra={sobreLetra ? escalaLetra : 1}
               onAlternar={() => setAbiertaId(a => (a === r.id ? null : r.id))} onCerrarOpciones={() => setAbiertaId(null)}
               onEditar={editar} onBorrar={pedirBorrar} />
       ))}
@@ -421,12 +439,17 @@ export function AcotacionesPostit({ notas, className = '' }: { notas: Recordator
   const lista = notas.filter(r => !vaSobreLetra(r));
   if (lista.length === 0) return null;
   return (
-    <div className={`flex flex-wrap items-center gap-x-[1.6em] gap-y-[0.3em] ${className}`}
-         style={{ fontSize: 'clamp(13px, 3.4cqw, 34px)', lineHeight: 1.25 }}>
-      {lista.map(r => (
-        <span key={r.id} className="inline-flex items-center gap-[0.4em] min-w-0 max-w-full">
-          <MiniPostit tam={16} mas={false} />
-          <span className="whitespace-pre-wrap break-words min-w-0 text-foreground" style={{ fontFamily: LETRA_POSTIT }}>{r.texto}</span>
+    // Cada uno es un post-it amarillo ALARGADO hacia el lado (1.10.1, Josué: como el papel, no ícono + texto suelto).
+    <div className={`flex flex-wrap items-center gap-x-[0.8em] gap-y-[0.45em] pt-[0.3em] ${className}`}
+         style={{ fontSize: 'clamp(13px, 3.4cqw, 34px)', lineHeight: 1.2 }}>
+      {lista.map((r, i) => (
+        <span key={r.id} className="relative inline-block min-w-0 max-w-full px-[0.6em] pt-[0.18em] pb-[0.14em] whitespace-pre-wrap break-words"
+              style={{ fontFamily: LETRA_POSTIT, background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 0.4em 2px',
+                       boxShadow: '0 2px 6px rgba(0,0,0,0.16)', transform: `rotate(${i % 2 === 0 ? -0.8 : 0.6}deg)` }}>
+          {/* Cinta adhesiva */}
+          <span className="absolute left-1/2 -top-[0.22em] h-[0.42em] w-[1.6em] -ml-[0.8em] bg-white/55 dark:bg-white/35 pointer-events-none"
+                style={{ transform: 'rotate(2deg)' }} />
+          {r.texto}
         </span>
       ))}
     </div>

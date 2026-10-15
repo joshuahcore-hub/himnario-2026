@@ -60,7 +60,7 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (
             <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)}>
-              <NotasRecordatorio notas={notas.filter(vaSobreLetra)} compacto sobreLetra soloVer onTocar={onTocarNota} />
+              <NotasRecordatorio notas={notas.filter(vaSobreLetra)} sobreLetra soloVer onTocar={onTocarNota} />
             </HimnoRecortado>
           )}
         </div>

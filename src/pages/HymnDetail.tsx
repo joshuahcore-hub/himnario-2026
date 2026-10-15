@@ -317,7 +317,7 @@ export default function HymnDetail() {
             <div className="w-full" style={{ containerType: 'inline-size' }}>
               <AcotacionesPostit notas={notasDe(num)} className="px-[5%] pb-1" />
               <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`}>
-                <NotasRecordatorio notas={notasDe(num).filter(vaSobreLetra)} compacto sobreLetra soloVer onTocar={abrirPanel} />
+                <NotasRecordatorio notas={notasDe(num).filter(vaSobreLetra)} sobreLetra soloVer onTocar={abrirPanel} />
               </HimnoRecortado>
             </div>
           </Zoomable>
