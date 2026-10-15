@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowLeft, EyeOff, Globe, Lock, RefreshCw, RotateCcw } from 'lucide-react';
+import { ArrowLeft, EyeOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { marcarTodasVistas } from '@/lib/notificaciones';
 import { ChipAutor } from '@/components/Portada';
 import { api, ErrorDeRed } from '@/lib/api';
-import { refrescarMinutas } from '@/lib/minutaCache';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { revisarPendientes } from '@/hooks/usePendientes';
@@ -44,17 +42,6 @@ function Interruptor({ activo, onCambiar, texto }: { activo: boolean; onCambiar:
   );
 }
 
-interface EntradaHistorial {
-  id: number;
-  minuta_id: string;
-  accion: 'creada' | 'editada' | 'borrada' | 'restaurada' | 'publicada' | 'privada' | 'duplicada';
-  titulo: string | null;
-  fecha: string;
-  nombre: string | null;
-  color: string | null;
-  borrada: number | null;
-}
-
 const fechaHora = (iso: string) =>
   new Date(iso).toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -62,26 +49,21 @@ export default function Admin() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { esAdmin } = useAcceso();
-  // La pestaña va en la dirección (?ver=historial): al recargar se queda donde estaba (antes volvía a Personas).
-  const [parametros, setParametros] = useSearchParams();
-  const pestana: 'personas' | 'historial' = parametros.get('ver') === 'historial' ? 'historial' : 'personas';
-  const setPestana = (p: 'personas' | 'historial') =>
-    setParametros(p === 'historial' ? { ver: 'historial' } : {}, { replace: true });
+  // (1.15.0, Josué) Administración queda solo con Personas: el historial pasó a ⋮ → Notificaciones → Avisos.
+  // Las notificaciones viejas que apuntan a ?ver=historial llevan ahí.
+  const [parametros] = useSearchParams();
   const [dispositivos, setDispositivos] = useState<DispositivoAdmin[]>([]);
-  const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
   const [cargando, setCargando] = useState(false);
   const [iaCreadores, setIaCreadores] = useState<boolean | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [d, h, c] = await Promise.all([
+      const [d, c] = await Promise.all([
         api<DispositivoAdmin[]>('admin/dispositivos'),
-        api<EntradaHistorial[]>('admin/historial'),
         api<{ ia_creadores: boolean }>('admin/config'),
       ]);
       setDispositivos(d);
-      setHistorial(h);
       setIaCreadores(c.ia_creadores);
     } catch (e: any) {
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
@@ -91,9 +73,6 @@ export default function Admin() {
   }, [t]);
 
   useEffect(() => { if (esAdmin) cargar(); }, [esAdmin, cargar]);
-  // Notificaciones (1.11.0): entrar a Administración = ya se vieron (se quita el aviso pendiente de ⋮ y Ajustes).
-  useEffect(() => { if (esAdmin) marcarTodasVistas().then(() => revisarPendientes()); }, [esAdmin]);
-
   // Quitar a una persona de la lista (1.11.0, Josué: registros repetidos). Mantener presionada su tarjeta → confirmar.
   // No se borra nada: sus minutas y recordatorios siguen; si vuelve a registrarse en ese celular, reaparece.
   const [aQuitar, setAQuitar] = useState<DispositivoAdmin | null>(null);
@@ -170,21 +149,7 @@ export default function Admin() {
     }
   };
 
-  // Restaurar (1.11.2, Josué): primero se elige "Solo para ti" (pasa a ser tuya y privada) o "Pública".
-  const [aRestaurar, setARestaurar] = useState<string | null>(null);
-  const [eligiendoRestaurar, setEligiendoRestaurar] = useState(false);
-  const restaurar = async (minutaId: string, modo: 'mia' | 'publica') => {
-    setEligiendoRestaurar(false);
-    try {
-      await api(`admin/restaurar/${minutaId}`, { metodo: 'POST', datos: { modo } });
-      await refrescarMinutas();
-      toast.success(t.admin_restored);
-      cargar();
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
-
+  if (parametros.get('ver') === 'historial') return <Navigate to="/settings?avisos=1" replace />;
   if (!esAdmin) {
     return <div className="p-6 text-center text-sm text-muted-foreground">{t.admin_only}</div>;
   }
@@ -201,16 +166,6 @@ export default function Admin() {
     rechazado: 'bg-muted text-muted-foreground',
     deshabilitado: 'bg-destructive/15 text-destructive',
   };
-  const etiquetaAccion: Record<EntradaHistorial['accion'], string> = {
-    creada: t.admin_action_created,
-    editada: t.admin_action_edited,
-    borrada: t.admin_action_deleted,
-    restaurada: t.admin_action_restored,
-    publicada: t.admin_action_published,
-    privada: t.admin_action_private,
-    duplicada: t.admin_action_duplicated,
-  };
-
   const pendientes = dispositivos.filter(d => d.estado === 'pendiente');
   const resto = dispositivos.filter(d => d.estado !== 'pendiente');
 
@@ -263,97 +218,32 @@ export default function Admin() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 px-5 pb-3">
-        {(['personas', 'historial'] as const).map(p => (
-          <button
-            key={p}
-            onClick={() => setPestana(p)}
-            className={`py-2 rounded-lg text-xs font-semibold ${pestana === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}
-          >
-            {p === 'personas' ? `${t.admin_people}${pendientes.length ? ` (${pendientes.length})` : ''}` : t.admin_history}
-          </button>
-        ))}
-      </div>
-
       <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-2">
-        {pestana === 'personas' ? (
-          <>
-            {iaCreadores !== null && (
-              <button
-                onClick={() => cambiarIaCreadores(!iaCreadores)}
-                className="w-full bg-card rounded-xl border border-border p-3 flex items-center gap-3 text-left mb-2 animate-in fade-in"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-muted-foreground">{t.admin_ia_title}</p>
-                  <p className="text-sm text-foreground">{t.admin_ia_creators}</p>
-                  <p className="text-[10px] text-muted-foreground">{t.admin_ia_creators_desc}</p>
-                </div>
-                {/* Interruptor propio (sin controles nativos) */}
-                <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${iaCreadores ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-                  <span
-                    className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-background shadow-sm"
-                    style={{ transform: iaCreadores ? 'translateX(20px)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }}
-                  />
-                </span>
-              </button>
-            )}
-            {pendientes.length > 0 && <p className="text-[11px] font-semibold text-muted-foreground pt-1">{t.admin_pending_requests}</p>}
-            {pendientes.map(tarjeta)}
-            {resto.length > 0 && <p className="text-[11px] font-semibold text-muted-foreground pt-3">{t.admin_people}</p>}
-            {resto.map(tarjeta)}
-            {dispositivos.length === 0 && !cargando && <p className="text-xs text-muted-foreground text-center py-8">{t.admin_no_people}</p>}
-          </>
-        ) : (
-          <>
-            {/* Cada acción separada por una línea delgada, sin recuadros (1.11.1, Josué: más elegante). */}
-            <div className="divide-y divide-border">
-            {historial.map(h => (
-              <div key={h.id} className="px-1 py-2.5 flex items-center gap-2">
-                <div className="flex-1 min-w-0 space-y-0.5">
-                  <p className="text-xs text-foreground truncate">
-                    <span className="font-semibold">{etiquetaAccion[h.accion]}</span> · {h.titulo || 'Minuta'}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {h.nombre && h.color && <ChipAutor autor={{ nombre: h.nombre, color: h.color }} />}
-                    <span className="text-[10px] text-muted-foreground">{fechaHora(h.fecha)}</span>
-                  </div>
-                </div>
-                {h.accion === 'borrada' && h.borrada === 1 && (
-                  <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => { setARestaurar(h.minuta_id); setEligiendoRestaurar(true); }}>
-                    <RotateCcw size={11} />{t.admin_restore}
-                  </Button>
-                )}
-              </div>
-            ))}
+        {iaCreadores !== null && (
+          <button
+            onClick={() => cambiarIaCreadores(!iaCreadores)}
+            className="w-full bg-card rounded-xl border border-border p-3 flex items-center gap-3 text-left mb-2 animate-in fade-in"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-semibold text-muted-foreground">{t.admin_ia_title}</p>
+              <p className="text-sm text-foreground">{t.admin_ia_creators}</p>
+              <p className="text-[10px] text-muted-foreground">{t.admin_ia_creators_desc}</p>
             </div>
-            {historial.length === 0 && !cargando && <p className="text-xs text-muted-foreground text-center py-8">{t.notifications_empty}</p>}
-          </>
+            {/* Interruptor propio (sin controles nativos) */}
+            <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${iaCreadores ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+              <span
+                className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-background shadow-sm"
+                style={{ transform: iaCreadores ? 'translateX(20px)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+              />
+            </span>
+          </button>
         )}
+        {pendientes.length > 0 && <p className="text-[11px] font-semibold text-muted-foreground pt-1">{t.admin_pending_requests}</p>}
+        {pendientes.map(tarjeta)}
+        {resto.length > 0 && <p className="text-[11px] font-semibold text-muted-foreground pt-3">{t.admin_people}</p>}
+        {resto.map(tarjeta)}
+        {dispositivos.length === 0 && !cargando && <p className="text-xs text-muted-foreground text-center py-8">{t.admin_no_people}</p>}
       </div>
-
-      {/* Restaurar: ¿solo para ti o pública? (tocar fuera cancela). */}
-      <Dialog open={eligiendoRestaurar} onOpenChange={o => { if (!o) setEligiendoRestaurar(false); }}>
-        <DialogContent className="max-w-[320px] rounded-2xl gap-3">
-          <DialogHeader>
-            <DialogTitle className="text-base">{t.admin_restore_title}</DialogTitle>
-            <DialogDescription className="text-xs text-center">{t.admin_restore_text}</DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => aRestaurar && restaurar(aRestaurar, 'mia')}
-                    className="tap-btn rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-1.5 text-foreground">
-              <Lock size={18} className="text-muted-foreground" />
-              <span className="text-sm font-semibold">{t.admin_restore_mine}</span>
-              <span className="text-[10px] text-muted-foreground text-center leading-tight">{t.admin_restore_mine_desc}</span>
-            </button>
-            <button type="button" onClick={() => aRestaurar && restaurar(aRestaurar, 'publica')}
-                    className="tap-btn rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-1.5 text-foreground">
-              <Globe size={18} className="text-green-600 dark:text-green-400" />
-              <span className="text-sm font-semibold">{t.admin_restore_public}</span>
-              <span className="text-[10px] text-muted-foreground text-center leading-tight">{t.admin_restore_public_desc}</span>
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Quitar de la lista (tocar fuera cancela). El aviso se fija al abrir (aQuitar no cambia al cerrar). */}
       <Dialog open={confirmarQuitar} onOpenChange={o => { if (!o) setConfirmarQuitar(false); }}>

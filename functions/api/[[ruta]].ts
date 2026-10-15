@@ -918,7 +918,7 @@ async function enviarAvisos(env: Env, a: Aviso) {
   const { results: admins } = await env.DB.prepare(
     `SELECT id, notif_apagadas FROM dispositivos WHERE rol = 'admin' AND estado = 'aprobado' AND notif_activas = 1 AND id != ?`,
   ).bind(a.autorId).all<Fila>();
-  const urlAdmin = a.tipo === 'registro' ? '/admin' : a.tipo === 'proyeccion' && a.minutaId ? `/minuta/${a.minutaId}` : '/admin?ver=historial';
+  const urlAdmin = a.tipo === 'registro' ? '/admin' : a.tipo === 'proyeccion' && a.minutaId ? `/minuta/${a.minutaId}` : '/settings?avisos=1';
   for (const d of admins) if (!apagadasDe(d.notif_apagadas).includes(a.tipo)) destinos.push({ id: d.id, tipo: a.tipo, url: urlAdmin });
   if (a.publica && a.minutaId) {
     const { results: otros } = await env.DB.prepare(
@@ -1053,6 +1053,20 @@ async function rutasNotificaciones(request: Request, env: Env, partes: string[])
   if (accion === 'sin-ver' && metodo === 'GET') {
     const f = await env.DB.prepare('SELECT COUNT(*) AS n FROM notificaciones WHERE dispositivo_id = ? AND vista = 0').bind(yo.id).first<{ n: number }>();
     return json({ n: f?.n ?? 0 });
+  }
+
+  // (1.15.0, Josué) ⋮ → Notificaciones → "Avisos": lo que le llegó a esta persona (los últimos 100), ya en texto.
+  if (accion === 'lista' && metodo === 'GET') {
+    const idioma = new URL(request.url).searchParams.get('idioma') as Idioma;
+    const textos = TEXTOS_AVISO[idioma] ?? TEXTOS_AVISO.es;
+    const { results } = await env.DB.prepare(
+      'SELECT id, tipo, datos, url, creada, vista FROM notificaciones WHERE dispositivo_id = ? ORDER BY id DESC LIMIT 100',
+    ).bind(yo.id).all<{ id: number; tipo: TipoAviso; datos: string; url: string; creada: string; vista: number }>();
+    return json(results.map(f => {
+      const d = JSON.parse(f.datos);
+      const [titulo, texto] = textos.tipos[f.tipo] ?? textos.tipos.editada;
+      return { id: f.id, tipo: f.tipo, titulo, texto: texto(d.autor, d.titulo, !!d.publica), url: f.url, creada: f.creada, vista: !!f.vista };
+    }));
   }
 
   if (accion === 'suscripcion' && metodo === 'POST') {

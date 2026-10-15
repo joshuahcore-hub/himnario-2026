@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from '@/lib/aviso';
 import { BellOff, BellRing, UserRoundPlus } from 'lucide-react';
+import Avisos from '@/components/Avisos';
 import { Button } from '@/components/ui/button';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useI18n } from '@/lib/i18n/index';
@@ -27,7 +28,7 @@ export function Interruptor({ activo, onCambiar, texto, fuerte = false }: { acti
   );
 }
 
-export default function PanelNotificaciones({ onRegistrarme }: { onRegistrarme: () => void }) {
+function AjustesNotificaciones({ onRegistrarme }: { onRegistrarme: () => void }) {
   const { t } = useI18n();
   const { registrado } = useAcceso();
   const [prefs, setPrefs] = useState<Preferencias | null>(null);
@@ -121,6 +122,33 @@ export default function PanelNotificaciones({ onRegistrarme }: { onRegistrarme: 
           <Interruptor key={x.tipo} texto={t.notif_tipo[x.tipo] ?? x.tipo} activo={prefs.activas && x.activo}
                        onCambiar={() => cambiar({ tipo: x.tipo, activo: !x.activo })} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** (1.15.0, Josué: opción A) Dos pestañas: "Avisos" (el historial de lo que te llegó; el admin, todas las acciones) y
+ *  "Ajustes" (los interruptores). Ambas en una caja del MISMO alto: cambiar de pestaña no mueve el panel. Sin
+ *  registrarse no hay pestañas (solo la invitación a registrarse). */
+export default function PanelNotificaciones({ onRegistrarme, onIr, pestanaInicial = 'avisos' }: {
+  onRegistrarme: () => void; onIr: () => void; pestanaInicial?: 'avisos' | 'ajustes';
+}) {
+  const { t } = useI18n();
+  const { registrado } = useAcceso();
+  const [pestana, setPestana] = useState(pestanaInicial);
+  if (!registrado) return <AjustesNotificaciones onRegistrarme={onRegistrarme} />;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+        {(['avisos', 'ajustes'] as const).map(p => (
+          <button key={p} type="button" onClick={() => setPestana(p)}
+                  className={`h-8 rounded-md text-xs font-semibold transition-colors duration-150 ${pestana === p ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+            {p === 'avisos' ? t.notif_tab_avisos : t.notif_tab_ajustes}
+          </button>
+        ))}
+      </div>
+      <div className="h-[min(56dvh,420px)] overflow-y-auto overscroll-contain -mx-1 px-1">
+        {pestana === 'avisos' ? <Avisos onIr={onIr} /> : <AjustesNotificaciones onRegistrarme={onRegistrarme} />}
       </div>
     </div>
   );

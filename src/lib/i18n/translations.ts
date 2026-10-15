@@ -254,6 +254,8 @@ export interface Translations {
   admin_hide_title: (nombre: string) => string;
   admin_hide_text: string;
   notif_title: string;
+  notif_tab_avisos: string;
+  notif_tab_ajustes: string;
   notif_receive: string;
   notif_need_register: string;
   notif_not_supported: string;
@@ -611,6 +613,8 @@ export const es: Translations = {
   admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
   admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
   notif_title: 'Notificaciones',
+  notif_tab_avisos: 'Avisos',
+  notif_tab_ajustes: 'Ajustes',
   notif_receive: 'Recibir notificaciones',
   notif_need_register: 'Para recibir notificaciones, regístrate con tu nombre y un color.',
   notif_not_supported: 'Este celular no admite notificaciones de la app. En iPhone, instala la app en la pantalla de inicio y ábrela desde ahí.',
@@ -967,6 +971,8 @@ export const en: Translations = {
   admin_hide_title: n => `Remove ${n} from the list?`,
   admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
   notif_title: 'Notifications',
+  notif_tab_avisos: 'Activity',
+  notif_tab_ajustes: 'Settings',
   notif_receive: 'Receive notifications',
   notif_need_register: 'To receive notifications, sign up with your name and a color.',
   notif_not_supported: 'This phone does not support app notifications. On iPhone, add the app to the Home Screen and open it from there.',
@@ -1323,6 +1329,8 @@ export const pt: Translations = {
   admin_hide_title: n => `Remover ${n} da lista?`,
   admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
   notif_title: 'Notificações',
+  notif_tab_avisos: 'Avisos',
+  notif_tab_ajustes: 'Ajustes',
   notif_receive: 'Receber notificações',
   notif_need_register: 'Para receber notificações, cadastre-se com seu nome e uma cor.',
   notif_not_supported: 'Este celular não aceita notificações do app. No iPhone, instale o app na tela de início e abra por lá.',

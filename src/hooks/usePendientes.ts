@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import { useAcceso } from '@/hooks/useAcceso';
 
 let cantidad = 0;
+// (1.15.0) Por separado: solicitudes (Administración) y avisos sin ver (Notificaciones).
+let detalle = { solicitudes: 0, sinVer: 0 };
 const oyentes = new Set<(n: number) => void>();
 let consultando = false;
 
@@ -18,7 +20,8 @@ export async function revisarPendientes() {
       api<{ estado: string }[]>('admin/dispositivos'),
       api<{ n: number }>('notificaciones/sin-ver').catch(() => ({ n: 0 })),
     ]);
-    cantidad = lista.filter(d => d.estado === 'pendiente').length + sinVer.n;
+    detalle = { solicitudes: lista.filter(d => d.estado === 'pendiente').length, sinVer: sinVer.n };
+    cantidad = detalle.solicitudes + detalle.sinVer;
     oyentes.forEach(f => f(cantidad));
   } catch { /* sin internet o sin permiso: se deja como estaba */ } finally {
     consultando = false;
@@ -38,4 +41,10 @@ export function usePendientes(): number {
     return () => { oyentes.delete(setN); document.removeEventListener('visibilitychange', alVolver); clearInterval(t); };
   }, [esAdmin]);
   return esAdmin ? n : 0;
+}
+
+/** (1.15.0) Lo mismo, separado: solicitudes pendientes y avisos sin ver (para marcar cada opción del menú ⋮). */
+export function usePendientesDetalle(): { solicitudes: number; sinVer: number } {
+  const n = usePendientes();
+  return n ? detalle : { solicitudes: 0, sinVer: 0 };
 }

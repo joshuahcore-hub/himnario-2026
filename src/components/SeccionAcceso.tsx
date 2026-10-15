@@ -9,7 +9,7 @@
 // "Activar como administrador" no aparece en ningún lado: se abre tocando 5 veces la versión en Ajustes.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
 import { Bell, Check, Clock, EllipsisVertical, Eye, Loader2, PenLine, RefreshCw, Shield, ShieldCheck, ShieldX, UserRound, UserRoundPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { ChipAutor } from '@/components/Portada';
-import { usePendientes } from '@/hooks/usePendientes';
+import { usePendientes, usePendientesDetalle } from '@/hooks/usePendientes';
 import PanelNotificaciones from '@/components/PanelNotificaciones';
 import { permisoActual, suscribir } from '@/lib/notificaciones';
 
@@ -120,6 +120,7 @@ export default function MenuAcceso() {
   const navigate = useNavigate();
   const acceso = useAcceso();
   const pendientes = usePendientes();
+  const { solicitudes, sinVer } = usePendientesDetalle();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [dialogo, setDialogo] = useState<null | 'perfil' | 'notif' | 'admin'>(null);
   const [editandoPerfil, setEditandoPerfil] = useState(false);
@@ -142,16 +143,23 @@ export default function MenuAcceso() {
   // vista: qué muestra el panel. Se fija al abrir y NO cambia al cerrar (si no, al desvanecerse asomaría otra cosa).
   const [vista, setVista] = useState<'perfil' | 'notif'>('perfil');
   const abrir = (d: 'perfil' | 'notif') => { setMenuAbierto(false); setEditandoPerfil(false); setPidiendo(false); setVista(d); setDialogo(d); };
+  // (1.15.0) Una notificación del administrador lleva a /settings?avisos=1: abre Notificaciones en "Avisos".
+  const [parametros, setParametros] = useSearchParams();
+  useEffect(() => {
+    if (parametros.get('avisos') !== '1') return;
+    setParametros({}, { replace: true });
+    abrir('notif');
+  }, [parametros]); // eslint-disable-line react-hooks/exhaustive-deps
   const cerrarDialogo = () => setDialogo(null);
 
   // Menú igual para todos (Josué: "mientras menos enredo, mejor"): "Mi perfil" y "Notificaciones" (1.11.0) siempre;
   // "Administración" solo el admin, al final.
   const opciones: React.ReactNode[] = [
     <OpcionMenu key="perfil" icono={<UserRound size={16} />} texto={t.access_my_profile} onClick={() => abrir('perfil')} />,
-    <OpcionMenu key="notif" icono={<Bell size={16} />} texto={t.notif_title} onClick={() => abrir('notif')} />,
+    <OpcionMenu key="notif" icono={<Bell size={16} />} texto={t.notif_title} aviso={sinVer} onClick={() => abrir('notif')} />,
   ];
   if (acceso.esAdmin) {
-    opciones.push(<OpcionMenu key="admin" icono={<Shield size={16} />} texto={t.admin_title} aviso={pendientes}
+    opciones.push(<OpcionMenu key="admin" icono={<Shield size={16} />} texto={t.admin_title} aviso={solicitudes}
       onClick={() => { setMenuAbierto(false); navigate('/admin'); }} />);
   }
 
@@ -276,7 +284,7 @@ export default function MenuAcceso() {
           </DialogHeader>
           {/* Notificaciones va en el MISMO panel: "Registrarme" desde aquí solo cambia el contenido. */}
           {vista === 'notif'
-            ? <PanelNotificaciones onRegistrarme={() => { setPidiendo(true); setVista('perfil'); setDialogo('perfil'); }} />
+            ? <PanelNotificaciones onIr={cerrarDialogo} onRegistrarme={() => { setPidiendo(true); setVista('perfil'); setDialogo('perfil'); }} />
             : perfil}
         </DialogContent>
       </Dialog>
