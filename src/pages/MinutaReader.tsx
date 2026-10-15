@@ -58,7 +58,9 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
           {imgError ? (
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (
-            <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)} />
+            <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)}>
+              <NotasRecordatorio notas={notas} compacto sobreLetra onTocar={onTocarNota} />
+            </HimnoRecortado>
           )}
         </div>
       </Zoomable>
@@ -78,14 +80,13 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
             {song.firstLine && <p className="text-muted-foreground text-sm italic">{song.firstLine}</p>}
           </div>
         ) : (
-          <img
-            src={imgUrl}
-            decoding="async"
-            alt={`${song.title} - #${hymnNumber}`}
-            className="w-full max-w-lg flex-1 min-h-0 object-contain"
-            draggable={false}
-            onError={() => setImgError(true)}
-          />
+          // Solo la franja con letra, CENTRADA en el espacio libre (1.9.0, Josué: con la hoja completa cada himno
+          // quedaba a otra altura según dónde venía la letra en la imagen). Se achica si no cabe de alto.
+          <div className="flex-1 min-h-0 w-full max-w-lg flex items-center justify-center py-2" style={{ containerType: 'size' }}>
+            <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)} ajustarAlto>
+              <NotasRecordatorio notas={notas} sobreLetra onTocar={onTocarNota} />
+            </HimnoRecortado>
+          </div>
         )}
       </div>
     </Zoomable>
@@ -296,6 +297,7 @@ export default function MinutaReader() {
     return (
       <div
         key={pageIdx}
+        data-pagina
         className={clase}
         style={{
           transform: `translateX(${offset * 100}%)`,
@@ -307,7 +309,9 @@ export default function MinutaReader() {
           // m-auto: centrada, y si no cabe (horizontal) empieza arriba en vez de cortarse.
           // Con zoom como las canciones (Josué, 1.6.4): pellizcar o doble toque; el zoom ocupa toda la página.
           <Zoomable className="w-full h-full" reiniciarCon={minuta.id}>
-            <div className="h-full w-full flex overflow-y-auto p-5">
+            {/* Derecho: el gesto vertical es para salir (como en las canciones), no para desplazar la portada. */}
+            <div className="h-full w-full flex overflow-y-auto p-5"
+                 style={{ overscrollBehavior: 'contain', touchAction: horizontal ? 'pan-y' : 'none' }}>
               <div className="w-full max-w-sm m-auto">
                 <Portada date={minuta.fecha} songs={minuta.cantos} plano />
               </div>

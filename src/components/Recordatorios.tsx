@@ -5,6 +5,7 @@
 // - BotonRecordatorio: el botón amarillo de arriba.
 // - PanelRecordatorio: escribir / editar / borrar. Para quién y si es "siempre" o "solo esta minuta".
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { ArrowLeft, PenLine, Send, StickyNote, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -16,21 +17,42 @@ import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useToque } from '@/hooks/useToque';
 import { ErrorDeRed } from '@/lib/api';
 import {
-  borrarRecordatorio, cargarPersonas, marcarVisto, guardarRecordatorio, personasGuardadas, type Persona, type Recordatorio,
+  borrarRecordatorio, cargarPersonas, marcarVisto, moverRecordatorio, guardarRecordatorio, personasGuardadas, type Persona, type Recordatorio,
 } from '@/lib/recordatorios';
 
 const Punto = ({ color }: { color: string }) => (
   <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
 );
 
-function Nota({ r, compacto, indice, abierta, onAlternar, onEditar, onBorrar }: {
+/** Letra manuscrita de los post-it (1.9.0: Patrick Hand, más legible que Caveat; sin internet, la del sistema). */
+export const LETRA_POSTIT = "'Patrick Hand', 'Segoe Print', 'Bradley Hand', cursive";
+
+const MANTENER_MS = 420; // mantener presionado para despegar el post-it y moverlo
+const MOVER_MAX = 7;     // si el dedo se mueve más que esto antes, es un deslizamiento (cambiar de canción), no mover
+
+/** Dónde soltarlo: posición dentro del recuadro de la letra de esta página (data-marco-letra), o null si quedó
+ *  arriba, fuera de la letra (vuelve a su lugar de siempre). */
+function posicionAlSoltar(postit: HTMLElement): { x: number; y: number } | null | undefined {
+  const marco = postit.closest('[data-pagina]')?.querySelector<HTMLElement>('[data-marco-letra]');
+  if (!marco) return undefined;
+  const m = marco.getBoundingClientRect(), n = postit.getBoundingClientRect();
+  if (n.bottom < m.top + 6) return null;
+  const x = Math.min(Math.max((n.left - m.left) / m.width, 0), Math.max(0, 1 - n.width / m.width));
+  const y = Math.min(Math.max((n.top - m.top) / m.height, 0), Math.max(0, 1 - n.height / m.height));
+  return { x, y };
+}
+
+function Nota({ r, compacto, indice, abierta, sobreLetra, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
   r: Recordatorio;
   compacto: boolean;
   /** Para inclinar los post-it un poco distinto uno de otro. */
   indice: number;
-  /** Fila de opciones (Editar / Eliminar) desplegada. */
+  /** Opciones (Editar / Eliminar) desplegadas. */
   abierta: boolean;
+  /** Pegado en un lugar de la letra (posición absoluta) en vez de en la fila de arriba. */
+  sobreLetra: boolean;
   onAlternar: () => void;
+  onCerrarOpciones: () => void;
   onEditar: (r: Recordatorio) => void;
   onBorrar: (r: Recordatorio) => void;
 }) {
@@ -42,40 +64,117 @@ function Nota({ r, compacto, indice, abierta, onAlternar, onEditar, onBorrar }: 
 
   const colorEstado = r.estado === 'visto' ? 'text-green-700' : r.estado === 'eliminado' ? 'text-red-700' : '';
   const textoEstado = r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
-  const toqueNota = useToque<HTMLDivElement>(() => { if (!r.id.startsWith('tmp-')) onAlternar(); });
   const toqueEditar = useToque(() => onEditar(r));
   const toqueBorrar = useToque(() => onBorrar(r));
   const opcion = `flex items-center gap-1.5 rounded-full font-medium [touch-action:none] ${compacto ? 'h-7 px-3 text-[11px]' : 'h-8 px-3.5 text-xs'}`;
 
+  // Toque corto = opciones; mantener presionado = despegarlo (vibra) y arrastrarlo (1.9.0). Mientras se arrastra se
+  // mueve DIRECTO (style.transform, sin estado de React: fluido) y no deja que la página cambie de canción.
+  const caja = useRef<HTMLDivElement>(null);
+  const papel = useRef<HTMLDivElement>(null);
+  const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean } | null>(null);
+  const [levantado, setLevantado] = useState(false);
+  const soltar = () => {
+    const el = caja.current;
+    if (!el || !papel.current) return;
+    const pos = posicionAlSoltar(papel.current);
+    flushSync(() => {
+      setLevantado(false);
+      if (pos !== undefined) moverRecordatorio(r, pos);
+    });
+    el.style.transform = '';
+  };
+  const eventos = {
+    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.stopPropagation();
+      const id = e.pointerId;
+      gesto.current = {
+        x: e.clientX, y: e.clientY, t: Date.now(), id, arrastrando: false,
+        timer: window.setTimeout(() => {
+          const g = gesto.current;
+          if (!g || r.id.startsWith('tmp-')) return;
+          g.arrastrando = true;
+          navigator.vibrate?.(15);
+          try { caja.current?.setPointerCapture(id); } catch { /* sin captura igual funciona */ }
+          onCerrarOpciones();
+          setLevantado(true);
+        }, MANTENER_MS),
+      };
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+      const g = gesto.current;
+      if (!g || g.id !== e.pointerId) return;
+      const dx = e.clientX - g.x, dy = e.clientY - g.y;
+      if (!g.arrastrando) {
+        if (Math.hypot(dx, dy) > MOVER_MAX) { window.clearTimeout(g.timer); gesto.current = null; }
+        return;
+      }
+      if (caja.current) caja.current.style.transform = `translate(${dx}px, ${dy}px)`;
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      const g = gesto.current;
+      gesto.current = null;
+      if (!g) return;
+      window.clearTimeout(g.timer);
+      if (g.arrastrando) { soltar(); return; }
+      if (Math.hypot(e.clientX - g.x, e.clientY - g.y) < 12 && !r.id.startsWith('tmp-')) onAlternar();
+    },
+    onPointerCancel: () => {
+      const g = gesto.current;
+      gesto.current = null;
+      if (!g) return;
+      window.clearTimeout(g.timer);
+      if (g.arrastrando) soltar();
+    },
+    // Mientras se arrastra, el gesto es del post-it: la página no se desliza ni se cierra.
+    onTouchMove: (e: React.TouchEvent) => { if (gesto.current?.arrastrando) e.stopPropagation(); },
+    onTouchEnd: (e: React.TouchEvent) => { if (levantado || gesto.current?.arrastrando) e.stopPropagation(); },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    onDoubleClick: (e: React.MouseEvent) => e.stopPropagation(),
+  };
+
   return (
-    // Post-it (Josué, 1.8.2, estilo C): papelito amarillo pegado con un trozo de cinta, letra manuscrita y apenas
-    // inclinado (cada uno un poco distinto). Igual en claro, oscuro y en todos los colores: es "papel".
     <div
+      ref={caja}
       role="button"
-      {...toqueNota}
-      onDoubleClick={e => e.stopPropagation()}
-      className={`relative self-start max-w-[88%] text-left ${compacto ? 'px-2.5 pt-1.5 pb-1.5' : 'px-3.5 pt-2.5 pb-2.5'}`}
+      {...eventos}
+      className={sobreLetra ? 'absolute pointer-events-auto' : 'relative self-start max-w-[88%]'}
       style={{
-        background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.16)', transform: `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg)`,
+        touchAction: 'none',
+        zIndex: levantado ? 40 : abierta ? 30 : sobreLetra ? 10 : undefined,
+        ...(sobreLetra && r.pos ? { left: `${r.pos.x * 100}%`, top: `${r.pos.y * 100}%`, maxWidth: '85%', width: 'max-content' } : {}),
       }}
     >
-      {/* Cinta adhesiva */}
-      <span className="absolute left-1/2 -top-1.5 h-3 w-10 -ml-5 bg-white/55 dark:bg-white/35 pointer-events-none"
-            style={{ transform: 'rotate(2deg)', boxShadow: '0 0 0 1px rgba(0,0,0,0.04)' }} />
-      {persona && (
-        <span className={`flex items-center gap-1 font-semibold ${compacto ? 'text-[10px]' : 'text-[11px]'}`} style={{ color: '#7A6420' }}>
-          {r.autor ? `${t.rec_from}:` : `${t.rec_for}:`}
-          <Punto color={persona.color} />
-          {persona.nombre}
-          {dejadaAOtro && <span className={colorEstado}>· {textoEstado}</span>}
+      {/* Post-it (Josué, 1.8.2, estilo C): papelito amarillo con un trozo de cinta, letra manuscrita y apenas
+          inclinado (cada uno un poco distinto). Igual en claro, oscuro y en todos los colores: es "papel". */}
+      <div
+        ref={papel}
+        className={`relative text-left ${compacto ? 'px-2.5 pt-1.5 pb-1.5' : 'px-3.5 pt-2.5 pb-2.5'}`}
+        style={{
+          background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
+          boxShadow: levantado ? '0 10px 24px rgba(0,0,0,0.28)' : '0 2px 6px rgba(0,0,0,0.16)',
+          transform: `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg) scale(${levantado ? 1.05 : 1})`,
+          transition: 'transform 160ms ease-out, box-shadow 160ms ease-out',
+        }}
+      >
+        {/* Cinta adhesiva */}
+        <span className="absolute left-1/2 -top-1.5 h-3 w-10 -ml-5 bg-white/55 dark:bg-white/35 pointer-events-none"
+              style={{ transform: 'rotate(2deg)', boxShadow: '0 0 0 1px rgba(0,0,0,0.04)' }} />
+        {persona && (
+          <span className={`flex items-center gap-1 font-semibold ${compacto ? 'text-[10px]' : 'text-[11px]'}`} style={{ color: '#7A6420' }}>
+            {r.autor ? `${t.rec_from}:` : `${t.rec_for}:`}
+            <Punto color={persona.color} />
+            {persona.nombre}
+            {dejadaAOtro && <span className={colorEstado}>· {textoEstado}</span>}
+          </span>
+        )}
+        <span className="block whitespace-pre-wrap break-words"
+              style={{ fontFamily: LETRA_POSTIT, fontSize: compacto ? 15 : 17.5, lineHeight: 1.2 }}>
+          {r.texto}
         </span>
-      )}
-      <span className="block whitespace-pre-wrap break-words"
-            style={{ fontFamily: "'Caveat', 'Segoe Print', 'Bradley Hand', cursive", fontWeight: 600,
-                     fontSize: compacto ? 16 : 19, lineHeight: 1.15 }}>
-        {r.texto}
-      </span>
+      </div>
       {/* Opciones al tocar (Josué, 1.7.1): Editar (solo las propias) y Eliminar. FLOTAN bajo la nota (no la agrandan):
           si la nota creciera, la letra y la propia nota se moverían bajo el dedo (regla de Josué, 1.4.4). */}
       <div className="absolute right-2 top-full mt-1.5 z-10 flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
@@ -84,11 +183,11 @@ function Nota({ r, compacto, indice, abierta, onAlternar, onEditar, onBorrar }: 
              pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out, transform 160ms ease-out',
            }}>
         {r.mio && (
-          <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} text-foreground`} {...toqueEditar}>
+          <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} text-foreground whitespace-nowrap`} {...toqueEditar}>
             <PenLine size={compacto ? 12 : 13} />{t.rec_edit}
           </button>
         )}
-        <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} bg-destructive/10 text-destructive`} {...toqueBorrar}>
+        <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} bg-destructive/10 text-destructive whitespace-nowrap`} {...toqueBorrar}>
           <Trash2 size={compacto ? 12 : 13} />{t.rec_delete}
         </button>
       </div>
@@ -96,14 +195,23 @@ function Nota({ r, compacto, indice, abierta, onAlternar, onEditar, onBorrar }: 
   );
 }
 
-export function NotasRecordatorio({ notas, compacto = false, onTocar, className = '' }: {
+/**
+ * Post-it de una alabanza. Dos lugares:
+ *  - sin `sobreLetra`: los que aún no se movieron, en fila arriba de la letra (su lugar de siempre);
+ *  - con `sobreLetra`: los que se movieron, pegados en su lugar de la letra (capa encima del recuadro de la letra,
+ *    que debe ser `relative` y llevar data-marco-letra; la página entera lleva data-pagina).
+ * Mantener presionado uno lo despega y se arrastra; si se suelta arriba, fuera de la letra, vuelve a la fila.
+ */
+export function NotasRecordatorio({ notas, compacto = false, onTocar, className = '', sobreLetra = false }: {
   notas: Recordatorio[];
   compacto?: boolean;
   /** Editar uno propio (abre el panel). Tocar una nota despliega Editar / Eliminar. */
   onTocar: (r: Recordatorio) => void;
   className?: string;
+  sobreLetra?: boolean;
 }) {
   const { t } = useI18n();
+  const lista = notas.filter(r => (sobreLetra ? !!r.pos : !r.pos));
   // Nota con las opciones desplegadas (una a la vez). Tocar fuera las cierra (regla de Josué).
   const [abiertaId, setAbiertaId] = useState<string | null>(null);
   const contenedor = useRef<HTMLDivElement>(null);
@@ -123,12 +231,14 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
   const aviso = !aBorrar ? '' : aBorrar.autor ? t.rec_delete_received(aBorrar.autor.nombre)
     : aBorrar.para && aBorrar.estado !== 'eliminado' ? t.rec_delete_both(aBorrar.para.nombre) : '';
 
-  if (notas.length === 0 && !confirmar) return null;
+  if (lista.length === 0 && !confirmar) return null;
   return (
-    <div ref={contenedor} className={`w-full flex flex-col pt-1.5 ${compacto ? 'gap-2.5' : 'gap-3.5'} ${className}`}>
-      {notas.map((r, i) => (
-        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id}
-              onAlternar={() => setAbiertaId(a => (a === r.id ? null : r.id))} onEditar={editar} onBorrar={pedirBorrar} />
+    <div ref={contenedor}
+         className={sobreLetra ? `absolute inset-0 pointer-events-none ${className}` : `w-full flex flex-col pt-1.5 ${compacto ? 'gap-2.5' : 'gap-3.5'} ${className}`}>
+      {lista.map((r, i) => (
+        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra}
+              onAlternar={() => setAbiertaId(a => (a === r.id ? null : r.id))} onCerrarOpciones={() => setAbiertaId(null)}
+              onEditar={editar} onBorrar={pedirBorrar} />
       ))}
       <Dialog open={confirmar} onOpenChange={o => { if (!o && !borrando) setConfirmar(false); }}>
         <DialogContent capa="z-[70]" className="max-w-[320px] rounded-2xl gap-3">
@@ -267,7 +377,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   const textoEstado = (r: Recordatorio) =>
     r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
   const colorEstado = (r: Recordatorio) => (r.estado === 'visto' ? 'text-green-700' : r.estado === 'eliminado' ? 'text-red-700' : '');
-  const letraManuscrita = { fontFamily: "'Caveat', 'Segoe Print', 'Bradley Hand', cursive", fontWeight: 600, fontSize: 18, lineHeight: 1.15 };
+  const letraManuscrita = { fontFamily: LETRA_POSTIT, fontSize: 17, lineHeight: 1.2 };
 
   return (
     <Dialog open={abierto} onOpenChange={o => { if (!o) intentarCerrar(); }}>

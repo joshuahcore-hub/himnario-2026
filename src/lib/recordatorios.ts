@@ -27,11 +27,16 @@ export interface Recordatorio {
   para: Persona | null;
   /** Guardado solo en este celular (visor). */
   local?: boolean;
+  /** Dónde quedó sobre la letra (1.9.0): esquina superior izquierda como fracción (0..1) del recuadro de la letra.
+   *  null = en su lugar de siempre, arriba de la letra. */
+  pos?: { x: number; y: number } | null;
 }
 
 const CLAVE_SERVIDOR = 'himnario_recordatorios';
 const CLAVE_LOCALES = 'himnario_recordatorios_locales';
 const CLAVE_PERSONAS = 'himnario_personas';
+/** Posiciones de los post-it que me dejaron otros: las muevo solo en mi celular. */
+const CLAVE_POSICIONES = 'himnario_posiciones_postit';
 
 const leer = <T,>(clave: string, porDefecto: T): T => {
   try {
@@ -48,6 +53,7 @@ const escribir = (clave: string, valor: unknown) => {
 let delServidor: Recordatorio[] = leer(CLAVE_SERVIDOR, []);
 let locales: Recordatorio[] = leer(CLAVE_LOCALES, []);
 let personas: Persona[] = leer(CLAVE_PERSONAS, []);
+let posiciones: Record<string, { x: number; y: number } | null> = leer(CLAVE_POSICIONES, {});
 const oyentes = new Set<() => void>();
 const avisar = () => oyentes.forEach(f => f());
 
@@ -89,7 +95,8 @@ export function useRecordatorios(registrado: boolean, minutaId: string | null = 
     document.addEventListener('visibilitychange', alVolver);
     return () => { oyentes.delete(f); document.removeEventListener('visibilitychange', alVolver); };
   }, [registrado]);
-  const todos = [...locales, ...(registrado ? delServidor : [])];
+  const todos = [...locales, ...(registrado ? delServidor : [])]
+    .map(r => (r.id in posiciones ? { ...r, pos: posiciones[r.id] } : r));
   const orden = (r: Recordatorio) => (r.para ? 2 : r.autor ? 1 : 0);
   // 'visibles' (sobre la letra): los míos para mí y los que me dejaron. 'enviados': los que dejé a otras personas;
   // NO se muestran sobre la letra (Josué, 1.8.3: no son para mí), se ven en el panel → "Enviados".
@@ -160,4 +167,23 @@ export function marcarVisto(r: Recordatorio) {
   api(`recordatorios/${r.id}/visto`, { metodo: 'POST' })
     .then(() => fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, estado: 'visto' } : x))))
     .catch(() => {});
+}
+
+/**
+ * Mover un post-it sobre la letra (1.9.0). Se ve al instante. Los míos (o locales) guardan la posición donde viven;
+ * los que me dejaron otros, solo en este celular. pos null = vuelve a su lugar de siempre.
+ */
+export function moverRecordatorio(r: Recordatorio, pos: { x: number; y: number } | null) {
+  if (r.local) { fijarLocales(locales.map(x => (x.id === r.id ? { ...x, pos } : x))); return; }
+  if (!r.mio) {
+    posiciones = { ...posiciones, [r.id]: pos };
+    escribir(CLAVE_POSICIONES, posiciones);
+    avisar();
+    return;
+  }
+  const antes = delServidor.find(x => x.id === r.id)?.pos ?? null;
+  fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, pos } : x)));
+  if (r.id.startsWith('tmp-')) return;
+  api(`recordatorios/${r.id}/posicion`, { metodo: 'PATCH', datos: { pos } })
+    .catch(() => fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, pos: antes } : x))));
 }

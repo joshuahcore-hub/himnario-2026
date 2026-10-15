@@ -225,8 +225,8 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       registrar(env, nueva, yo.id, 'duplicada', original.titulo),
       // Los recordatorios "solo en esta minuta" pasan a la copia SOLO si quien duplica podía verlos (los escribió o
       // eran para él). Los personales de otra persona no se copian: nadie ve recordatorios ajenos (Josué, 1.7.0).
-      env.DB.prepare(`INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, estado, creado, actualizado)
-                      SELECT lower(hex(randomblob(16))), himno, autor_id, para_id, texto, ?, estado, creado, ?
+      env.DB.prepare(`INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, estado, pos_x, pos_y, creado, actualizado)
+                      SELECT lower(hex(randomblob(16))), himno, autor_id, para_id, texto, ?, estado, pos_x, pos_y, creado, ?
                       FROM recordatorios WHERE minuta_id = ? AND (autor_id = ? OR para_id = ?)`).bind(nueva, t, id, yo.id, yo.id),
     ]);
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
@@ -635,7 +635,7 @@ async function validarPara(env: Env, para: unknown, yo: Dispositivo): Promise<st
 }
 
 const SELECT_RECORDATORIOS = `
-  SELECT r.id, r.himno, r.texto, r.minuta_id, r.estado, r.creado, r.actualizado, r.autor_id, r.para_id,
+  SELECT r.id, r.himno, r.texto, r.minuta_id, r.estado, r.pos_x, r.pos_y, r.creado, r.actualizado, r.autor_id, r.para_id,
          a.nombre AS autor_nombre, a.color AS autor_color, p.nombre AS para_nombre, p.color AS para_color
   FROM recordatorios r
   LEFT JOIN dispositivos a ON a.id = r.autor_id
@@ -643,7 +643,8 @@ const SELECT_RECORDATORIOS = `
 
 function filaARecordatorio(f: any, yo: Dispositivo) {
   return {
-    id: f.id, himno: f.himno, texto: f.texto, estado: f.estado ?? 'enviado', minuta: f.minuta_id ?? null, creado: f.creado, actualizado: f.actualizado,
+    id: f.id, himno: f.himno, texto: f.texto, estado: f.estado ?? 'enviado', minuta: f.minuta_id ?? null,
+    pos: f.pos_x != null && f.pos_y != null ? { x: f.pos_x, y: f.pos_y } : null, creado: f.creado, actualizado: f.actualizado,
     mio: f.autor_id === yo.id, // lo escribí yo: puedo editarlo y borrarlo
     autor: f.autor_id === yo.id ? null : { nombre: f.autor_nombre ?? '—', color: f.autor_color ?? '#999' },
     para: f.para_id === yo.id ? null : { id: f.para_id, nombre: f.para_nombre ?? '—', color: f.para_color ?? '#999' },
@@ -675,6 +676,19 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
       .bind(nuevo, himno, yo.id, para, texto, minuta, t, t).run();
     const f = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.id = ?`).bind(nuevo).first();
     return json(filaARecordatorio(f, yo), 201);
+  }
+
+  // Mover un post-it sobre la letra (1.9.0): solo quien lo escribió guarda la posición en el servidor.
+  if (id && request.method === 'PATCH' && partes[2] === 'posicion') {
+    const actual = await env.DB.prepare('SELECT autor_id FROM recordatorios WHERE id = ?').bind(id).first<{ autor_id: string }>();
+    if (!actual) throw new ErrorApi(404, 'Ese recordatorio ya no existe.');
+    if (actual.autor_id !== yo.id) throw new ErrorApi(403, 'Solo quien escribió el recordatorio guarda su posición.');
+    const body = await leerJson(request);
+    const valido = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= -1 && v <= 2;
+    const pos = body.pos == null ? null : valido(body.pos.x) && valido(body.pos.y) ? body.pos : undefined;
+    if (pos === undefined) throw new ErrorApi(400, 'Posición no válida.');
+    await env.DB.prepare('UPDATE recordatorios SET pos_x = ?, pos_y = ? WHERE id = ?').bind(pos?.x ?? null, pos?.y ?? null, id).run();
+    return json({ ok: true });
   }
 
   if (id && (request.method === 'PATCH' || request.method === 'DELETE' || (request.method === 'POST' && partes[2] === 'visto'))) {

@@ -15,20 +15,35 @@ export function vistaRecortada(num: number): React.CSSProperties {
   return { objectViewBox: `inset(${arriba}px 0 ${total - arriba - alto}px 0)` } as React.CSSProperties;
 }
 
-export default function HimnoRecortado({ num, src, alt, onError }: {
+export default function HimnoRecortado({ num, src, alt, onError, children, ajustarAlto = false }: {
   num: number;
   src: string;
   alt: string;
   onError?: () => void;
+  /** Capa encima de la letra (1.9.0: post-it pegados). El recuadro lleva data-marco-letra. */
+  children?: React.ReactNode;
+  /** Achicar si no cabe de alto (el contenedor debe tener container-type: size). Así queda centrada y entera. */
+  ajustarAlto?: boolean;
 }) {
   const r = tabla[String(num)];
-  if (!r) return <img src={src} alt={alt} decoding="async" className="block w-full h-auto" draggable={false} onError={onError} />;
+  if (!r) {
+    return (
+      <div data-marco-letra className="relative w-full">
+        <img src={src} alt={alt} decoding="async" className="block w-full h-auto" draggable={false} onError={onError} />
+        {children}
+      </div>
+    );
+  }
   const [ancho, arriba, alto] = r;
   return (
-    <div className="w-full overflow-hidden" style={{ aspectRatio: `${ancho} / ${alto}` }}>
-      {/* margin-top en % se mide sobre el ANCHO: corre la imagen justo lo que sobra arriba. */}
-      <img src={src} alt={alt} decoding="async" className="block w-full h-auto" draggable={false} onError={onError}
-           style={{ marginTop: `${(-arriba / ancho) * 100}%` }} />
+    <div data-marco-letra className="relative"
+         style={{ width: ajustarAlto ? `min(100cqw, calc(100cqh * ${ancho} / ${alto}))` : '100%', aspectRatio: `${ancho} / ${alto}` }}>
+      <div className="absolute inset-0 overflow-hidden">
+        {/* margin-top en % se mide sobre el ANCHO: corre la imagen justo lo que sobra arriba. */}
+        <img src={src} alt={alt} decoding="async" className="block w-full h-auto" draggable={false} onError={onError}
+             style={{ marginTop: `${(-arriba / ancho) * 100}%` }} />
+      </div>
+      {children}
     </div>
   );
 }

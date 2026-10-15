@@ -10,9 +10,13 @@ interface ZoomableImageProps {
   llenar?: boolean;
   /** Estilo extra de la imagen (p. ej. object-view-box para recortar el fondo vacío). */
   estilo?: React.CSSProperties;
+  /** Capa encima de la imagen que se amplía y se mueve con ella (1.9.0: los post-it pegados sobre la letra). */
+  children?: React.ReactNode;
+  /** Clases del recuadro de la letra (imagen + capa), que lleva data-marco-letra. Solo con children. */
+  claseMarco?: string;
 }
 
-export default function ZoomableImage({ src, alt, className, onError, onEdgeSwipe, llenar = false, estilo }: ZoomableImageProps) {
+export default function ZoomableImage({ src, alt, className, onError, onEdgeSwipe, llenar = false, estilo, children, claseMarco = '' }: ZoomableImageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [scale, setScale] = useState(1);
@@ -128,6 +132,11 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
   }, [scale]);
 
   const isZoomed = scale > 1;
+  const zoom: React.CSSProperties = {
+    transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+    transformOrigin: 'center center',
+    transition: isPinching.current || isPanning.current ? 'none' : 'transform 200ms ease-out',
+  };
 
   return (
     <div
@@ -140,21 +149,24 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
       onDoubleClick={handleDoubleClick}
       style={{ touchAction: isZoomed ? 'none' : 'pan-y' }}
     >
-      <img
-        ref={imgRef}
-        src={src}
-        alt={alt}
-        decoding="async"
-        className={className}
-        onError={onError}
-        draggable={false}
-        style={{
-          ...estilo,
-          transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-          transformOrigin: 'center center',
-          transition: isPinching.current || isPanning.current ? 'none' : 'transform 200ms ease-out',
-        }}
-      />
+      {children !== undefined ? (
+        // Con capa (post-it): el zoom se aplica al recuadro entero, así lo pegado sigue en su lugar de la letra.
+        <div data-marco-letra className={`relative ${claseMarco}`} style={zoom}>
+          <img ref={imgRef} src={src} alt={alt} decoding="async" className={className} onError={onError} draggable={false} style={estilo} />
+          {children}
+        </div>
+      ) : (
+        <img
+          ref={imgRef}
+          src={src}
+          alt={alt}
+          decoding="async"
+          className={className}
+          onError={onError}
+          draggable={false}
+          style={{ ...estilo, ...zoom }}
+        />
+      )}
     </div>
   );
 }

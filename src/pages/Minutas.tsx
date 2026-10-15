@@ -135,11 +135,58 @@ export default function Minutas() {
     }
   };
 
+  // Deslizar hacia abajo para actualizar (1.9.0, Josué: como en Himnario y Ajustes). Aquí la página no se desplaza
+  // (la lista va de lado), así que el gesto se hace a mano: un circulito baja con el dedo y, si pasa el umbral, gira
+  // mientras se traen las minutas. Se mueve DIRECTO (style), sin estado de React por cada movimiento.
+  const indicador = useRef<HTMLDivElement>(null);
+  const tirar = useRef<{ x: number; y: number; vertical: boolean | null; d: number } | null>(null);
+  const [actualizando, setActualizando] = useState(false);
+  const UMBRAL_TIRAR = 64;
+  const moverIndicador = (d: number, animar: boolean) => {
+    const el = indicador.current;
+    if (!el) return;
+    el.style.transition = animar ? 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease-out' : 'none';
+    el.style.transform = `translateY(${d}px) rotate(${d * 3}deg)`;
+    el.style.opacity = String(Math.min(1, d / UMBRAL_TIRAR));
+  };
+  const gestoTirar = {
+    onTouchStart: (e: React.TouchEvent) => {
+      if (selectMode || actualizando) return;
+      tirar.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, vertical: null, d: 0 };
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      const g = tirar.current;
+      if (!g) return;
+      const dx = e.touches[0].clientX - g.x, dy = e.touches[0].clientY - g.y;
+      if (g.vertical === null) {
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) g.vertical = dy > 0 && Math.abs(dy) > Math.abs(dx) * 1.5;
+        return;
+      }
+      if (!g.vertical) return;
+      g.d = Math.max(0, Math.min(110, dy * 0.5));
+      moverIndicador(g.d, false);
+    },
+    onTouchEnd: () => {
+      const g = tirar.current;
+      tirar.current = null;
+      if (!g?.vertical) return;
+      if (g.d < UMBRAL_TIRAR) { moverIndicador(0, true); return; }
+      setActualizando(true);
+      moverIndicador(UMBRAL_TIRAR, true);
+      refrescar().finally(() => setTimeout(() => { setActualizando(false); moverIndicador(0, true); }, 350));
+    },
+  };
+
   return (
     <>
     {/* Tocar en cualquier parte fuera de una minuta sale del modo selección (igual que la X). */}
-    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - var(--barra))', overscrollBehavior: 'none' }}
-         onClick={() => { if (selectMode) salirSeleccion(); }}>
+    <div className="relative flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - var(--barra))', overscrollBehavior: 'none' }}
+         onClick={() => { if (selectMode) salirSeleccion(); }} {...gestoTirar}>
+      <div ref={indicador} aria-hidden
+           className="pointer-events-none absolute left-1/2 -ml-5 -top-11 z-20 w-10 h-10 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-foreground"
+           style={{ opacity: 0 }}>
+        <RefreshCw size={18} className={actualizando ? 'animate-spin' : ''} />
+      </div>
       <div className="flex items-center justify-between px-5 pt-4 gap-2 w-full max-w-5xl mx-auto">
         <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
         {/* Al seleccionar, esto y la ayuda de abajo se desvanecen SIN quitar su espacio: si se quitaran,

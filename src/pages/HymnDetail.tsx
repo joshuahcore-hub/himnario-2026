@@ -308,12 +308,14 @@ export default function HymnDetail() {
     if (horizontal) {
       return (
         // Solo la franja con letra (sin el fondo vacío del lienzo); si cabe queda centrada, si no se recorre.
-        <div key={num} className="absolute inset-0 flex overflow-y-auto overflow-x-hidden"
+        <div key={num} data-pagina className="absolute inset-0 flex overflow-y-auto overflow-x-hidden"
              style={{ transform: `translateX(${offset * 100}%)`, overscrollBehavior: 'contain',
                       padding: '3.25rem env(safe-area-inset-right, 0px) 1rem env(safe-area-inset-left, 0px)' }}>
           <Zoomable className="w-full m-auto" reiniciarCon={num}>
             <NotasRecordatorio notas={notasDe(num)} compacto onTocar={abrirPanel} className="px-3 pb-1.5" />
-            <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`} />
+            <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`}>
+              <NotasRecordatorio notas={notasDe(num)} compacto sobreLetra onTocar={abrirPanel} />
+            </HimnoRecortado>
           </Zoomable>
         </div>
       );
@@ -321,17 +323,22 @@ export default function HymnDetail() {
     return (
       // Solo la franja con letra (vistaRecortada), centrada entre los botones de arriba y el contador de abajo, con los
       // recordatorios justo encima de la letra (1.7.0). La letra a todo el ancho siempre cabe en vertical.
-      <div key={num} className="absolute inset-0 flex flex-col items-center justify-center overflow-clip"
+      <div key={num} data-pagina className="absolute inset-0 flex flex-col items-center justify-center overflow-clip"
            style={{ transform: `translateX(${offset * 100}%)`, paddingTop: '3.75rem', paddingBottom: 'calc(var(--barra) + 3.75rem)' }}>
-        <NotasRecordatorio notas={notasDe(num)} onTocar={abrirPanel} className="max-w-lg px-4 pb-3 shrink-0" />
-        <div className="w-full min-h-0 flex justify-center">
+        {/* Post-it: los que no se han movido van en fila justo arriba de la letra (fuera del flujo: la letra no se corre
+            al agregarlos ni al moverlos); los movidos, pegados en su lugar de la letra, encima de la imagen (1.9.0). */}
+        <div className="relative w-full min-h-0 flex justify-center">
+          <NotasRecordatorio notas={notasDe(num)} onTocar={abrirPanel} className="absolute bottom-full left-0 right-0 mx-auto max-w-lg px-4 pb-3" />
           <ZoomableImage
             src={src}
             alt={`${t.hymn_alt}${num}`}
-            className="w-full max-w-lg h-auto"
+            className="block w-full h-auto"
+            claseMarco="w-full max-w-lg"
             estilo={vistaRecortada(num)}
             onEdgeSwipe={handleEdgeSwipe}
-          />
+          >
+            <NotasRecordatorio notas={notasDe(num)} sobreLetra onTocar={abrirPanel} />
+          </ZoomableImage>
         </div>
       </div>
     );
