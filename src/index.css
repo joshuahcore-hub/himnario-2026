@@ -1,5 +1,7 @@
 /* display=optional: la letra DM Sans se usa solo si ya está lista al abrir (casi siempre, queda guardada); si no, se queda
    la del sistema en esa apertura SIN cambiar a mitad (con swap el texto se reacomodaba y la app "temblaba" al abrir). */
+/* Letra manuscrita de los recordatorios tipo post-it (1.8.2); sin internet usa la manuscrita del sistema. */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=optional');
 
 @tailwind base;

@@ -23,9 +23,11 @@ const Punto = ({ color }: { color: string }) => (
   <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
 );
 
-function Nota({ r, compacto, abierta, onAlternar, onEditar, onBorrar }: {
+function Nota({ r, compacto, indice, abierta, onAlternar, onEditar, onBorrar }: {
   r: Recordatorio;
   compacto: boolean;
+  /** Para inclinar los post-it un poco distinto uno de otro. */
+  indice: number;
   /** Fila de opciones (Editar / Eliminar) desplegada. */
   abierta: boolean;
   onAlternar: () => void;
@@ -38,7 +40,7 @@ function Nota({ r, compacto, abierta, onAlternar, onEditar, onBorrar }: {
   // Quien lo recibe: al aparecerle, quien lo dejó ve "Visto".
   useEffect(() => { if (r.autor && r.estado === 'enviado') marcarVisto(r); }, [r.id, r.estado]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const colorEstado = r.estado === 'visto' ? 'text-green-600 dark:text-green-400' : r.estado === 'eliminado' ? 'text-destructive' : '';
+  const colorEstado = r.estado === 'visto' ? 'text-green-700' : r.estado === 'eliminado' ? 'text-red-700' : '';
   const textoEstado = r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
   const toqueNota = useToque<HTMLDivElement>(() => { if (!r.id.startsWith('tmp-')) onAlternar(); });
   const toqueEditar = useToque(() => onEditar(r));
@@ -46,28 +48,34 @@ function Nota({ r, compacto, abierta, onAlternar, onEditar, onBorrar }: {
   const opcion = `flex items-center gap-1.5 rounded-full font-medium [touch-action:none] ${compacto ? 'h-7 px-3 text-[11px]' : 'h-8 px-3.5 text-xs'}`;
 
   return (
+    // Post-it (Josué, 1.8.2, estilo C): papelito amarillo pegado con un trozo de cinta, letra manuscrita y apenas
+    // inclinado (cada uno un poco distinto). Igual en claro, oscuro y en todos los colores: es "papel".
     <div
       role="button"
       {...toqueNota}
       onDoubleClick={e => e.stopPropagation()}
-      className={`relative w-full text-left rounded-xl border ${compacto ? 'px-2.5 py-1 text-xs' : 'px-3 py-2 text-sm'} ${
-        dejadaAOtro ? 'border-dashed border-yellow-500/60 bg-transparent' : 'border-yellow-400/50 bg-yellow-300/20 dark:bg-yellow-300/10'
-      }`}
+      className={`relative self-start max-w-[88%] text-left ${compacto ? 'px-2.5 pt-1.5 pb-1.5' : 'px-3.5 pt-2.5 pb-2.5'}`}
+      style={{
+        background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.16)', transform: `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg)`,
+      }}
     >
-      <div className="flex items-start gap-2">
-        <StickyNote size={compacto ? 12 : 14} className="mt-[3px] shrink-0 text-yellow-500" />
-        <span className="flex-1 min-w-0">
-          {persona && (
-            <span className={`flex items-center gap-1 font-semibold text-muted-foreground ${compacto ? 'text-[10px]' : 'text-[11px]'}`}>
-              {r.autor ? `${t.rec_from}:` : `${t.rec_for}:`}
-              <Punto color={persona.color} />
-              {persona.nombre}
-              {dejadaAOtro && <span className={colorEstado}>· {textoEstado}</span>}
-            </span>
-          )}
-          <span className="block whitespace-pre-wrap break-words font-medium text-amber-800 dark:text-yellow-200">{r.texto}</span>
+      {/* Cinta adhesiva */}
+      <span className="absolute left-1/2 -top-1.5 h-3 w-10 -ml-5 bg-white/55 dark:bg-white/35 pointer-events-none"
+            style={{ transform: 'rotate(2deg)', boxShadow: '0 0 0 1px rgba(0,0,0,0.04)' }} />
+      {persona && (
+        <span className={`flex items-center gap-1 font-semibold ${compacto ? 'text-[10px]' : 'text-[11px]'}`} style={{ color: '#7A6420' }}>
+          {r.autor ? `${t.rec_from}:` : `${t.rec_for}:`}
+          <Punto color={persona.color} />
+          {persona.nombre}
+          {dejadaAOtro && <span className={colorEstado}>· {textoEstado}</span>}
         </span>
-      </div>
+      )}
+      <span className="block whitespace-pre-wrap break-words"
+            style={{ fontFamily: "'Caveat', 'Segoe Print', 'Bradley Hand', cursive", fontWeight: 600,
+                     fontSize: compacto ? 16 : 19, lineHeight: 1.15 }}>
+        {r.texto}
+      </span>
       {/* Opciones al tocar (Josué, 1.7.1): Editar (solo las propias) y Eliminar. FLOTAN bajo la nota (no la agrandan):
           si la nota creciera, la letra y la propia nota se moverían bajo el dedo (regla de Josué, 1.4.4). */}
       <div className="absolute right-2 top-full mt-1.5 z-10 flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
@@ -117,9 +125,9 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
 
   if (notas.length === 0 && !confirmar) return null;
   return (
-    <div ref={contenedor} className={`w-full flex flex-col ${compacto ? 'gap-1' : 'gap-1.5'} ${className}`}>
-      {notas.map(r => (
-        <Nota key={r.id} r={r} compacto={compacto} abierta={abiertaId === r.id}
+    <div ref={contenedor} className={`w-full flex flex-col pt-1.5 ${compacto ? 'gap-2.5' : 'gap-3.5'} ${className}`}>
+      {notas.map((r, i) => (
+        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id}
               onAlternar={() => setAbiertaId(a => (a === r.id ? null : r.id))} onEditar={editar} onBorrar={pedirBorrar} />
       ))}
       <Dialog open={confirmar} onOpenChange={o => { if (!o && !borrando) setConfirmar(false); }}>

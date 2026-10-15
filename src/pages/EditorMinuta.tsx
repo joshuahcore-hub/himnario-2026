@@ -100,9 +100,9 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados }: {
               className="flex items-center gap-2 py-2.5 px-2 rounded-lg w-full text-left"
               style={{
                 WebkitTapHighlightColor: 'transparent',
+                // Solo el fondo verde, sin el borde fino más oscuro (Josué, 1.8.2: el borde se veía raro).
                 backgroundColor: marcado ? 'rgb(22 163 74 / 0.15)' : 'transparent',
-                boxShadow: marcado ? 'inset 0 0 0 1px rgb(22 163 74 / 0.4)' : 'inset 0 0 0 1px transparent',
-                transition: `background-color ${MARCAR_MS}ms ease-out, box-shadow ${MARCAR_MS}ms ease-out`,
+                transition: `background-color ${MARCAR_MS}ms ease-out`,
               }}
             >
               <span className="text-hymn-number font-semibold text-xs w-7 shrink-0 text-center">{h.hymn_number}</span>
