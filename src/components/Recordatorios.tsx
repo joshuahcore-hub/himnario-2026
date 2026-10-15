@@ -186,9 +186,6 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
   // Editar uno y dejarlo SIN texto = querer borrarlo: al cerrar (o tocar "Eliminar") se pregunta, en el MISMO panel
   // (Josué, 1.7.1: el basurero dentro de la edición se veía raro; borrar es manteniendo presionada la nota).
   const [confirmando, setConfirmando] = useState(false);
-  // Un segundo toque que llega justo después de abrir (p. ej. tocaron dos veces porque el primero tardó) no debe
-  // cerrar el panel recién abierto (1.7.2).
-  const abiertoEn = useRef(0);
 
   // Se reinicia al ABRIR, nunca al cerrar (si no, durante el desvanecimiento se vería el estado anterior).
   useEffect(() => {
@@ -198,7 +195,6 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
     setSoloMinuta(anterior ? !!anterior.minuta : !!minutaId);
     setGuardando(false);
     setConfirmando(false);
-    abiertoEn.current = Date.now();
     if (puedeDejarAOtros && !anterior?.local) cargarPersonas().then(setPersonas);
   }, [abierto]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -239,7 +235,6 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, minutaId
   const vacio = !!anterior && texto.trim().length === 0;
   /** Cerrar (tocar fuera, X, atrás): si quedó vacío, primero pregunta. Ya preguntando, cerrar = no borrar nada. */
   const intentarCerrar = () => {
-    if (Date.now() - abiertoEn.current < 450) return;
     if (vacio && !confirmando && !guardando) setConfirmando(true);
     else if (!guardando) onCerrar();
   };

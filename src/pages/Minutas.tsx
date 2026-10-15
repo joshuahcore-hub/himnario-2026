@@ -194,6 +194,9 @@ export default function Minutas() {
                 <div
                   className={`relative cursor-pointer ${m.fijada ? 'ring-2 ring-primary/40 rounded-xl' : ''}`}
                   onTouchStart={() => {
+                    // Gesto nuevo: el "ignorar" de un mantener-presionado anterior ya no vale (1.7.5: si al soltar no
+                    // llegaba el click, quedaba pendiente y se tragaba el siguiente toque de verdad).
+                    ignorarSiguienteToque.current = false;
                     if (!puedeEditar) return;
                     longPress.current = setTimeout(() => {
                       ignorarSiguienteToque.current = true;

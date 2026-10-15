@@ -214,7 +214,9 @@ export default function HymnDetail() {
   const handleTouchStart = (e: React.TouchEvent) => {
     // Si todavía se está frenando el paso anterior y se toca de nuevo, se completa al instante (pasar rápido varios).
     if (terminarPaso.current) terminarPaso.current();
-    else if (animando.current) return;
+    // Si la página está volviendo a su lugar (deslizamiento corto), el gesto nuevo la toma al instante (1.7.5: antes
+    // se ignoraba el toque durante 420 ms).
+    else if (animando.current) { animando.current = false; moverCarrusel(0, false); }
     if (saliendo.current) return;
     touchStartRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;

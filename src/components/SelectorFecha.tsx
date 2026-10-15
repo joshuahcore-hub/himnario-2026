@@ -96,7 +96,8 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
     if (!t0?.horizontal) return;
     // Fue un deslizamiento: que no marque el día donde se soltó el dedo.
     ignorarClick.current = true;
-    setTimeout(() => { ignorarClick.current = false; }, 350);
+    // Solo el click del mismo gesto (llega enseguida); antes 350 ms se tragaban toques rápidos a propósito (1.7.5).
+    setTimeout(() => { ignorarClick.current = false; }, 120);
     const mx = e.changedTouches[0].clientX - t0.x;
     if (Math.abs(mx) > 60) cambiarMes(mx < 0 ? 1 : -1);
     else moverTira(0, true);

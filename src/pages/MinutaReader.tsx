@@ -188,7 +188,8 @@ export default function MinutaReader() {
   const handleTouchStart = (e: React.TouchEvent) => {
     // Si todavía se está frenando el paso anterior y se toca de nuevo, se completa al instante (pasar varios rápido).
     if (terminarPaso.current) terminarPaso.current();
-    else if (animando.current) return;
+    // Volviendo a su lugar tras un deslizamiento corto: el gesto nuevo la toma al instante (1.7.5).
+    else if (animando.current) { animando.current = false; moverCarrusel(0, false); }
     touchStartRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
     lateralRef.current = null;
