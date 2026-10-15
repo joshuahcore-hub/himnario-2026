@@ -58,7 +58,7 @@
       html.color-damasco { background: #FCE5D5; }
       html.dark.color-damasco { background: #241A14; }
       html.color-azul { background: #DBEBFA; }
-      html.dark.color-azul { background: #121A26; }
+      html.dark.color-azul { background: #161B22; }
       html.color-salvia { background: #DEEDE3; }
       html.dark.color-salvia { background: #161D1A; }
     </style>
@@ -69,7 +69,7 @@
       // Tema (claro/oscuro) y color (1.8.0) antes de dibujar nada; también la barra del celular y el manifiesto
       // de esa combinación (apertura de Android). Ver src/hooks/useTheme.ts y src/lib/colores.ts.
       (function(){try{var r=document.documentElement,d=localStorage.getItem('theme')==='dark',c=localStorage.getItem('color')||'estandar',
-        F={"rosa":["#F8DBE5","#24141B"],"lila":["#E3D3F3","#1D1528"],"damasco":["#FCE5D5","#241A14"],"azul":["#DBEBFA","#121A26"],"salvia":["#DEEDE3","#161D1A"]};
+        F={"rosa":["#F8DBE5","#24141B"],"lila":["#E3D3F3","#1D1528"],"damasco":["#FCE5D5","#241A14"],"azul":["#DBEBFA","#161B22"],"salvia":["#DEEDE3","#161D1A"]};
         if(d)r.classList.add('dark');
         if(F[c])r.classList.add('color-'+c);else c='estandar';
         var fondo=c==='estandar'?(d?'#1C1A18':'#ffffff'):F[c][d?1:0];

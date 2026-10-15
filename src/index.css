@@ -377,26 +377,27 @@ html.color-azul {
   --barra-linea: 210 45% 75%;
 }
 html.dark.color-azul {
-  --background: 215 35% 11%;
-  --foreground: 210 50% 92%;
-  --card: 215 32% 15%;
-  --card-foreground: 210 50% 92%;
-  --popover: 215 32% 15%;
-  --popover-foreground: 210 50% 92%;
-  --primary: 205 85% 72%;
-  --primary-foreground: 215 35% 12%;
-  --secondary: 215 25% 20%;
-  --secondary-foreground: 210 50% 92%;
-  --muted: 215 25% 20%;
-  --muted-foreground: 210 20% 66%;
-  --accent: 215 25% 20%;
-  --accent-foreground: 210 50% 92%;
-  --border: 215 25% 25%;
-  --input: 215 25% 25%;
-  --ring: 205 85% 72%;
-  --campo: 215 35% 11%;
-  --barra-fondo: 215 32% 15%;
-  --barra-linea: 215 25% 25%;
+  /* 1.8.5: menos saturado (Josué). */
+  --background: 215 22% 11%;
+  --foreground: 210 30% 92%;
+  --card: 215 20% 15%;
+  --card-foreground: 210 30% 92%;
+  --popover: 215 20% 15%;
+  --popover-foreground: 210 30% 92%;
+  --primary: 205 55% 70%;
+  --primary-foreground: 215 22% 12%;
+  --secondary: 215 15% 20%;
+  --secondary-foreground: 210 30% 92%;
+  --muted: 215 15% 20%;
+  --muted-foreground: 210 12% 66%;
+  --accent: 215 15% 20%;
+  --accent-foreground: 210 30% 92%;
+  --border: 215 15% 25%;
+  --input: 215 15% 25%;
+  --ring: 205 55% 70%;
+  --campo: 215 22% 11%;
+  --barra-fondo: 215 20% 15%;
+  --barra-linea: 215 15% 25%;
 }
 html.color-salvia {
   --background: 140 30% 90%;
