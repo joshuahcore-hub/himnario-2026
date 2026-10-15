@@ -122,6 +122,26 @@ export default function MinutaReader() {
   const arrastrando = useRef(false);
   const animando = useRef(false);
   const dragXRef = useRef(0);
+  // Deslizar hacia arriba o abajo (celular derecho) sale a la lista de minutas, como en el himno abierto (Josué,
+  // 1.7.9): la pantalla sigue al dedo directo (style, sin estado de React) y al soltar sale por ese lado o vuelve.
+  const exteriorRef = useRef<HTMLDivElement>(null);
+  const dragYRef = useRef(0);
+  const saliendo = useRef(false);
+  const moverVertical = (dy: number, modo: 'arrastre' | 'volver' | 'salir') => {
+    const el = exteriorRef.current;
+    if (!el) return;
+    const d = Math.abs(dy);
+    el.style.transition = modo === 'arrastre' ? 'none' : 'all 280ms ease-out';
+    if (modo === 'salir') {
+      el.style.transform = `translateY(${dy < 0 ? '-' : ''}100vh) scale(0.85)`;
+      el.style.opacity = '0';
+      el.style.borderRadius = '16px';
+      return;
+    }
+    el.style.transform = d > 0 ? `translateY(${dy}px) scale(${Math.max(0.88, 1 - d / 2000)})` : 'none';
+    el.style.opacity = String(d > 0 ? Math.max(0.3, 1 - d / 300) : 1);
+    el.style.borderRadius = d > 0 ? '16px' : '0';
+  };
   const moverCarrusel = (px: number, animar: boolean) => {
     const el = carruselRef.current;
     if (!el) return;
@@ -190,6 +210,8 @@ export default function MinutaReader() {
     if (terminarPaso.current) terminarPaso.current();
     // Volviendo a su lugar tras un deslizamiento corto: el gesto nuevo la toma al instante (1.7.5).
     else if (animando.current) { animando.current = false; moverCarrusel(0, false); }
+    if (saliendo.current) return;
+    dragYRef.current = 0;
     touchStartRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
     lateralRef.current = null;
@@ -208,7 +230,13 @@ export default function MinutaReader() {
       touchStartRef.current += Math.sign(dx) * UMBRAL_LADO; // arranca desde 0, sin salto
       dx = e.touches[0].clientX - touchStartRef.current;
     }
-    if (!lateralRef.current) return;
+    if (!lateralRef.current) {
+      // Vertical: con el celular girado se recorre la letra (nativo); derecho, la pantalla sigue al dedo para salir.
+      if (horizontal) return;
+      dragYRef.current = e.touches[0].clientY - touchStartYRef.current;
+      moverVertical(dragYRef.current, 'arrastre');
+      return;
+    }
     const atEdge = (dx > 0 && currentPage === 0) || (dx < 0 && currentPage === totalPages - 1);
     dragXRef.current = atEdge ? dx * 0.3 : dx;
     moverCarrusel(dragXRef.current, false);
@@ -233,6 +261,9 @@ export default function MinutaReader() {
   const handleTouchEnd = () => {
     if (!arrastrando.current) return;
     arrastrando.current = false;
+    const dragY = dragYRef.current;
+    if (Math.abs(dragY) > 80) { saliendo.current = true; moverVertical(dragY, 'salir'); setTimeout(() => navigate('/minutas'), 280); return; }
+    if (dragY !== 0) { dragYRef.current = 0; moverVertical(0, 'volver'); return; }
     const dragX = dragXRef.current;
     const threshold = window.innerWidth * 0.08;
     if (dragX < -threshold && currentPage < totalPages - 1) animateSlide(-1);
@@ -296,7 +327,7 @@ export default function MinutaReader() {
   return (
     // overflow CLIP (no hidden): un contenedor "hidden" se puede desplazar solo (p. ej. al abrir un panel) y la
     // página quedaba corrida mostrando la vecina. clip recorta igual y no se desplaza (1.7.0).
-    <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-clip">
+    <div ref={exteriorRef} className="h-[100dvh] bg-background text-foreground flex flex-col overflow-clip" style={{ willChange: 'transform' }}>
       <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
       <div
@@ -305,7 +336,8 @@ export default function MinutaReader() {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        style={{ touchAction: 'pan-y' }}
+        // Derecho: todo el gesto lo maneja la app (cambiar de página o salir arriba/abajo). Girado: pan-y para recorrer.
+        style={{ touchAction: horizontal ? 'pan-y' : 'none' }}
       >
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderPage(currentPage - 1, -1)}
