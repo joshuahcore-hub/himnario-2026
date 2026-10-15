@@ -15,19 +15,31 @@ const ANCHO_MAX = 1400;
 // las partituras tienen pocos colores, los archivos pesan ~60 % menos.
 const todo = process.argv.includes('--todo');
 
-// El fondo de cada imagen se lleva exactamente al fondo de la app (para que canto e imagen sean una sola
-// superficie, sin recuadro): oscuro #0E0D0C → #1C1A18 (hsl 30 8% 10%), claro #FFFFFF → #F7F5F3 (hsl 36 20% 96%).
-// Ajuste lineal por canal: el fondo pasa al color de la app y el otro extremo (blanco en oscuro, negro en
-// claro) no cambia, así el texto y los acordes conservan su color.
+// FONDO TRANSPARENTE (1.8.0, temas de color): se quita el fondo de cada imagen ("color a transparencia" respecto
+// al fondo original: blanco en claro, #0E0D0C en oscuro). La letra y los acordes quedan sobre cualquier color de la
+// app (Estándar, Rosa, Lila…); sobre el fondo estándar se ve igual que antes. Antes (hasta 1.7.x) el fondo se
+// pintaba con el color exacto de la app y no servía para otros colores.
 const FONDO = {
-  // [28,26,23] = hsl(30 8% 10%) tal como lo calcula el navegador (antes decía 24 y quedaba 1 tono corrido).
-  oscuro: { origen: [14, 13, 12], app: [28, 26, 23], fijo: 255 },
-  claro: { origen: [255, 255, 255], app: [247, 245, 243], fijo: 0 },
+  oscuro: [14, 13, 12],
+  claro: [255, 255, 255],
 };
-function ajusteDeFondo({ origen, app, fijo }) {
-  const a = origen.map((o, i) => (app[i] - fijo) / (o - fijo));
-  const b = a.map((ai, i) => fijo - ai * fijo);
-  return { a, b };
+/** Quita el fondo: alfa = cuánto se aleja cada píxel del fondo; el color se "des-mezcla" con ese fondo. */
+function aTransparente(rgb, fondo) {
+  const out = Buffer.alloc((rgb.length / 3) * 4);
+  for (let i = 0, j = 0; i < rgb.length; i += 3, j += 4) {
+    let a = 0;
+    for (let c = 0; c < 3; c++) {
+      const v = rgb[i + c], b = fondo[c];
+      const ac = v > b ? (v - b) / (255 - b) : v < b ? (b - v) / b : 0;
+      if (ac > a) a = ac;
+    }
+    for (let c = 0; c < 3; c++) {
+      const v = rgb[i + c], b = fondo[c];
+      out[j + c] = a > 0 ? Math.max(0, Math.min(255, Math.round((v - b) / a + b))) : 0;
+    }
+    out[j + 3] = Math.round(a * 255);
+  }
+  return out;
 }
 
 let convertidas = 0, saltadas = 0, bytes = 0;
@@ -44,11 +56,12 @@ for (const tema of ['claro', 'oscuro']) {
       continue;
     }
     const fondo = FONDO[tema];
-    const { a, b } = ajusteDeFondo(fondo);
-    await sharp(entrada)
-      .flatten({ background: { r: fondo.origen[0], g: fondo.origen[1], b: fondo.origen[2] } })
-      .linear(a, b)
+    const { data, info } = await sharp(entrada)
+      .flatten({ background: { r: fondo[0], g: fondo[1], b: fondo[2] } })
       .resize({ width: ANCHO_MAX, withoutEnlargement: true })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    await sharp(aTransparente(data, fondo), { raw: { width: info.width, height: info.height, channels: 4 } })
       .webp({ lossless: true, effort: 6 })
       .toFile(salida);
     convertidas++;

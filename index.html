@@ -50,16 +50,33 @@
          La apertura la muestra el propio sistema (Android/iPhone) hasta que la app está lista. */
       html { background: #F7F5F3; }
       html.dark { background: #1C1A18; }
+      /* Colores (1.8.0): mismo fondo que src/lib/colores.ts */
+      html.color-rosa { background: #F8DBE5; }
+      html.dark.color-rosa { background: #24141B; }
+      html.color-lila { background: #E3D3F3; }
+      html.dark.color-lila { background: #1D1528; }
+      html.color-damasco { background: #FCE5D5; }
+      html.dark.color-damasco { background: #241A14; }
+      html.color-azul { background: #DBEBFA; }
+      html.dark.color-azul { background: #121A26; }
+      html.color-salvia { background: #DEEDE3; }
+      html.dark.color-salvia { background: #141F1A; }
     </style>
   </head>
 
   <body>
     <script>
-      // Tema oscuro antes de dibujar nada; también barra del celular y manifiesto oscuro
-      // (para que la apertura de Android al instalar sea oscura). Ver src/hooks/useTheme.ts.
-      (function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');
-        document.querySelector('meta[name="theme-color"]').setAttribute('content','#1C1A18');
-        var m=document.querySelector('link[rel="manifest"]');if(m)m.href='/manifest-oscuro.webmanifest';}}catch(e){}})();
+      // Tema (claro/oscuro) y color (1.8.0) antes de dibujar nada; también la barra del celular y el manifiesto
+      // de esa combinación (apertura de Android). Ver src/hooks/useTheme.ts y src/lib/colores.ts.
+      (function(){try{var r=document.documentElement,d=localStorage.getItem('theme')==='dark',c=localStorage.getItem('color')||'estandar',
+        F={"rosa":["#F8DBE5","#24141B"],"lila":["#E3D3F3","#1D1528"],"damasco":["#FCE5D5","#241A14"],"azul":["#DBEBFA","#121A26"],"salvia":["#DEEDE3","#141F1A"]};
+        if(d)r.classList.add('dark');
+        if(F[c])r.classList.add('color-'+c);else c='estandar';
+        var fondo=c==='estandar'?(d?'#1C1A18':'#ffffff'):F[c][d?1:0];
+        document.querySelector('meta[name="theme-color"]').setAttribute('content',fondo);
+        var m=document.querySelector('link[rel="manifest"]');
+        if(m)m.href='/'+(c==='estandar'?(d?'manifest-oscuro':'manifest'):'manifest-'+c+(d?'-oscuro':''))+'.webmanifest';
+      }catch(e){}})();
     </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

@@ -10,12 +10,14 @@ export interface OpcionDesplegable<T extends string> {
   icono?: ReactNode;
 }
 
-export default function Desplegable<T extends string>({ titulo, icono, valor, opciones, onElegir }: {
+export default function Desplegable<T extends string>({ titulo, icono, valor, opciones, onElegir, alinear = 'izquierda' }: {
   titulo: string;
   icono?: ReactNode;
   valor: T;
   opciones: OpcionDesplegable<T>[];
   onElegir: (valor: T) => void;
+  /** Hacia qué lado se abre la lista si es más ancha que la caja (1.8.0: tres menús en una fila). */
+  alinear?: 'izquierda' | 'derecha';
 }) {
   const [abierto, setAbierto] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
@@ -23,7 +25,7 @@ export default function Desplegable<T extends string>({ titulo, icono, valor, op
   const actual = opciones.find(o => o.valor === valor);
 
   return (
-    <div ref={caja} className="relative bg-card rounded-xl border border-border p-3">
+    <div ref={caja} className="relative min-w-0 bg-card rounded-xl border border-border p-3">
       <div className="flex items-center gap-1.5 mb-2">
         {icono}
         <span className="text-xs font-medium text-foreground">{titulo}</span>
@@ -38,7 +40,7 @@ export default function Desplegable<T extends string>({ titulo, icono, valor, op
         <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition-transform duration-200 ${abierto ? 'rotate-180' : ''}`} />
       </button>
       {abierto && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl border border-border bg-card shadow-lg p-1 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className={`absolute ${alinear === 'derecha' ? 'right-0' : 'left-0'} min-w-full w-max top-full mt-1 z-30 rounded-xl border border-border bg-card shadow-lg p-1 animate-in fade-in slide-in-from-top-1 duration-150`}>
           {opciones.map(o => (
             <button
               key={o.valor}

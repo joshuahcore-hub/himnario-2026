@@ -1,7 +1,8 @@
-import { Moon, Sun, Globe, WifiOff, CheckCircle2 } from 'lucide-react';
+import { Moon, Sun, Globe, WifiOff, CheckCircle2, Palette } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
-import { useTheme, applyTheme } from '@/hooks/useTheme';
+import { useTheme, applyTheme, applyColor } from '@/hooks/useTheme';
+import { COLORES_TEMA, MUESTRAS, type ColorTema } from '@/lib/colores';
 import Desplegable from '@/components/Desplegable';
 import { useOffline } from '@/lib/offline';
 import { useRef } from 'react';
@@ -11,11 +12,15 @@ import SeccionPdf from '@/components/SeccionPdf';
 const LANGUAGES: { code: Locale; label: string }[] = [
   { code: 'es', label: 'Español' },
   { code: 'en', label: 'English' },
+  { code: 'pt', label: 'Português' },
 ];
 
 export default function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
-  const { theme } = useTheme();
+  const { theme, color } = useTheme();
+  const muestra = (c: ColorTema) => (
+    <span className="inline-block w-3 h-3 rounded-full shrink-0 border border-foreground/15" style={{ background: MUESTRAS[c] }} />
+  );
   const dark = theme === 'dark';
   const offline = useOffline();
   const toquesVersion = useRef<number[]>([]);
@@ -37,8 +42,8 @@ export default function SettingsPage() {
         <MenuAcceso />
       </div>
 
-      {/* Idioma (izquierda) y Tema (derecha) en una fila; cada uno despliega sus opciones hacia abajo. */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Idioma, Tema y Color en una fila (Josué, 1.8.0); cada uno despliega sus opciones hacia abajo. */}
+      <div className="grid grid-cols-3 gap-2">
         <Desplegable<Locale>
           titulo={t.settings_language}
           icono={<Globe size={13} className="text-muted-foreground" />}
@@ -55,6 +60,14 @@ export default function SettingsPage() {
             { valor: 'dark', etiqueta: t.theme_dark_mode, icono: <Moon size={13} /> },
           ]}
           onElegir={applyTheme}
+        />
+        <Desplegable<ColorTema>
+          titulo={t.settings_color}
+          icono={<Palette size={13} className="text-muted-foreground" />}
+          valor={color}
+          opciones={COLORES_TEMA.map(c => ({ valor: c, etiqueta: t.color_nombre[c], icono: muestra(c) }))}
+          onElegir={applyColor}
+          alinear="derecha"
         />
       </div>
 

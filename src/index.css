@@ -16,6 +16,9 @@
     --foreground: 30 10% 12%;
     /* Cuadros para escribir: levemente más oscuros que el fondo, para que se note dónde se escribe (Josué, 1.7.10). */
     --campo: 36 14% 91.5%;
+    /* Barra de pestañas de abajo: por defecto como las tarjetas; en los colores claros, un tono más oscuro (1.8.0). */
+    --barra-fondo: var(--card);
+    --barra-linea: var(--border);
 
     --card: 36 25% 98%;
     --card-foreground: 30 10% 12%;
@@ -108,6 +111,8 @@
     --sidebar-border: 30 6% 22%;
     --sidebar-ring: 36 15% 90%;
   }
+
+
 }
 
 @layer base {
@@ -208,4 +213,230 @@
   .tap-btn-overlay:active {
     opacity: 0.5 !important;
   }
+}
+
+/* ===== Colores (1.8.0, Josué): Rosa, Lila, Damasco, Azul y Verde salvia; cada uno en claro y en oscuro.
+   Las imágenes de los himnos tienen fondo transparente: sirven sobre cualquiera. Definidos también en
+   src/lib/colores.ts (fondos en hex para la barra del celular y la apertura de Android). ===== */
+/* FUERA de @layer: Tailwind borra de las capas las reglas con clases que no ve escritas en el código
+   (color-rosa… se arma con `color-${c}`) y los colores claros desaparecían al compilar. */
+html.color-rosa {
+  --background: 340 66% 91.5%;
+  --foreground: 335 35% 14%;
+  --card: 340 72% 95.5%;
+  --card-foreground: 335 35% 14%;
+  --popover: 340 72% 95.5%;
+  --popover-foreground: 335 35% 14%;
+  --primary: 335 60% 40%;
+  --primary-foreground: 340 60% 98%;
+  --secondary: 340 52% 85.5%;
+  --secondary-foreground: 335 35% 14%;
+  --muted: 340 52% 85.5%;
+  --muted-foreground: 335 28% 36%;
+  --accent: 340 52% 85.5%;
+  --accent-foreground: 335 35% 14%;
+  --border: 340 44% 80%;
+  --input: 340 44% 80%;
+  --ring: 335 60% 40%;
+  --campo: 340 58% 87.5%;
+  --barra-fondo: 340 55% 85.5%;
+  --barra-linea: 340 42% 76%;
+}
+html.dark.color-rosa {
+  --background: 335 30% 11%;
+  --foreground: 340 45% 92%;
+  --card: 335 28% 15%;
+  --card-foreground: 340 45% 92%;
+  --popover: 335 28% 15%;
+  --popover-foreground: 340 45% 92%;
+  --primary: 340 80% 78%;
+  --primary-foreground: 335 30% 12%;
+  --secondary: 335 22% 19%;
+  --secondary-foreground: 340 45% 92%;
+  --muted: 335 22% 19%;
+  --muted-foreground: 340 20% 66%;
+  --accent: 335 22% 19%;
+  --accent-foreground: 340 45% 92%;
+  --border: 335 22% 24%;
+  --input: 335 22% 24%;
+  --ring: 340 80% 78%;
+  --campo: 335 30% 11%;
+  --barra-fondo: 335 28% 15%;
+  --barra-linea: 335 22% 24%;
+}
+html.color-lila {
+  --background: 270 58% 89%;
+  --foreground: 270 35% 15%;
+  --card: 270 64% 94%;
+  --card-foreground: 270 35% 15%;
+  --popover: 270 64% 94%;
+  --popover-foreground: 270 35% 15%;
+  --primary: 270 48% 42%;
+  --primary-foreground: 270 60% 98%;
+  --secondary: 270 45% 83%;
+  --secondary-foreground: 270 35% 15%;
+  --muted: 270 45% 83%;
+  --muted-foreground: 270 22% 37%;
+  --accent: 270 45% 83%;
+  --accent-foreground: 270 35% 15%;
+  --border: 270 38% 78%;
+  --input: 270 38% 78%;
+  --ring: 270 48% 42%;
+  --campo: 270 48% 85.5%;
+  --barra-fondo: 270 45% 83%;
+  --barra-linea: 270 32% 73%;
+}
+html.dark.color-lila {
+  --background: 265 30% 12%;
+  --foreground: 270 45% 92%;
+  --card: 265 28% 16%;
+  --card-foreground: 270 45% 92%;
+  --popover: 265 28% 16%;
+  --popover-foreground: 270 45% 92%;
+  --primary: 270 70% 80%;
+  --primary-foreground: 265 30% 12%;
+  --secondary: 265 22% 20%;
+  --secondary-foreground: 270 45% 92%;
+  --muted: 265 22% 20%;
+  --muted-foreground: 270 20% 66%;
+  --accent: 265 22% 20%;
+  --accent-foreground: 270 45% 92%;
+  --border: 265 22% 25%;
+  --input: 265 22% 25%;
+  --ring: 270 70% 80%;
+  --campo: 265 30% 12%;
+  --barra-fondo: 265 28% 16%;
+  --barra-linea: 265 22% 25%;
+}
+html.color-damasco {
+  --background: 25 85% 91%;
+  --foreground: 20 40% 14%;
+  --card: 25 90% 95.5%;
+  --card-foreground: 20 40% 14%;
+  --popover: 25 90% 95.5%;
+  --popover-foreground: 20 40% 14%;
+  --primary: 20 72% 44%;
+  --primary-foreground: 25 80% 98%;
+  --secondary: 25 70% 85%;
+  --secondary-foreground: 20 40% 14%;
+  --muted: 25 70% 85%;
+  --muted-foreground: 20 30% 36%;
+  --accent: 25 70% 85%;
+  --accent-foreground: 20 40% 14%;
+  --border: 25 55% 79%;
+  --input: 25 55% 79%;
+  --ring: 20 72% 44%;
+  --campo: 25 72% 86.5%;
+  --barra-fondo: 25 68% 84.5%;
+  --barra-linea: 25 55% 74%;
+}
+html.dark.color-damasco {
+  --background: 22 30% 11%;
+  --foreground: 28 60% 92%;
+  --card: 22 28% 15%;
+  --card-foreground: 28 60% 92%;
+  --popover: 22 28% 15%;
+  --popover-foreground: 28 60% 92%;
+  --primary: 25 85% 72%;
+  --primary-foreground: 22 30% 12%;
+  --secondary: 22 22% 19%;
+  --secondary-foreground: 28 60% 92%;
+  --muted: 22 22% 19%;
+  --muted-foreground: 25 22% 66%;
+  --accent: 22 22% 19%;
+  --accent-foreground: 28 60% 92%;
+  --border: 22 22% 24%;
+  --input: 22 22% 24%;
+  --ring: 25 85% 72%;
+  --campo: 22 30% 11%;
+  --barra-fondo: 22 28% 15%;
+  --barra-linea: 22 22% 24%;
+}
+html.color-azul {
+  --background: 210 75% 92%;
+  --foreground: 215 40% 14%;
+  --card: 210 80% 96%;
+  --card-foreground: 215 40% 14%;
+  --popover: 210 80% 96%;
+  --popover-foreground: 215 40% 14%;
+  --primary: 212 65% 42%;
+  --primary-foreground: 210 80% 98%;
+  --secondary: 210 60% 86%;
+  --secondary-foreground: 215 40% 14%;
+  --muted: 210 60% 86%;
+  --muted-foreground: 215 25% 38%;
+  --accent: 210 60% 86%;
+  --accent-foreground: 215 40% 14%;
+  --border: 210 45% 80%;
+  --input: 210 45% 80%;
+  --ring: 212 65% 42%;
+  --campo: 210 62% 87.5%;
+  --barra-fondo: 210 58% 85.5%;
+  --barra-linea: 210 45% 75%;
+}
+html.dark.color-azul {
+  --background: 215 35% 11%;
+  --foreground: 210 50% 92%;
+  --card: 215 32% 15%;
+  --card-foreground: 210 50% 92%;
+  --popover: 215 32% 15%;
+  --popover-foreground: 210 50% 92%;
+  --primary: 205 85% 72%;
+  --primary-foreground: 215 35% 12%;
+  --secondary: 215 25% 20%;
+  --secondary-foreground: 210 50% 92%;
+  --muted: 215 25% 20%;
+  --muted-foreground: 210 20% 66%;
+  --accent: 215 25% 20%;
+  --accent-foreground: 210 50% 92%;
+  --border: 215 25% 25%;
+  --input: 215 25% 25%;
+  --ring: 205 85% 72%;
+  --campo: 215 35% 11%;
+  --barra-fondo: 215 32% 15%;
+  --barra-linea: 215 25% 25%;
+}
+html.color-salvia {
+  --background: 140 30% 90%;
+  --foreground: 150 30% 13%;
+  --card: 140 35% 95%;
+  --card-foreground: 150 30% 13%;
+  --popover: 140 35% 95%;
+  --popover-foreground: 150 30% 13%;
+  --primary: 150 35% 32%;
+  --primary-foreground: 140 40% 97%;
+  --secondary: 140 25% 84%;
+  --secondary-foreground: 150 30% 13%;
+  --muted: 140 25% 84%;
+  --muted-foreground: 150 15% 35%;
+  --accent: 140 25% 84%;
+  --accent-foreground: 150 30% 13%;
+  --border: 140 20% 78%;
+  --input: 140 20% 78%;
+  --ring: 150 35% 32%;
+  --campo: 140 24% 85.5%;
+  --barra-fondo: 140 24% 83.5%;
+  --barra-linea: 140 20% 72%;
+}
+html.dark.color-salvia {
+  --background: 150 22% 10%;
+  --foreground: 140 30% 90%;
+  --card: 150 20% 14%;
+  --card-foreground: 140 30% 90%;
+  --popover: 150 20% 14%;
+  --popover-foreground: 140 30% 90%;
+  --primary: 140 45% 68%;
+  --primary-foreground: 150 25% 11%;
+  --secondary: 150 16% 18%;
+  --secondary-foreground: 140 30% 90%;
+  --muted: 150 16% 18%;
+  --muted-foreground: 140 15% 62%;
+  --accent: 150 16% 18%;
+  --accent-foreground: 140 30% 90%;
+  --border: 150 16% 23%;
+  --input: 150 16% 23%;
+  --ring: 140 45% 68%;
+  --campo: 150 22% 10%;
+  --barra-fondo: 150 20% 14%;
+  --barra-linea: 150 16% 23%;
 }

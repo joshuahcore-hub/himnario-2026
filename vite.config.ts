@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { readFileSync } from "fs";
 import { VitePWA, type ManifestOptions } from "vite-plugin-pwa";
+import { COLORES_TEMA, FONDOS, archivoManifiesto } from "./src/lib/colores";
 
 // Manifiesto de la app instalable. La pantalla de apertura de Android la arma el celular con
 // background_color + ícono, y solo admite UN color: por eso hay dos manifiestos (claro y oscuro)
@@ -27,16 +28,20 @@ const manifiesto: Partial<ManifestOptions> = {
   ],
 };
 
-/** Genera manifest-oscuro.webmanifest: igual al normal, con el fondo oscuro de la app. */
+/** Genera manifest-oscuro.webmanifest (fondo oscuro) y, desde 1.8.0, uno por cada color en claro y en oscuro
+ *  (manifest-rosa.webmanifest, manifest-rosa-oscuro.webmanifest…): la apertura de Android usa ese fondo. */
 const manifiestoOscuro = (): Plugin => ({
   name: "manifiesto-oscuro",
   apply: "build",
   generateBundle() {
-    this.emitFile({
-      type: "asset",
-      fileName: "manifest-oscuro.webmanifest",
-      source: JSON.stringify({ ...manifiesto, background_color: "#1C1A18", theme_color: "#1C1A18" }),
-    });
+    for (const color of COLORES_TEMA) {
+      for (const oscuro of [false, true]) {
+        const archivo = archivoManifiesto(color, oscuro);
+        if (archivo === "manifest.webmanifest") continue; // lo genera vite-plugin-pwa
+        const fondo = FONDOS[color][oscuro ? "oscuro" : "claro"];
+        this.emitFile({ type: "asset", fileName: archivo, source: JSON.stringify({ ...manifiesto, background_color: fondo, theme_color: fondo }) });
+      }
+    }
   },
 });
 

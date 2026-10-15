@@ -6,7 +6,7 @@ const STORAGE_KEY = 'app_language';
 function getInitialLocale(): Locale {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'en' || stored === 'es') return stored;
+    if (stored === 'en' || stored === 'es' || stored === 'pt') return stored;
   } catch {}
   return 'es';
 }

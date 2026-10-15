@@ -182,7 +182,7 @@ export default function HymnalPage() {
 
             {/* Tonality picker */}
             <p className="text-[11px] text-muted-foreground font-medium mb-2">
-              {t.hymnal_key_major.split(' ')[0] === 'Tonalidad' ? 'Tonalidad' : 'Key'}
+              {t.hymnal_key_major === 'Major keys' ? 'Key' : t.hymnal_key_major.split(' ')[0]}
             </p>
             <TonalityPicker
               selectedKey={selectedKey}

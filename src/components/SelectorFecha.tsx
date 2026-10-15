@@ -8,7 +8,7 @@ import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { addMonths, format } from 'date-fns';
-import { es, enUS } from 'date-fns/locale';
+import { es, enUS, ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/lib/i18n/index';
@@ -32,7 +32,7 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   className?: string;
 }) {
   const { t, locale } = useI18n();
-  const idioma = locale === 'es' ? es : enUS;
+  const idioma = locale === 'es' ? es : locale === 'pt' ? ptBR : enUS;
   const [abierto, setAbierto] = useState(false);
   const [elegida, setElegida] = useState<Date>(() => aFecha(valor));
   const [mes, setMes] = useState<Date>(() => aFecha(valor));
