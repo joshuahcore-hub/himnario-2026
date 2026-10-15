@@ -121,7 +121,7 @@ export default function HymnalPage() {
     <div
       ref={scrollRef}
       className="px-5 pt-4 pb-4 overflow-y-auto"
-      style={{ height: 'calc(100dvh - 4rem)' }}
+      style={{ height: 'calc(100dvh - var(--barra))' }}
     >
       {/* Computador: más abierto que el celular pero sin llegar a los bordes (max-w-3xl) y la lista en 2 columnas. */}
       <div className="max-w-3xl mx-auto">

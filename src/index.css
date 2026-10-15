@@ -8,6 +8,10 @@
 
 @layer base {
   :root {
+    /* Alto de la barra de pestañas de abajo: 4rem + la zona de gestos del sistema (Android nuevos dibujan la app
+       hasta el borde; sin esto la parte baja de las pestañas quedaba bajo la rayita de gestos y algunos toques se
+       los quedaba el sistema, 1.7.2). Todo lo que se ubica sobre la barra usa esta medida. */
+    --barra: calc(4rem + env(safe-area-inset-bottom, 0px));
     --background: 36 20% 96%;
     --foreground: 30 10% 12%;
 

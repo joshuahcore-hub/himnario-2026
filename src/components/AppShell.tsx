@@ -34,7 +34,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       {/* Sin desenfoque de fondo (backdrop-blur): en el celular costaba mucho mientras la canción se deslizaba detrás
           y los toques se atrasaban (1.7.2). */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-stretch h-16 max-w-lg mx-auto px-2">
           {tabs.map(tab => {
             const active = location.pathname === tab.path;

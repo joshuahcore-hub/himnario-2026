@@ -314,7 +314,7 @@ export default function HymnDetail() {
       // Solo la franja con letra (vistaRecortada), centrada entre los botones de arriba y el contador de abajo, con los
       // recordatorios justo encima de la letra (1.7.0). La letra a todo el ancho siempre cabe en vertical.
       <div key={num} className="absolute inset-0 flex flex-col items-center justify-center overflow-clip"
-           style={{ transform: `translateX(${offset * 100}%)`, paddingTop: '3.75rem', paddingBottom: 'calc(4rem + 3.75rem)' }}>
+           style={{ transform: `translateX(${offset * 100}%)`, paddingTop: '3.75rem', paddingBottom: 'calc(var(--barra) + 3.75rem)' }}>
         <NotasRecordatorio notas={notasDe(num)} onTocar={abrirPanel} className="max-w-lg px-4 pb-3 shrink-0" />
         <div className="w-full min-h-0 flex justify-center">
           <ZoomableImage
@@ -370,10 +370,10 @@ export default function HymnDetail() {
       {/* Contador y, debajo, la barra para saltar a cualquier himno; todo encima de la barra de pestañas (h-16, z-50).
           En horizontal no se muestran: tapaban la letra. */}
       {!horizontal && <>
-      <div className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(4rem + 2.75rem)' }}>
+      <div className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(var(--barra) + 2.75rem)' }}>
         <p className="text-muted-foreground/40 text-xs">{(vistaPrevia ?? indiceDestino ?? currentIndex) + 1} / {navNumbers.length}</p>
       </div>
-      <div className="absolute left-0 right-0 z-20" style={{ bottom: 'calc(4rem + 0.25rem)' }}>
+      <div className="absolute left-0 right-0 z-20" style={{ bottom: 'calc(var(--barra) + 0.25rem)' }}>
         <BarraHimnos
           total={navNumbers.length}
           indice={indiceDestino ?? currentIndex}

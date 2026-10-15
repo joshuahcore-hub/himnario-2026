@@ -200,7 +200,7 @@ export default function Admin() {
   );
 
   return (
-    <div className="flex flex-col w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - 4rem)' }}>
+    <div className="flex flex-col w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - var(--barra))' }}>
       <div className="flex items-center gap-3 px-5 pt-4 pb-3">
         <button onClick={() => navigate('/settings')} className="text-foreground p-1" aria-label={t.tab_settings}><ArrowLeft size={20} /></button>
         <h1 className="text-xl font-bold text-foreground flex-1">{t.admin_title}</h1>

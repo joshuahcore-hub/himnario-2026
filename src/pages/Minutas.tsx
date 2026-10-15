@@ -130,7 +130,7 @@ export default function Minutas() {
   return (
     <>
     {/* Tocar en cualquier parte fuera de una minuta sale del modo selección (igual que la X). */}
-    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 4rem)', overscrollBehavior: 'none' }}
+    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - var(--barra))', overscrollBehavior: 'none' }}
          onClick={() => { if (selectMode) salirSeleccion(); }}>
       <div className="flex items-center justify-between px-5 pt-4 gap-2 w-full max-w-5xl mx-auto">
         <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
@@ -243,7 +243,7 @@ export default function Minutas() {
       {selectMode && (
         <div
           className="fixed left-0 right-0 z-40 flex justify-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-200"
-          style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)' }}
+          style={{ bottom: 'calc(var(--barra) + 1rem)' }}
           onClick={e => e.stopPropagation()}
         >
           {puedeEditar1 && (
