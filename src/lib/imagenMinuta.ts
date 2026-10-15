@@ -94,7 +94,7 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
       y += 8 * S;
       escribir([
         { texto: txt.especial ?? 'Especial', color: col.especial, peso: 600, tam: fs },
-        ...(s.nombre ? [{ texto: ` ${s.nombre}`, color: col.texto, peso: 500, tam: fs }] : []),
+        ...(s.nombre ? [{ texto: ` ${s.nombre}`, color: col.especial, peso: 600, tam: fs }] : []),
       ]);
       y += 8 * S;
     } else if (s.isPalabra || s.isOracion) {

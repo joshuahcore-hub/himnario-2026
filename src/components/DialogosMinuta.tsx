@@ -36,7 +36,7 @@ export function DialogEspecial({ abierto, nombreInicial, nuevo, onListo, onCerra
           <span className="text-especial font-semibold text-sm shrink-0">{t.especial}</span>
           <input autoFocus value={nombre} onChange={e => setNombre(e.target.value.slice(0, 40))} placeholder={t.especial_nombre}
                  onKeyDown={e => { if (e.key === 'Enter') listo(); }}
-                 className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-muted-foreground/55" />
+                 className="flex-1 min-w-0 bg-transparent outline-none text-sm font-semibold text-especial placeholder:font-normal placeholder:text-muted-foreground/55" />
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" className="h-9 px-4 text-sm text-muted-foreground" onClick={onCerrar}>{t.minutas_cancel}</Button>

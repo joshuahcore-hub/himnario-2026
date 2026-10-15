@@ -61,7 +61,7 @@ export default function Portada({ date, songs, compact = false, creador, editor,
             return (
               <div key={`especial-${i}`} className={compact ? 'py-1' : 'py-2'}>
                 <span className={`font-semibold text-especial ${compact ? 'text-xs' : 'text-sm'}`}>{t.especial}</span>
-                {song.nombre && <span className={`font-medium text-foreground ${compact ? 'text-xs' : 'text-sm'}`}> {song.nombre}</span>}
+                {song.nombre && <span className={`font-semibold text-especial ${compact ? 'text-xs' : 'text-sm'}`}> {song.nombre}</span>}
               </div>
             );
           }

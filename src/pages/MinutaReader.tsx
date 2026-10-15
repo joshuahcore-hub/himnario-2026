@@ -376,7 +376,7 @@ export default function MinutaReader() {
           // (1.13.0) Especial: solo texto, como Oración; el nombre debajo.
           <div className="m-auto flex flex-col items-center gap-1 text-center px-6">
             <span className="text-3xl font-bold text-especial">{t.especial.toLocaleUpperCase()}</span>
-            {item.nombre && <span className="text-2xl font-medium text-foreground">{item.nombre}</span>}
+            {item.nombre && <span className="text-2xl font-semibold text-especial">{item.nombre}</span>}
           </div>
         ) : item?.fuera ? (
           <PaginaFuera canto={item} horizontal={horizontal} />

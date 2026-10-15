@@ -7,6 +7,7 @@
 // verlo y quien lo dejó ve "Eliminado por …".
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { getHymns } from '@/lib/hymnCache';
 
 export interface Persona { id: string; nombre: string; color: string }
 
@@ -30,6 +31,9 @@ export interface Recordatorio {
   /** Dónde quedó sobre la letra (1.9.0): esquina superior izquierda como fracción (0..1) del recuadro de la letra.
    *  null = en su lugar de siempre, arriba de la letra. */
   pos?: { x: number; y: number } | null;
+  /** (1.13.2) Solo en los que envié: dónde y de qué tamaño lo dejó quien lo recibió (vista "Enviados"). */
+  posPara?: { x: number; y: number } | null;
+  tamPara?: number | null;
   /** Tamaño (1.9.1): 1 = normal; entre TAM_MIN y TAM_MAX. null = normal. */
   tam?: number | null;
 }
@@ -117,6 +121,8 @@ export function useRecordatorios(registrado: boolean, minutaId: string | null = 
   return (himno, tipo = 'visibles') => (!himno ? [] : todos
     .filter(r => r.himno === himno && (r.minuta === null || r.minuta === undefined || r.minuta === minutaId))
     .filter(r => (tipo === 'enviados' ? !!r.para : !r.para))
+    // En "Enviados" se ven donde (y del tamaño que) los dejó quien los recibió (1.13.2, Josué).
+    .map(r => (tipo === 'enviados' && r.posPara !== undefined ? { ...r, pos: r.posPara, tam: r.tamPara ?? r.tam } : r))
     .sort((a, b) => orden(a) - orden(b) || a.creado.localeCompare(b.creado)));
 }
 
@@ -154,7 +160,9 @@ export async function guardarRecordatorio(
   };
   fijarServidor([...delServidor, temporal]);
   try {
-    const r = await api<Recordatorio>('recordatorios', { metodo: 'POST', datos: { himno, texto, para: paraId, minuta } });
+    // titulo_himno: para el aviso a quien lo recibe ("X te dejó un recordatorio en «49 Me hablaron de Dios»").
+    const titulo_himno = getHymns().hymns.find(h => h.hymn_number === himno)?.title ?? '';
+    const r = await api<Recordatorio>('recordatorios', { metodo: 'POST', datos: { himno, texto, para: paraId, minuta, titulo_himno } });
     fijarServidor(delServidor.map(x => (x.id === temporal.id ? r : x)));
   } catch (e) {
     fijarServidor(delServidor.filter(x => x.id !== temporal.id));
@@ -193,6 +201,9 @@ export function ajustarRecordatorio(r: Recordatorio, cambios: Ajuste) {
     posiciones = { ...posiciones, [r.id]: { ...posiciones[r.id], ...cambios } };
     escribir(CLAVE_POSICIONES, posiciones);
     avisar();
+    // (1.13.2) También al servidor: quien me lo envió lo ve donde lo dejé (vista "Enviados"). Si falla, queda igual
+    // guardado en este celular.
+    if (!r.id.startsWith('tmp-')) api(`recordatorios/${r.id}/posicion`, { metodo: 'PATCH', datos: cambios }).catch(() => {});
     return;
   }
   const antes = delServidor.find(x => x.id === r.id);

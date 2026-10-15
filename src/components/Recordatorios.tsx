@@ -28,6 +28,15 @@ const Punto = ({ color }: { color: string }) => (
 /** Letra manuscrita de los post-it (1.9.0: Patrick Hand, más legible que Caveat; sin internet, la del sistema). */
 export const LETRA_POSTIT = "'Patrick Hand', 'Segoe Print', 'Bradley Hand', cursive";
 
+// Post-it RECIBIDOS ya "reconocidos" en este celular (1.13.2, Josué): la primera vez se ven con contorno celeste y
+// "Te lo envió X"; un toque lo quita (queda reconocido) y desde ahí se comportan como cualquier otro.
+const CLAVE_RECONOCIDOS = 'himnario_postit_reconocidos';
+const reconocidos = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(CLAVE_RECONOCIDOS) || '[]'); } catch { return []; } })());
+function reconocer(id: string) {
+  reconocidos.add(id);
+  try { localStorage.setItem(CLAVE_RECONOCIDOS, JSON.stringify([...reconocidos].slice(-500))); } catch { /* sin espacio */ }
+}
+
 const MANTENER_MS = 420; // mantener presionado para despegar el post-it y moverlo
 const MOVER_MAX = 7;     // si el dedo se mueve más que esto antes, es un deslizamiento (cambiar de canción), no mover
 const TIRADOR_SEP = 12;  // separación del tirador respecto a la esquina del post-it (1.9.10: "un poco más lejos")
@@ -125,6 +134,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   const persona = r.autor ?? r.para;
   // Quien lo recibe: al aparecerle, quien lo dejó ve "Visto".
   useEffect(() => { if (r.autor && r.estado === 'enviado') marcarVisto(r); }, [r.id, r.estado]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Recibido y todavía sin reconocer en este celular: contorno celeste + "Te lo envió X" (ver arriba).
+  const [nuevoRecibido, setNuevoRecibido] = useState(() => !!r.autor && !r.local && !reconocidos.has(r.id));
 
   const colorEstado = r.estado === 'visto' ? 'text-green-700' : r.estado === 'eliminado' ? 'text-red-700' : '';
   const textoEstado = r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
@@ -351,6 +362,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       window.clearTimeout(g.timer);
       if (g.arrastrando) { soltar(g); return; }
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) < 12 && !r.id.startsWith('tmp-')) {
+        // Primer toque a uno recién recibido: solo quita el aviso (cuenta como visto); el siguiente abre las opciones.
+        if (nuevoRecibido) { reconocer(r.id); setNuevoRecibido(false); return; }
         const c = caja.current;
         setEscala(c && c.offsetWidth ? c.getBoundingClientRect().width / c.offsetWidth : 1);
         onAlternar();
@@ -391,7 +404,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
           zoom: tam * f,
           opacity: enviado ? 0.62 : 1,
           background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
-          boxShadow: levantado ? '0 10px 24px rgba(0,0,0,0.28)' : '0 2px 6px rgba(0,0,0,0.16)',
+          boxShadow: levantado ? '0 10px 24px rgba(0,0,0,0.28)'
+            : nuevoRecibido && !soloVer ? '0 0 0 2px hsl(var(--especial) / 0.75), 0 2px 6px rgba(0,0,0,0.16)' : '0 2px 6px rgba(0,0,0,0.16)',
           transform: transformPapel,
           transition: 'transform 160ms ease-out, box-shadow 160ms ease-out',
         }}
@@ -399,7 +413,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         {/* Cinta adhesiva */}
         <span className="absolute left-1/2 -top-1.5 h-3 w-10 -ml-5 bg-white/55 dark:bg-white/35 pointer-events-none"
               style={{ transform: 'rotate(2deg)', boxShadow: '0 0 0 1px rgba(0,0,0,0.04)' }} />
-        {persona && !enviado && (
+        {persona && !enviado && !r.autor && (
           <span className={`flex items-center gap-1 font-semibold ${compacto ? 'text-[10px]' : 'text-[11px]'}`} style={{ color: '#7A6420' }}>
             {r.autor ? `${t.rec_from}:` : `${t.rec_for}:`}
             <Punto color={persona.color} />
@@ -417,6 +431,16 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       {/* Tirador para estirar (solo con el post-it tocado): SEPARADO de la esquina de abajo a la derecha (no tapa el
           post-it) y siempre del mismo tamaño y distancia a la vista, aunque haya zoom (1.9.8, Josué). El ancla mide 0 y
           está en la esquina; dentro, todo va "des-ampliado". */}
+      {r.autor && !soloVer && (nuevoRecibido || abierta) && (
+        // Recibido (1.13.2): la primera vez "Te lo envió X" (celeste); después, al tocarlo, una acotación leve
+        // "Enviado por X". Fuera del papel, flotando arriba.
+        <div className={`absolute bottom-full left-0 mb-1.5 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap pointer-events-none transition-opacity duration-200 ${
+          nuevoRecibido ? 'bg-[hsl(var(--especial))] text-white shadow-sm' : 'bg-card/90 border border-border text-muted-foreground'}`}
+             style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 100%' }}>
+          {!nuevoRecibido && <Punto color={r.autor.color} />}
+          {nuevoRecibido ? t.rec_te_lo_envio(r.autor.nombre) : t.rec_enviado_por(r.autor.nombre)}
+        </div>
+      )}
       {enviado && r.para && (
         // Fuera del papel, flotando arriba (1.13.1, Josué): a quién se lo envié y si lo vio (tics) o lo eliminó.
         <div className="absolute bottom-full left-0 mb-1.5 flex items-center gap-1 rounded-full bg-card/95 border border-border px-2 py-0.5 text-[10px] font-medium text-foreground whitespace-nowrap shadow-sm pointer-events-none">
@@ -445,7 +469,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
            style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 0' }}>
         <div ref={opciones} className="absolute flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
              style={{
-               left: ubic.dx, ...(ubic.arriba ? { bottom: 8 } : { top: 10 + ubic.baja }),
+               left: ubic.dx, ...(ubic.arriba ? { bottom: r.autor ? 32 : 8 } : { top: 10 + ubic.baja }),
                opacity: abierta ? 1 : 0, transform: abierta ? 'none' : `translateY(${ubic.arriba ? 4 : -4}px) scale(0.96)`,
                pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out, transform 160ms ease-out',
              }}>

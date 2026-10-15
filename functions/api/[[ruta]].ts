@@ -685,16 +685,24 @@ async function validarPara(env: Env, para: unknown, yo: Dispositivo): Promise<st
 
 const SELECT_RECORDATORIOS = `
   SELECT r.id, r.himno, r.texto, r.minuta_id, r.estado, r.pos_x, r.pos_y, r.tam, r.creado, r.actualizado, r.autor_id, r.para_id,
+         r.pos_x_para, r.pos_y_para, r.tam_para,
          a.nombre AS autor_nombre, a.color AS autor_color, p.nombre AS para_nombre, p.color AS para_color
   FROM recordatorios r
   LEFT JOIN dispositivos a ON a.id = r.autor_id
   LEFT JOIN dispositivos p ON p.id = r.para_id`;
 
 function filaARecordatorio(f: any, yo: Dispositivo) {
+  // (1.13.2) Quien lo recibió puede moverlo/estirarlo: eso se guarda aparte (pos_*_para). Él lo ve donde lo dejó; quien
+  // lo envió lo ve igual en la vista "Enviados" (posPara/tamPara).
+  const posAutor = f.pos_x != null && f.pos_y != null ? { x: f.pos_x, y: f.pos_y } : null;
+  const posPara = f.pos_x_para != null && f.pos_y_para != null ? { x: f.pos_x_para, y: f.pos_y_para } : null;
+  const recibido = f.para_id === yo.id && f.autor_id !== yo.id;
   return {
     id: f.id, himno: f.himno, texto: f.texto, estado: f.estado ?? 'enviado', minuta: f.minuta_id ?? null,
-    pos: f.pos_x != null && f.pos_y != null ? { x: f.pos_x, y: f.pos_y } : null,
-    tam: f.tam ?? null, creado: f.creado, actualizado: f.actualizado,
+    pos: recibido ? (posPara ?? posAutor) : posAutor,
+    tam: recibido ? (f.tam_para ?? f.tam ?? null) : (f.tam ?? null),
+    ...(f.autor_id === yo.id && f.para_id && f.para_id !== yo.id ? { posPara: posPara ?? posAutor, tamPara: f.tam_para ?? f.tam ?? null } : {}),
+    creado: f.creado, actualizado: f.actualizado,
     mio: f.autor_id === yo.id, // lo escribí yo: puedo editarlo y borrarlo
     autor: f.autor_id === yo.id ? null : { nombre: f.autor_nombre ?? '—', color: f.autor_color ?? '#999' },
     para: f.para_id === yo.id ? null : { id: f.para_id, nombre: f.para_nombre ?? '—', color: f.para_color ?? '#999' },
@@ -725,26 +733,34 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
     await env.DB.prepare('INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, creado, actualizado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(nuevo, himno, yo.id, para, texto, minuta, t, t).run();
     const f = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.id = ?`).bind(nuevo).first();
+    if (para && para !== yo.id) {
+      const titulo = typeof body.titulo_himno === 'string' ? body.titulo_himno.slice(0, 80) : '';
+      const trabajo = avisarRecordatorio(env, { paraId: para, autor: yo.nombre, himno, titulo, recId: nuevo }).catch(e => console.error('aviso', e));
+      if (env.esperar) env.esperar(trabajo);
+    }
     return json(filaARecordatorio(f, yo), 201);
   }
 
   // Mover un post-it sobre la letra (1.9.0): solo quien lo escribió guarda la posición en el servidor.
   if (id && request.method === 'PATCH' && partes[2] === 'posicion') {
-    const actual = await env.DB.prepare('SELECT autor_id FROM recordatorios WHERE id = ?').bind(id).first<{ autor_id: string }>();
+    const actual = await env.DB.prepare('SELECT autor_id, para_id FROM recordatorios WHERE id = ?').bind(id).first<{ autor_id: string; para_id: string | null }>();
     if (!actual) throw new ErrorApi(404, 'Ese recordatorio ya no existe.');
-    if (actual.autor_id !== yo.id) throw new ErrorApi(403, 'Solo quien escribió el recordatorio guarda su posición.');
+    // Quien lo escribió guarda la suya; quien lo RECIBIÓ, la suya aparte (1.13.2).
+    const deQuienRecibe = actual.para_id === yo.id && actual.autor_id !== yo.id;
+    if (actual.autor_id !== yo.id && !deQuienRecibe) throw new ErrorApi(403, 'Este recordatorio no es tuyo.');
+    const colX = deQuienRecibe ? 'pos_x_para' : 'pos_x', colY = deQuienRecibe ? 'pos_y_para' : 'pos_y', colT = deQuienRecibe ? 'tam_para' : 'tam';
     const body = await leerJson(request);
     const valido = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= -5 && v <= 5; // fuera de la letra también (arriba del título, a los lados)
     // Posición y/o tamaño (1.9.1): lo que no venga, no cambia.
     if (body.pos !== undefined) {
       const pos = body.pos == null ? null : valido(body.pos.x) && valido(body.pos.y) ? body.pos : undefined;
       if (pos === undefined) throw new ErrorApi(400, 'Posición no válida.');
-      await env.DB.prepare('UPDATE recordatorios SET pos_x = ?, pos_y = ? WHERE id = ?').bind(pos?.x ?? null, pos?.y ?? null, id).run();
+      await env.DB.prepare(`UPDATE recordatorios SET ${colX} = ?, ${colY} = ? WHERE id = ?`).bind(pos?.x ?? null, pos?.y ?? null, id).run();
     }
     if (body.tam !== undefined) {
       const tam = body.tam == null ? null : typeof body.tam === 'number' && body.tam >= 0.5 && body.tam <= 2 ? body.tam : undefined;
       if (tam === undefined) throw new ErrorApi(400, 'Tamaño no válido.');
-      await env.DB.prepare('UPDATE recordatorios SET tam = ? WHERE id = ?').bind(tam, id).run();
+      await env.DB.prepare(`UPDATE recordatorios SET ${colT} = ? WHERE id = ?`).bind(tam, id).run();
     }
     return json({ ok: true });
   }
@@ -756,6 +772,9 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
     if (request.method === 'POST') {
       if (actual.para_id !== yo.id) throw new ErrorApi(403, 'Este recordatorio no es para ti.');
       await env.DB.prepare("UPDATE recordatorios SET estado = 'visto' WHERE id = ? AND estado = 'enviado'").bind(id).run();
+      // Ver el post-it en la canción también cuenta como ver su notificación (1.13.2, Josué).
+      await env.DB.prepare("UPDATE notificaciones SET vista = 1, entregada = 1 WHERE dispositivo_id = ? AND tipo = 'recordatorio' AND datos LIKE ?")
+        .bind(yo.id, `%"rec":"${id}"%`).run();
       return json({ ok: true });
     }
     // Borrar: quien lo escribió lo elimina del todo. Quien lo recibió deja de verlo y quien lo dejó ve
@@ -808,8 +827,9 @@ async function rutasPersonas(request: Request, env: Env): Promise<Response> {
 //  - Los demás: SOLO "Nueva minuta" (cuando se publica una) y solo si tienen "Ver minutas". No se enteran de nada más.
 // Nadie recibe aviso de lo que hizo él mismo.
 
-const TIPOS_ADMIN = ['registro', 'creada', 'editada', 'publicada', 'privada', 'duplicada', 'borrada', 'restaurada'] as const;
-const TIPOS_OTROS = ['nueva_minuta'] as const;
+const TIPOS_ADMIN = ['registro', 'creada', 'editada', 'publicada', 'privada', 'duplicada', 'borrada', 'restaurada', 'recordatorio'] as const;
+// (1.13.2) "recordatorio" = alguien te dejó un post-it. Le llega a cualquiera (también al admin).
+const TIPOS_OTROS = ['nueva_minuta', 'recordatorio'] as const;
 type TipoAviso = (typeof TIPOS_ADMIN)[number] | (typeof TIPOS_OTROS)[number];
 
 interface Aviso {
@@ -844,6 +864,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       borrada: ['Minuta eliminada', (a, t) => `${a} eliminó «${t}».`],
       restaurada: ['Minuta restaurada', (a, t) => `${a} restauró «${t}».`],
       nueva_minuta: ['Nueva minuta', (a, t) => `«${t}» · ${a}`],
+      recordatorio: ['Nuevo recordatorio', (a, t) => `${a} te dejó un recordatorio en «${t}».`],
     },
   },
   en: {
@@ -858,6 +879,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       borrada: ['Service deleted', (a, t) => `${a} deleted “${t}”.`],
       restaurada: ['Service restored', (a, t) => `${a} restored “${t}”.`],
       nueva_minuta: ['New service', (a, t) => `“${t}” · ${a}`],
+      recordatorio: ['New reminder', (a, t) => `${a} left you a reminder on “${t}”.`],
     },
   },
   pt: {
@@ -872,6 +894,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       borrada: ['Minuta excluída', (a, t) => `${a} excluiu «${t}».`],
       restaurada: ['Minuta restaurada', (a, t) => `${a} restaurou «${t}».`],
       nueva_minuta: ['Nova minuta', (a, t) => `«${t}» · ${a}`],
+      recordatorio: ['Novo lembrete', (a, t) => `${a} deixou um lembrete para você em «${t}».`],
     },
   },
 };
@@ -917,6 +940,18 @@ async function enviarAvisos(env: Env, a: Aviso) {
   const { results: subs } = await env.DB.prepare(`SELECT endpoint FROM suscripciones WHERE dispositivo_id IN (${marcas})`)
     .bind(...destinos.map(d => d.id)).all<{ endpoint: string }>();
   await Promise.all(subs.map(s => despertar(env, s.endpoint)));
+}
+
+/** (1.13.2) Te dejaron un post-it: aviso a quien lo recibe (si tiene las notificaciones y ese tipo encendidos). */
+async function avisarRecordatorio(env: Env, d: { paraId: string; autor: string; himno: number; titulo: string; recId: string }) {
+  const f = await env.DB.prepare('SELECT notif_activas, notif_apagadas FROM dispositivos WHERE id = ?').bind(d.paraId)
+    .first<{ notif_activas: number; notif_apagadas: string | null }>();
+  if (!f || !f.notif_activas || apagadasDe(f.notif_apagadas).includes('recordatorio')) return;
+  const datos = JSON.stringify({ autor: d.autor, titulo: d.titulo ? `${d.himno} ${d.titulo}` : String(d.himno), rec: d.recId });
+  await env.DB.prepare('INSERT INTO notificaciones (dispositivo_id, tipo, datos, url, creada) VALUES (?, ?, ?, ?, ?)')
+    .bind(d.paraId, 'recordatorio', datos, `/hymnal/${d.himno}`, ahora()).run();
+  const { results } = await env.DB.prepare('SELECT endpoint FROM suscripciones WHERE dispositivo_id = ?').bind(d.paraId).all<{ endpoint: string }>();
+  await Promise.all(results.map(s => despertar(env, s.endpoint)));
 }
 
 const b64u = (bytes: Uint8Array) => {

@@ -450,7 +450,7 @@ export default function EditorMinuta() {
                     // "Especial Javiera": un toque abre el cuadro para cambiar el nombre.
                     <div {...tocarFila(c)} className="pl-6 text-sm truncate cursor-pointer">
                       <span className="text-especial font-semibold">{t.especial}</span>
-                      {c.nombre && <span className="text-foreground font-medium"> {c.nombre}</span>}
+                      {c.nombre && <span className="text-especial font-semibold"> {c.nombre}</span>}
                     </div>
                   ) : c.fuera ? (
                     <div {...tocarFila(c)} className="cursor-pointer">{filaCanto(c, c.position)}</div>

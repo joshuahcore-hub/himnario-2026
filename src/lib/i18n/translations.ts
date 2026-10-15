@@ -324,6 +324,8 @@ export interface Translations {
   rec_for_me: string;
   rec_send: string;
   rec_deleted_short: string;
+  rec_te_lo_envio: (n: string) => string;
+  rec_enviado_por: (n: string) => string;
   rec_from: string;
   rec_save: string;
   rec_cancel: string;
@@ -591,7 +593,7 @@ export const es: Translations = {
   notif_tipo: {
     registro: 'Alguien se registra', creada: 'Se crea una minuta', editada: 'Se edita una minuta',
     publicada: 'Se publica una minuta', privada: 'Una minuta pasa a privada', duplicada: 'Se duplica una minuta',
-    borrada: 'Se elimina una minuta', restaurada: 'Se restaura una minuta', nueva_minuta: 'Se publica una minuta nueva',
+    borrada: 'Se elimina una minuta', restaurada: 'Se restaura una minuta', nueva_minuta: 'Se publica una minuta nueva', recordatorio: 'Alguien me deja un recordatorio',
   },
   admin_requested: 'Se registró el',
   admin_this_device: 'este celular',
@@ -663,6 +665,8 @@ export const es: Translations = {
   rec_for_me: 'Para mí',
   rec_send: 'Enviar',
   rec_deleted_short: 'Lo eliminó',
+  rec_te_lo_envio: n => `Te lo envió ${n}`,
+  rec_enviado_por: n => `Enviado por ${n}`,
   rec_from: 'De',
   rec_save: 'Guardar',
   rec_cancel: 'Cancelar',
@@ -930,7 +934,7 @@ export const en: Translations = {
   notif_tipo: {
     registro: 'Someone signs up', creada: 'A service is created', editada: 'A service is edited',
     publicada: 'A service is published', privada: 'A service is made private', duplicada: 'A service is duplicated',
-    borrada: 'A service is deleted', restaurada: 'A service is restored', nueva_minuta: 'A new service is published',
+    borrada: 'A service is deleted', restaurada: 'A service is restored', nueva_minuta: 'A new service is published', recordatorio: 'Someone leaves me a reminder',
   },
   admin_requested: 'Signed up on',
   admin_this_device: 'this phone',
@@ -1002,6 +1006,8 @@ export const en: Translations = {
   rec_for_me: 'For me',
   rec_send: 'Send',
   rec_deleted_short: 'Deleted it',
+  rec_te_lo_envio: n => `${n} sent you this`,
+  rec_enviado_por: n => `Sent by ${n}`,
   rec_from: 'From',
   rec_save: 'Save',
   rec_cancel: 'Cancel',
@@ -1269,7 +1275,7 @@ export const pt: Translations = {
   notif_tipo: {
     registro: 'Alguém se cadastra', creada: 'Uma minuta é criada', editada: 'Uma minuta é editada',
     publicada: 'Uma minuta é publicada', privada: 'Uma minuta fica privada', duplicada: 'Uma minuta é duplicada',
-    borrada: 'Uma minuta é excluída', restaurada: 'Uma minuta é restaurada', nueva_minuta: 'Uma nova minuta é publicada',
+    borrada: 'Uma minuta é excluída', restaurada: 'Uma minuta é restaurada', nueva_minuta: 'Uma nova minuta é publicada', recordatorio: 'Alguém me deixa um lembrete',
   },
   admin_requested: 'Cadastrou-se em',
   admin_this_device: 'este celular',
@@ -1341,6 +1347,8 @@ export const pt: Translations = {
   rec_for_me: 'Para mim',
   rec_send: 'Enviar',
   rec_deleted_short: 'Excluiu',
+  rec_te_lo_envio: n => `${n} enviou para você`,
+  rec_enviado_por: n => `Enviado por ${n}`,
   rec_from: 'De',
   rec_save: 'Salvar',
   rec_cancel: 'Cancelar',
