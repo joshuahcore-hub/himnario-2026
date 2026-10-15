@@ -14,6 +14,8 @@
     --barra: calc(4rem + env(safe-area-inset-bottom, 0px));
     --background: 36 20% 96%;
     --foreground: 30 10% 12%;
+    /* Cuadros para escribir: levemente más oscuros que el fondo, para que se note dónde se escribe (Josué, 1.7.10). */
+    --campo: 36 14% 91.5%;
 
     --card: 36 25% 98%;
     --card-foreground: 30 10% 12%;
@@ -63,6 +65,7 @@
   .dark {
     --background: 30 8% 10%;
     --foreground: 36 15% 90%;
+    --campo: 30 8% 10%; /* en oscuro queda como estaba (a Josué le gusta así) */
 
     --card: 30 8% 13%;
     --card-foreground: 36 15% 90%;
