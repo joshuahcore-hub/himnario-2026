@@ -44,7 +44,7 @@ export default function SettingsPage() {
 
       {/* Idioma, Tema y Color en una fila (Josué, 1.8.0); cada uno despliega sus opciones hacia abajo. */}
       {/* Celulares muy angostos (< 350 px): Color pasa a una segunda fila para que todo se lea completo. */}
-      <div className="grid grid-cols-[1.1fr_0.9fr_1fr] max-[349px]:grid-cols-2 gap-2 [&>*:nth-child(3)]:max-[349px]:col-span-2">
+      <div className="grid grid-cols-[minmax(0,auto)_minmax(0,auto)_minmax(0,1fr)] max-[349px]:grid-cols-2 gap-2 [&>*:nth-child(3)]:max-[349px]:col-span-2">
         <Desplegable<Locale>
           titulo={t.settings_language}
           icono={<Globe size={13} className="text-muted-foreground" />}
@@ -61,6 +61,7 @@ export default function SettingsPage() {
             { valor: 'dark', etiqueta: t.theme_dark_mode, corta: t.settings_theme_dark, icono: <Moon size={13} />, iconoEnBoton: false },
           ]}
           onElegir={applyTheme}
+          anchoFijo
         />
         <Desplegable<ColorTema>
           titulo={t.settings_color}

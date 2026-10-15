@@ -136,9 +136,10 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
       const nuevo = Math.round(tamAl(e) * 100) / 100;
       estirar.current = null;
       flushSync(() => ajustarRecordatorio(r, { tam: nuevo }));
-      if (papel.current) papel.current.style.zoom = '';
+      // Queda EXACTAMENTE el tamaño que se veía al soltar (1.9.7, Josué: antes se borraba y volvía al normal).
+      if (papel.current) papel.current.style.zoom = String(nuevo);
     },
-    onPointerCancel: () => { estirar.current = null; if (papel.current) papel.current.style.zoom = ''; },
+    onPointerCancel: () => { estirar.current = null; if (papel.current) papel.current.style.zoom = String(tam); },
     // El gesto es del tirador: la página no se desliza ni se cierra.
     onTouchStart: (e: React.TouchEvent) => e.stopPropagation(),
     onTouchMove: (e: React.TouchEvent) => e.stopPropagation(),

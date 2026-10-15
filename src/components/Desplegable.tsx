@@ -14,7 +14,7 @@ export interface OpcionDesplegable<T extends string> {
   iconoEnBoton?: boolean;
 }
 
-export default function Desplegable<T extends string>({ titulo, icono, valor, opciones, onElegir, alinear = 'izquierda' }: {
+export default function Desplegable<T extends string>({ titulo, icono, valor, opciones, onElegir, alinear = 'izquierda', anchoFijo = false }: {
   titulo: string;
   icono?: ReactNode;
   valor: T;
@@ -22,6 +22,8 @@ export default function Desplegable<T extends string>({ titulo, icono, valor, op
   onElegir: (valor: T) => void;
   /** Hacia qué lado se abre la lista si es más ancha que la caja (1.8.0: tres menús en una fila). */
   alinear?: 'izquierda' | 'derecha';
+  /** El botón mide lo que la opción más larga (1.9.7): al cambiar de opción la fila no se corre. */
+  anchoFijo?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
@@ -42,7 +44,17 @@ export default function Desplegable<T extends string>({ titulo, icono, valor, op
       >
         <span className="flex items-center gap-1 min-w-0">
           {actual?.iconoEnBoton !== false && actual?.icono}
-          <span className="truncate">{actual?.corta ?? actual?.etiqueta}</span>
+          {anchoFijo ? (
+            // Todas las opciones superpuestas e invisibles: el ancho es el de la más larga; se ve solo la elegida.
+            <span className="grid min-w-0">
+              {opciones.map(o => (
+                <span key={o.valor} aria-hidden className="invisible h-0 overflow-hidden whitespace-nowrap [grid-area:1/1]">{o.corta ?? o.etiqueta}</span>
+              ))}
+              <span className="truncate [grid-area:1/1]">{actual?.corta ?? actual?.etiqueta}</span>
+            </span>
+          ) : (
+            <span className="truncate">{actual?.corta ?? actual?.etiqueta}</span>
+          )}
         </span>
         <ChevronDown size={12} className={`shrink-0 text-muted-foreground transition-transform duration-200 ${abierto ? 'rotate-180' : ''}`} />
       </button>
