@@ -165,7 +165,8 @@ export default function Admin() {
         <ChipAutor autor={{ nombre: d.nombre, color: d.color }} />
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${colorEstado[d.estado]}`}>
           {d.rol === 'admin' ? t.admin_role_admin
-            : d.estado === 'aprobado' ? (d.crea_minutas ? t.admin_role_creator : t.admin_registered) : etiquetaEstado[d.estado]}
+            // Cualquiera de los dos permisos lo deja como "Creador"; sin ninguno, "Registrado" (Josué, 1.7.1).
+            : d.estado === 'aprobado' ? (d.crea_minutas || d.recordatorios_otros ? t.admin_role_creator : t.admin_registered) : etiquetaEstado[d.estado]}
         </span>
       </div>
       <p className="text-[10px] text-muted-foreground">
