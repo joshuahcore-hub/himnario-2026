@@ -261,6 +261,7 @@ export interface Translations {
   // Recordatorios (1.7.0)
   settings_color: string;
   color_nombre: Record<'estandar' | 'rosa' | 'lila' | 'damasco' | 'azul' | 'salvia', string>;
+  color_corto: Record<'estandar' | 'rosa' | 'lila' | 'damasco' | 'azul' | 'salvia', string>;
   rec_add: string;
   rec_title_new: string;
   rec_title_edit: string;
@@ -539,6 +540,7 @@ export const es: Translations = {
   loading: 'Cargando...',
   settings_color: 'Color',
   color_nombre: { estandar: 'Estándar', rosa: 'Rosa', lila: 'Lila', damasco: 'Damasco', azul: 'Azul', salvia: 'Verde salvia' },
+  color_corto: { estandar: 'Estándar', rosa: 'Rosa', lila: 'Lila', damasco: 'Damasco', azul: 'Azul', salvia: 'Salvia' },
   rec_add: 'Añadir recordatorio',
   rec_title_new: 'Nuevo recordatorio',
   rec_title_edit: 'Recordatorio',
@@ -817,6 +819,7 @@ export const en: Translations = {
   loading: 'Loading...',
   settings_color: 'Color',
   color_nombre: { estandar: 'Standard', rosa: 'Pink', lila: 'Lilac', damasco: 'Apricot', azul: 'Blue', salvia: 'Sage green' },
+  color_corto: { estandar: 'Standard', rosa: 'Pink', lila: 'Lilac', damasco: 'Apricot', azul: 'Blue', salvia: 'Sage' },
   rec_add: 'Add reminder',
   rec_title_new: 'New reminder',
   rec_title_edit: 'Reminder',
@@ -1095,6 +1098,7 @@ export const pt: Translations = {
   loading: 'Carregando...',
   settings_color: 'Cor',
   color_nombre: { estandar: 'Padrão', rosa: 'Rosa', lila: 'Lilás', damasco: 'Damasco', azul: 'Azul', salvia: 'Verde sálvia' },
+  color_corto: { estandar: 'Padrão', rosa: 'Rosa', lila: 'Lilás', damasco: 'Damasco', azul: 'Azul', salvia: 'Sálvia' },
   rec_add: 'Adicionar lembrete',
   rec_title_new: 'Novo lembrete',
   rec_title_edit: 'Lembrete',

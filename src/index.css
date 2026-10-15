@@ -245,26 +245,27 @@ html.color-rosa {
   --barra-linea: 340 42% 76%;
 }
 html.dark.color-rosa {
-  --background: 335 30% 11%;
-  --foreground: 340 45% 92%;
-  --card: 335 28% 15%;
-  --card-foreground: 340 45% 92%;
-  --popover: 335 28% 15%;
-  --popover-foreground: 340 45% 92%;
-  --primary: 340 80% 78%;
-  --primary-foreground: 335 30% 12%;
-  --secondary: 335 22% 19%;
-  --secondary-foreground: 340 45% 92%;
-  --muted: 335 22% 19%;
-  --muted-foreground: 340 20% 66%;
-  --accent: 335 22% 19%;
-  --accent-foreground: 340 45% 92%;
-  --border: 335 22% 24%;
-  --input: 335 22% 24%;
-  --ring: 340 80% 78%;
-  --campo: 335 30% 11%;
-  --barra-fondo: 335 28% 15%;
-  --barra-linea: 335 22% 24%;
+  /* 1.9.3: menos saturado (Josué). */
+  --background: 335 17% 11%;
+  --foreground: 340 28% 92%;
+  --card: 335 15% 15%;
+  --card-foreground: 340 28% 92%;
+  --popover: 335 15% 15%;
+  --popover-foreground: 340 28% 92%;
+  --primary: 340 50% 76%;
+  --primary-foreground: 335 17% 12%;
+  --secondary: 335 12% 19%;
+  --secondary-foreground: 340 28% 92%;
+  --muted: 335 12% 19%;
+  --muted-foreground: 340 11% 66%;
+  --accent: 335 12% 19%;
+  --accent-foreground: 340 28% 92%;
+  --border: 335 12% 24%;
+  --input: 335 12% 24%;
+  --ring: 340 50% 76%;
+  --campo: 335 17% 11%;
+  --barra-fondo: 335 15% 15%;
+  --barra-linea: 335 12% 24%;
 }
 html.color-lila {
   --background: 270 58% 89%;
@@ -289,26 +290,27 @@ html.color-lila {
   --barra-linea: 270 32% 73%;
 }
 html.dark.color-lila {
-  --background: 265 30% 12%;
-  --foreground: 270 45% 92%;
-  --card: 265 28% 16%;
-  --card-foreground: 270 45% 92%;
-  --popover: 265 28% 16%;
-  --popover-foreground: 270 45% 92%;
-  --primary: 270 70% 80%;
-  --primary-foreground: 265 30% 12%;
-  --secondary: 265 22% 20%;
-  --secondary-foreground: 270 45% 92%;
-  --muted: 265 22% 20%;
-  --muted-foreground: 270 20% 66%;
-  --accent: 265 22% 20%;
-  --accent-foreground: 270 45% 92%;
-  --border: 265 22% 25%;
-  --input: 265 22% 25%;
-  --ring: 270 70% 80%;
-  --campo: 265 30% 12%;
-  --barra-fondo: 265 28% 16%;
-  --barra-linea: 265 22% 25%;
+  /* 1.9.3: menos saturado (Josué). */
+  --background: 265 18% 12%;
+  --foreground: 270 28% 92%;
+  --card: 265 16% 16%;
+  --card-foreground: 270 28% 92%;
+  --popover: 265 16% 16%;
+  --popover-foreground: 270 28% 92%;
+  --primary: 270 45% 78%;
+  --primary-foreground: 265 18% 12%;
+  --secondary: 265 13% 20%;
+  --secondary-foreground: 270 28% 92%;
+  --muted: 265 13% 20%;
+  --muted-foreground: 270 12% 66%;
+  --accent: 265 13% 20%;
+  --accent-foreground: 270 28% 92%;
+  --border: 265 13% 25%;
+  --input: 265 13% 25%;
+  --ring: 270 45% 78%;
+  --campo: 265 18% 12%;
+  --barra-fondo: 265 16% 16%;
+  --barra-linea: 265 13% 25%;
 }
 html.color-damasco {
   --background: 25 85% 91%;

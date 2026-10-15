@@ -52,9 +52,9 @@
       html.dark { background: #1C1A18; }
       /* Colores (1.8.0): mismo fondo que src/lib/colores.ts */
       html.color-rosa { background: #F8DBE5; }
-      html.dark.color-rosa { background: #24141B; }
+      html.dark.color-rosa { background: #21171B; }
       html.color-lila { background: #E3D3F3; }
-      html.dark.color-lila { background: #1D1528; }
+      html.dark.color-lila { background: #1E1924; }
       html.color-damasco { background: #FCE5D5; }
       html.dark.color-damasco { background: #241A14; }
       html.color-azul { background: #DBEBFA; }
@@ -69,7 +69,7 @@
       // Tema (claro/oscuro) y color (1.8.0) antes de dibujar nada; también la barra del celular y el manifiesto
       // de esa combinación (apertura de Android). Ver src/hooks/useTheme.ts y src/lib/colores.ts.
       (function(){try{var r=document.documentElement,d=localStorage.getItem('theme')==='dark',c=localStorage.getItem('color')||'estandar',
-        F={"rosa":["#F8DBE5","#24141B"],"lila":["#E3D3F3","#1D1528"],"damasco":["#FCE5D5","#241A14"],"azul":["#DBEBFA","#161B22"],"salvia":["#DEEDE3","#161D1A"]};
+        F={"rosa":["#F8DBE5","#21171B"],"lila":["#E3D3F3","#1E1924"],"damasco":["#FCE5D5","#241A14"],"azul":["#DBEBFA","#161B22"],"salvia":["#DEEDE3","#161D1A"]};
         if(d)r.classList.add('dark');
         if(F[c])r.classList.add('color-'+c);else c='estandar';
         var fondo=c==='estandar'?(d?'#1C1A18':'#ffffff'):F[c][d?1:0];

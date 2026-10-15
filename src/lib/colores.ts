@@ -11,8 +11,8 @@ export const COLORES_TEMA: ColorTema[] = ['estandar', 'rosa', 'lila', 'damasco',
 /** Fondo de cada color en claro y en oscuro (mismo valor que --background de index.css). */
 export const FONDOS: Record<ColorTema, { claro: string; oscuro: string }> = {
   estandar: { claro: '#ffffff', oscuro: '#1C1A18' }, // como siempre (barra del celular blanca en claro)
-  rosa: { claro: '#F8DBE5', oscuro: '#24141B' },
-  lila: { claro: '#E3D3F3', oscuro: '#1D1528' },
+  rosa: { claro: '#F8DBE5', oscuro: '#21171B' },
+  lila: { claro: '#E3D3F3', oscuro: '#1E1924' },
   damasco: { claro: '#FCE5D5', oscuro: '#241A14' },
   azul: { claro: '#DBEBFA', oscuro: '#161B22' },
   salvia: { claro: '#DEEDE3', oscuro: '#161D1A' },

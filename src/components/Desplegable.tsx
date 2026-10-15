@@ -8,6 +8,10 @@ export interface OpcionDesplegable<T extends string> {
   valor: T;
   etiqueta: string;
   icono?: ReactNode;
+  /** Texto más corto para el botón (la lista muestra la etiqueta completa). 1.9.3: en una fila de tres no cabía. */
+  corta?: string;
+  /** Mostrar el ícono también en el botón (por defecto sí). */
+  iconoEnBoton?: boolean;
 }
 
 export default function Desplegable<T extends string>({ titulo, icono, valor, opciones, onElegir, alinear = 'izquierda' }: {
@@ -25,7 +29,7 @@ export default function Desplegable<T extends string>({ titulo, icono, valor, op
   const actual = opciones.find(o => o.valor === valor);
 
   return (
-    <div ref={caja} className="relative min-w-0 bg-card rounded-xl border border-border p-3">
+    <div ref={caja} className="relative min-w-0 bg-card rounded-xl border border-border p-2.5">
       <div className="flex items-center gap-1.5 mb-2">
         {icono}
         <span className="text-xs font-medium text-foreground">{titulo}</span>
@@ -33,11 +37,14 @@ export default function Desplegable<T extends string>({ titulo, icono, valor, op
       <button
         type="button"
         onClick={() => setAbierto(a => !a)}
-        className="tap-btn w-full flex items-center justify-between gap-1 rounded-lg bg-muted px-3 py-2 text-xs font-semibold text-foreground"
+        className="tap-btn w-full flex items-center justify-between gap-0.5 rounded-lg bg-muted px-[7px] py-2 text-[11.5px] font-semibold text-foreground"
         aria-expanded={abierto}
       >
-        <span className="flex items-center gap-1.5 truncate">{actual?.icono}{actual?.etiqueta}</span>
-        <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition-transform duration-200 ${abierto ? 'rotate-180' : ''}`} />
+        <span className="flex items-center gap-1 min-w-0">
+          {actual?.iconoEnBoton !== false && actual?.icono}
+          <span className="truncate">{actual?.corta ?? actual?.etiqueta}</span>
+        </span>
+        <ChevronDown size={12} className={`shrink-0 text-muted-foreground transition-transform duration-200 ${abierto ? 'rotate-180' : ''}`} />
       </button>
       {abierto && (
         <div className={`absolute ${alinear === 'derecha' ? 'right-0' : 'left-0'} min-w-full w-max top-full mt-1 z-30 rounded-xl border border-border bg-card shadow-lg p-1 animate-in fade-in slide-in-from-top-1 duration-150`}>

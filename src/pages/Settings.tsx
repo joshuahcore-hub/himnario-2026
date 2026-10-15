@@ -1,4 +1,4 @@
-import { Moon, Sun, Globe, WifiOff, CheckCircle2, Palette } from 'lucide-react';
+import { Moon, Sun, Globe, WifiOff, CheckCircle2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
 import { useTheme, applyTheme, applyColor } from '@/hooks/useTheme';
@@ -43,7 +43,8 @@ export default function SettingsPage() {
       </div>
 
       {/* Idioma, Tema y Color en una fila (Josué, 1.8.0); cada uno despliega sus opciones hacia abajo. */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Celulares muy angostos (< 350 px): Color pasa a una segunda fila para que todo se lea completo. */}
+      <div className="grid grid-cols-[1.1fr_0.9fr_1fr] max-[349px]:grid-cols-2 gap-2 [&>*:nth-child(3)]:max-[349px]:col-span-2">
         <Desplegable<Locale>
           titulo={t.settings_language}
           icono={<Globe size={13} className="text-muted-foreground" />}
@@ -56,16 +57,17 @@ export default function SettingsPage() {
           icono={dark ? <Moon size={13} className="text-muted-foreground" /> : <Sun size={13} className="text-muted-foreground" />}
           valor={theme}
           opciones={[
-            { valor: 'light', etiqueta: t.theme_light_mode, icono: <Sun size={13} /> },
-            { valor: 'dark', etiqueta: t.theme_dark_mode, icono: <Moon size={13} /> },
+            { valor: 'light', etiqueta: t.theme_light_mode, corta: t.settings_theme_light, icono: <Sun size={13} />, iconoEnBoton: false },
+            { valor: 'dark', etiqueta: t.theme_dark_mode, corta: t.settings_theme_dark, icono: <Moon size={13} />, iconoEnBoton: false },
           ]}
           onElegir={applyTheme}
         />
         <Desplegable<ColorTema>
           titulo={t.settings_color}
-          icono={<Palette size={13} className="text-muted-foreground" />}
+          // El circulito del color va junto al título (en el botón no cabía con el nombre, 1.9.3).
+          icono={muestra(color)}
           valor={color}
-          opciones={COLORES_TEMA.map(c => ({ valor: c, etiqueta: t.color_nombre[c], icono: muestra(c) }))}
+          opciones={COLORES_TEMA.map(c => ({ valor: c, etiqueta: t.color_nombre[c], corta: t.color_corto[c], icono: muestra(c), iconoEnBoton: false }))}
           onElegir={applyColor}
           alinear="derecha"
         />
