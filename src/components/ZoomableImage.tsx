@@ -142,7 +142,8 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
     <div
       ref={containerRef}
       // flex + justify-center: en pantallas anchas la imagen (máx. max-w-lg) queda centrada, no pegada a la izquierda.
-      className={`w-full overflow-hidden rounded-lg flex justify-center ${llenar ? 'h-full items-center' : ''}`}
+      // Con capa de post-it no recorta (1.9.1): un post-it puede quedar fuera de la letra (p. ej. arriba del título).
+      className={`w-full ${children !== undefined ? 'overflow-visible' : 'overflow-hidden'} rounded-lg flex justify-center ${llenar ? 'h-full items-center' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

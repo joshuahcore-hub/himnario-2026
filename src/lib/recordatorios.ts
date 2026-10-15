@@ -30,7 +30,15 @@ export interface Recordatorio {
   /** Dónde quedó sobre la letra (1.9.0): esquina superior izquierda como fracción (0..1) del recuadro de la letra.
    *  null = en su lugar de siempre, arriba de la letra. */
   pos?: { x: number; y: number } | null;
+  /** Tamaño (1.9.1): 1 = normal; entre TAM_MIN y TAM_MAX. null = normal. */
+  tam?: number | null;
 }
+
+export const TAM_MIN = 0.75;
+export const TAM_MAX = 1.6;
+
+type Pos = { x: number; y: number } | null;
+type Ajuste = { pos?: Pos; tam?: number | null };
 
 const CLAVE_SERVIDOR = 'himnario_recordatorios';
 const CLAVE_LOCALES = 'himnario_recordatorios_locales';
@@ -53,7 +61,11 @@ const escribir = (clave: string, valor: unknown) => {
 let delServidor: Recordatorio[] = leer(CLAVE_SERVIDOR, []);
 let locales: Recordatorio[] = leer(CLAVE_LOCALES, []);
 let personas: Persona[] = leer(CLAVE_PERSONAS, []);
-let posiciones: Record<string, { x: number; y: number } | null> = leer(CLAVE_POSICIONES, {});
+// Ajustes de los que me dejaron otros. Formato 1.9.0 era id → {x,y}|null; desde 1.9.1, id → { pos, tam }.
+let posiciones: Record<string, Ajuste> = Object.fromEntries(
+  Object.entries(leer<Record<string, any>>(CLAVE_POSICIONES, {})).map(([id, v]) =>
+    [id, v && typeof v === 'object' && ('pos' in v || 'tam' in v) ? v : { pos: v ?? null }]),
+);
 const oyentes = new Set<() => void>();
 const avisar = () => oyentes.forEach(f => f());
 
@@ -96,7 +108,7 @@ export function useRecordatorios(registrado: boolean, minutaId: string | null = 
     return () => { oyentes.delete(f); document.removeEventListener('visibilitychange', alVolver); };
   }, [registrado]);
   const todos = [...locales, ...(registrado ? delServidor : [])]
-    .map(r => (r.id in posiciones ? { ...r, pos: posiciones[r.id] } : r));
+    .map(r => (r.id in posiciones ? { ...r, ...posiciones[r.id] } : r));
   const orden = (r: Recordatorio) => (r.para ? 2 : r.autor ? 1 : 0);
   // 'visibles' (sobre la letra): los míos para mí y los que me dejaron. 'enviados': los que dejé a otras personas;
   // NO se muestran sobre la letra (Josué, 1.8.3: no son para mí), se ven en el panel → "Enviados".
@@ -170,20 +182,23 @@ export function marcarVisto(r: Recordatorio) {
 }
 
 /**
- * Mover un post-it sobre la letra (1.9.0). Se ve al instante. Los míos (o locales) guardan la posición donde viven;
- * los que me dejaron otros, solo en este celular. pos null = vuelve a su lugar de siempre.
+ * Mover y/o cambiar el tamaño de un post-it (1.9.0–1.9.1). Se ve al instante. Los míos (o locales) se guardan donde
+ * viven; los que me dejaron otros, solo en este celular.
  */
-export function moverRecordatorio(r: Recordatorio, pos: { x: number; y: number } | null) {
-  if (r.local) { fijarLocales(locales.map(x => (x.id === r.id ? { ...x, pos } : x))); return; }
+export function ajustarRecordatorio(r: Recordatorio, cambios: Ajuste) {
+  if (r.local) { fijarLocales(locales.map(x => (x.id === r.id ? { ...x, ...cambios } : x))); return; }
   if (!r.mio) {
-    posiciones = { ...posiciones, [r.id]: pos };
+    posiciones = { ...posiciones, [r.id]: { ...posiciones[r.id], ...cambios } };
     escribir(CLAVE_POSICIONES, posiciones);
     avisar();
     return;
   }
-  const antes = delServidor.find(x => x.id === r.id)?.pos ?? null;
-  fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, pos } : x)));
-  if (r.id.startsWith('tmp-')) return;
-  api(`recordatorios/${r.id}/posicion`, { metodo: 'PATCH', datos: { pos } })
-    .catch(() => fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, pos: antes } : x))));
+  const antes = delServidor.find(x => x.id === r.id);
+  fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, ...cambios } : x)));
+  if (r.id.startsWith('tmp-') || !antes) return;
+  api(`recordatorios/${r.id}/posicion`, { metodo: 'PATCH', datos: cambios })
+    .catch(() => fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, pos: antes.pos, tam: antes.tam } : x))));
 }
+
+/** Compatibilidad: mover = ajustar solo la posición. */
+export const moverRecordatorio = (r: Recordatorio, pos: Pos) => ajustarRecordatorio(r, { pos });

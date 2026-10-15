@@ -4,9 +4,9 @@
 //     "Para: … · Enviado/Visto/Eliminado por …". Al tocarla: Editar (propias) y Eliminar (con confirmación).
 // - BotonRecordatorio: el botón amarillo de arriba.
 // - PanelRecordatorio: escribir / editar / borrar. Para quién y si es "siempre" o "solo esta minuta".
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, PenLine, Send, StickyNote, Trash2 } from 'lucide-react';
+import { ArrowLeft, MoveDiagonal2, PenLine, Send, StickyNote, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -17,7 +17,7 @@ import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useToque } from '@/hooks/useToque';
 import { ErrorDeRed } from '@/lib/api';
 import {
-  borrarRecordatorio, cargarPersonas, marcarVisto, moverRecordatorio, guardarRecordatorio, personasGuardadas, type Persona, type Recordatorio,
+  ajustarRecordatorio, borrarRecordatorio, cargarPersonas, marcarVisto, moverRecordatorio, TAM_MAX, TAM_MIN, guardarRecordatorio, personasGuardadas, type Persona, type Recordatorio,
 } from '@/lib/recordatorios';
 
 const Punto = ({ color }: { color: string }) => (
@@ -30,16 +30,31 @@ export const LETRA_POSTIT = "'Patrick Hand', 'Segoe Print', 'Bradley Hand', curs
 const MANTENER_MS = 420; // mantener presionado para despegar el post-it y moverlo
 const MOVER_MAX = 7;     // si el dedo se mueve más que esto antes, es un deslizamiento (cambiar de canción), no mover
 
-/** Dónde soltarlo: posición dentro del recuadro de la letra de esta página (data-marco-letra), o null si quedó
- *  arriba, fuera de la letra (vuelve a su lugar de siempre). */
-function posicionAlSoltar(postit: HTMLElement): { x: number; y: number } | null | undefined {
-  const marco = postit.closest('[data-pagina]')?.querySelector<HTMLElement>('[data-marco-letra]');
-  if (!marco) return undefined;
+/** Zona donde se ve el post-it: la página, recortada por los contenedores que no dejan ver lo que se sale. */
+function zonaVisible(marco: HTMLElement, pagina: HTMLElement) {
+  let { left, top, right, bottom } = pagina.getBoundingClientRect();
+  for (let el = marco.parentElement; el && el !== pagina; el = el.parentElement) {
+    const o = getComputedStyle(el);
+    if (o.overflowX !== 'visible' || o.overflowY !== 'visible') {
+      const r = el.getBoundingClientRect();
+      left = Math.max(left, r.left); top = Math.max(top, r.top); right = Math.min(right, r.right); bottom = Math.min(bottom, r.bottom);
+    }
+  }
+  return { left, top, right, bottom };
+}
+
+/** Dónde soltarlo (1.9.1, Josué): donde quede, en cualquier parte de la pantalla (también arriba del título o a los
+ *  lados), sin salirse de lo visible. Se guarda respecto al recuadro de la letra (data-marco-letra), así coincide en
+ *  himnario y minuta, vertical u horizontal; puede ser < 0 o > 1 (fuera de la letra). */
+function posicionAlSoltar(postit: HTMLElement): { x: number; y: number } | undefined {
+  const pagina = postit.closest<HTMLElement>('[data-pagina]');
+  const marco = pagina?.querySelector<HTMLElement>('[data-marco-letra]');
+  if (!pagina || !marco) return undefined;
   const m = marco.getBoundingClientRect(), n = postit.getBoundingClientRect();
-  if (n.bottom < m.top + 6) return null;
-  const x = Math.min(Math.max((n.left - m.left) / m.width, 0), Math.max(0, 1 - n.width / m.width));
-  const y = Math.min(Math.max((n.top - m.top) / m.height, 0), Math.max(0, 1 - n.height / m.height));
-  return { x, y };
+  const z = zonaVisible(marco, pagina);
+  const izq = Math.min(Math.max(n.left, z.left + 4), z.right - n.width - 4);
+  const arr = Math.min(Math.max(n.top, z.top + 4), z.bottom - n.height - 4);
+  return { x: (izq - m.left) / m.width, y: (arr - m.top) / m.height };
 }
 
 function Nota({ r, compacto, indice, abierta, sobreLetra, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
@@ -74,6 +89,58 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, onAlternar, onCerrarOp
   const papel = useRef<HTMLDivElement>(null);
   const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean } | null>(null);
   const [levantado, setLevantado] = useState(false);
+
+  // Opciones (Editar/Eliminar) hacia donde HAYA ESPACIO (1.9.1, Josué: pegado al borde izquierdo se salían de la
+  // pantalla). Se calcula antes de dibujar al abrir: corrida para caber de lado y, si abajo no cabe, arriba.
+  const opciones = useRef<HTMLDivElement>(null);
+  const [ubic, setUbic] = useState<{ left: number; arriba: boolean }>({ left: 0, arriba: false });
+  useLayoutEffect(() => {
+    if (!abierta || !caja.current || !opciones.current) return;
+    const n = caja.current.getBoundingClientRect(), o = opciones.current.getBoundingClientRect();
+    const pagina = caja.current.closest<HTMLElement>('[data-pagina]')?.getBoundingClientRect();
+    const izq = Math.max(pagina?.left ?? 0, 0) + 6, der = Math.min(pagina?.right ?? innerWidth, innerWidth) - 6;
+    const abajo = Math.min(pagina?.bottom ?? innerHeight, innerHeight) - 6;
+    const deseado = n.width - o.width - 8; // alineadas a la derecha del post-it
+    const left = Math.min(Math.max(deseado, izq - n.left), der - n.left - o.width);
+    setUbic({ left, arriba: n.bottom + o.height + 8 > abajo });
+  }, [abierta]);
+
+  // Tirador de la esquina para agrandar/achicar (1.9.1, Josué): sigue el dedo (zoom directo, sin estado de React) y
+  // al soltar se guarda; entre TAM_MIN y TAM_MAX.
+  const tam = r.tam ?? 1;
+  const estirar = useRef<{ x: number; y: number; ancho: number; tam: number; id: number } | null>(null);
+  const tamAl = (e: React.PointerEvent) => {
+    const g = estirar.current!;
+    const d = (e.clientX - g.x + (e.clientY - g.y)) / 2;
+    return Math.min(TAM_MAX, Math.max(TAM_MIN, g.tam * (1 + d / g.ancho)));
+  };
+  const tirador = {
+    onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      if (!papel.current) return;
+      estirar.current = { x: e.clientX, y: e.clientY, ancho: papel.current.getBoundingClientRect().width, tam, id: e.pointerId };
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* igual funciona */ }
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      if (!estirar.current || !papel.current) return;
+      papel.current.style.zoom = String(tamAl(e));
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      if (!estirar.current) return;
+      const nuevo = Math.round(tamAl(e) * 100) / 100;
+      estirar.current = null;
+      flushSync(() => ajustarRecordatorio(r, { tam: nuevo }));
+      if (papel.current) papel.current.style.zoom = '';
+    },
+    onPointerCancel: () => { estirar.current = null; if (papel.current) papel.current.style.zoom = ''; },
+    // El gesto es del tirador: la página no se desliza ni se cierra.
+    onTouchStart: (e: React.TouchEvent) => e.stopPropagation(),
+    onTouchMove: (e: React.TouchEvent) => e.stopPropagation(),
+    onTouchEnd: (e: React.TouchEvent) => e.stopPropagation(),
+  };
+
   const soltar = () => {
     const el = caja.current;
     if (!el || !papel.current) return;
@@ -153,6 +220,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, onAlternar, onCerrarOp
         ref={papel}
         className={`relative text-left ${compacto ? 'px-2.5 pt-1.5 pb-1.5' : 'px-3.5 pt-2.5 pb-2.5'}`}
         style={{
+          zoom: tam,
           background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
           boxShadow: levantado ? '0 10px 24px rgba(0,0,0,0.28)' : '0 2px 6px rgba(0,0,0,0.16)',
           transform: `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg) scale(${levantado ? 1.05 : 1})`,
@@ -177,9 +245,16 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, onAlternar, onCerrarOp
       </div>
       {/* Opciones al tocar (Josué, 1.7.1): Editar (solo las propias) y Eliminar. FLOTAN bajo la nota (no la agrandan):
           si la nota creciera, la letra y la propia nota se moverían bajo el dedo (regla de Josué, 1.4.4). */}
-      <div className="absolute right-2 top-full mt-1.5 z-10 flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
+      {/* Tirador para estirar (solo con el post-it tocado), en su esquina de abajo a la derecha. */}
+      <div {...tirador} aria-label="Tamaño"
+           className="absolute -right-3 -bottom-3 z-20 w-8 h-8 rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
+           style={{ touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
+        <MoveDiagonal2 size={15} />
+      </div>
+      <div ref={opciones} className="absolute z-10 flex gap-2 rounded-full border border-border bg-card p-1 shadow-lg"
            style={{
-             opacity: abierta ? 1 : 0, transform: abierta ? 'none' : 'translateY(-4px) scale(0.96)', transformOrigin: 'top right',
+             left: ubic.left, ...(ubic.arriba ? { bottom: '100%', marginBottom: 6 } : { top: '100%', marginTop: 6 }),
+             opacity: abierta ? 1 : 0, transform: abierta ? 'none' : `translateY(${ubic.arriba ? 4 : -4}px) scale(0.96)`,
              pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out, transform 160ms ease-out',
            }}>
         {r.mio && (
@@ -272,9 +347,17 @@ export function BotonRecordatorio({ onClick, className = '' }: { onClick: () => 
       // el toque (a Josué a veces el primer toque "no funcionaba", 1.7.1).
       style={{ touchAction: 'none' }}
       aria-label={t.rec_add}
-      className={`tap-btn-overlay p-2 rounded-full bg-card/95 border border-yellow-400/60 text-yellow-500 ${className}`}
+      // Un post-it en miniatura (1.9.1, Josué: el ícono genérico ya no calzaba con los post-it): mismo papel amarillo,
+      // su trozo de cinta y un "+". Mide lo mismo que los botones redondos de al lado (37 px).
+      className={`tap-btn-overlay relative w-[37px] h-[37px] flex items-center justify-center ${className}`}
     >
-      <StickyNote size={20} />
+      <span className="relative block w-[27px] h-[27px]"
+            style={{ background: '#FFF3B0', borderRadius: '2px 2px 7px 2px', boxShadow: '0 1px 4px rgba(0,0,0,0.25)', transform: 'rotate(-5deg)' }}>
+        <span className="absolute left-1/2 -top-[3px] h-[6px] w-[14px] -ml-[7px] bg-white/60" style={{ transform: 'rotate(3deg)' }} />
+        <svg viewBox="0 0 24 24" className="absolute inset-0 m-auto w-[15px] h-[15px]" fill="none" stroke="#7A6420" strokeWidth={2.6} strokeLinecap="round">
+          <path d="M12 6v12M6 12h12" />
+        </svg>
+      </span>
     </button>
   );
 }
