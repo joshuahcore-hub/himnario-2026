@@ -90,8 +90,8 @@ export default function HymnDetail() {
   // Celular girado: la letra a todo el ancho y se recorre hacia abajo (deslizar arriba/abajo ya no cierra).
   const horizontal = useHorizontal();
   // Recordatorios (1.7.0): notas amarillas arriba de la letra. En el himnario solo los "siempre en esta alabanza".
-  const { puedeEditar } = useAcceso();
-  const notasDe = useRecordatorios(puedeEditar);
+  const { registrado } = useAcceso();
+  const notasDe = useRecordatorios(registrado);
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
   const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
@@ -343,7 +343,7 @@ export default function HymnDetail() {
       {/* overflow CLIP (no hidden): con hidden el navegador podía desplazarlo solo (al abrir un panel quedaba corrido
           113 px mostrando el himno vecino). clip recorta igual y no se puede desplazar (1.7.0). */}
       <div className="absolute top-3 left-3 z-20">
-        <button onClick={() => navigate('/hymnal')} className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
+        <button onClick={() => navigate('/hymnal')} style={{ touchAction: 'none' }} className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
           <ArrowLeft size={20} />
         </button>
       </div>
@@ -351,7 +351,7 @@ export default function HymnDetail() {
       <div className="absolute top-3 right-3 z-20 flex gap-2">
         <BotonRecordatorio onClick={() => abrirPanel(null)} />
         {puedeGirar && (
-          <button onClick={() => girarPantalla(horizontal)} aria-label="Girar"
+          <button onClick={() => girarPantalla(horizontal)} aria-label="Girar" style={{ touchAction: 'none' }}
                   className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
             <RotateCwSquare size={20} />
           </button>

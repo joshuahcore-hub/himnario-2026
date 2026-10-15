@@ -1,8 +1,9 @@
 // Menú "⋮" arriba a la derecha de Ajustes con las opciones avanzadas de acceso (Josué, 1.4.0: no deben estar a la
 // vista en Ajustes). El menú es igual para todos: "Mi perfil" (y "Administración" solo el admin). Mi perfil muestra:
-//   visor (o rechazado) → "Eres visor: …" + botón "Solicitar ser creador" (panel de nombre y color)
-//   solicitud enviada   → aviso de espera + "Revisar estado"
-//   creador aprobado    → "Eres creador: …" + nombre y color (se pueden cambiar)
+//   visor (o rechazado) → "Eres visor: …" + botón "Registrarme" (panel de nombre y color). Desde 1.7.1 se queda
+//                         registrado al instante (sin solicitud): ya le pueden dejar recordatorios.
+//   solicitud vieja     → aviso de espera + "Revisar estado" (antes de 1.7.1)
+//   registrado          → "Estás registrado…" + nombre y color; creador → "Eres creador: …" (lo activa el admin)
 //   administrador       → "Eres administrador…" + nombre y color
 //   deshabilitado       → aviso
 // "Activar como administrador" no aparece en ningún lado: se abre tocando 5 veces la versión en Ajustes.
@@ -213,8 +214,9 @@ export default function MenuAcceso() {
       <div className="space-y-3">
         <p className="text-xs text-foreground flex items-start gap-1.5">
           <ShieldCheck size={14} className="text-green-600 shrink-0 mt-px" />
-          {acceso.esAdmin ? t.access_admin : t.access_approved}
+          {acceso.esAdmin ? t.access_admin : acceso.puedeEditar ? t.access_approved : t.access_registered}
         </p>
+        {!acceso.esAdmin && acceso.puedeDejarAOtros && <p className="text-[11px] text-muted-foreground">{t.access_can_remind_others}</p>}
         <div className="flex items-center justify-between">
           {autor && <ChipAutor autor={autor} />}
           <button onClick={() => setEditandoPerfil(true)} className="text-xs text-primary flex items-center gap-1">

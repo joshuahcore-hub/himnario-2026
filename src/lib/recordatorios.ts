@@ -1,8 +1,10 @@
 // Recordatorios (1.7.0, Josué): notas amarillas sobre un himno, que aparecen al abrirlo en el himnario o en
 // cualquier minuta que lo tenga.
-// - Creadores y admin: se guardan en el servidor (para sí o para otra persona). Copia local para verlos sin internet.
-// - Visores: solo para sí mismos, guardados SOLO en su celular (no tienen nombre en la app).
-// Solo quien escribió un recordatorio lo edita o lo borra; quien lo recibe solo lo ve.
+// - Personas registradas (nombre y color; creadores, músicos y admin): en el servidor. Copia local para verlos sin
+//   internet. Dejar recordatorios a OTROS: solo el admin y quienes él autorice; aparecen directo (1.7.1).
+// - Visores sin registrarse: solo para sí mismos, guardados SOLO en su celular.
+// Solo quien escribió un recordatorio lo edita. Quien lo recibe lo puede borrar (manteniéndolo presionado): deja de
+// verlo y quien lo dejó ve "Eliminado por …".
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -15,6 +17,8 @@ export interface Recordatorio {
   /** null = siempre en este canto (himnario y toda minuta); un id = solo en esa minuta (y sus copias). */
   minuta: string | null;
   creado: string;
+  /** Dejado a otra persona: enviado → visto (le apareció) → eliminado (lo borró quien lo recibió). */
+  estado: 'enviado' | 'visto' | 'eliminado';
   /** Lo escribí yo (puedo editarlo y borrarlo). */
   mio: boolean;
   /** Quién me lo dejó (null si lo escribí yo). */
@@ -52,8 +56,8 @@ function fijarLocales(lista: Recordatorio[]) { locales = lista; escribir(CLAVE_L
 
 let ultimaCarga = 0;
 /** Trae del servidor los recordatorios propios y los recibidos (solo creadores y admin). */
-export async function cargarRecordatorios(puedeEditar: boolean, forzar = false) {
-  if (!puedeEditar) return;
+export async function cargarRecordatorios(registrado: boolean, forzar = false) {
+  if (!registrado) return;
   if (!forzar && Date.now() - ultimaCarga < 15_000) return;
   ultimaCarga = Date.now();
   try {
@@ -75,17 +79,17 @@ export const personasGuardadas = () => personas;
  * al final los que dejé a otros. minutaId: la minuta que se está viendo (null en el himnario): ahí se suman los
  * "solo en esta minuta". Se redibuja solo cuando cambian los recordatorios.
  */
-export function useRecordatorios(puedeEditar: boolean, minutaId: string | null = null): (himno: number | null | undefined) => Recordatorio[] {
+export function useRecordatorios(registrado: boolean, minutaId: string | null = null): (himno: number | null | undefined) => Recordatorio[] {
   const [, setVersion] = useState(0);
   useEffect(() => {
     const f = () => setVersion(v => v + 1);
     oyentes.add(f);
-    cargarRecordatorios(puedeEditar);
-    const alVolver = () => { if (document.visibilityState === 'visible') cargarRecordatorios(puedeEditar, true); };
+    cargarRecordatorios(registrado);
+    const alVolver = () => { if (document.visibilityState === 'visible') cargarRecordatorios(registrado, true); };
     document.addEventListener('visibilitychange', alVolver);
     return () => { oyentes.delete(f); document.removeEventListener('visibilitychange', alVolver); };
-  }, [puedeEditar]);
-  const todos = [...locales, ...(puedeEditar ? delServidor : [])];
+  }, [registrado]);
+  const todos = [...locales, ...(registrado ? delServidor : [])];
   const orden = (r: Recordatorio) => (r.para ? 2 : r.autor ? 1 : 0);
   return himno => (!himno ? [] : todos
     .filter(r => r.himno === himno && (r.minuta === null || r.minuta === undefined || r.minuta === minutaId))
@@ -93,18 +97,26 @@ export function useRecordatorios(puedeEditar: boolean, minutaId: string | null =
 }
 
 /** Crea o cambia un recordatorio. paraId null = para mí. */
-export async function guardarRecordatorio(datos: { anterior: Recordatorio | null; himno: number; texto: string; paraId: string | null; minuta: string | null }, puedeEditar: boolean) {
+export async function guardarRecordatorio(datos: { anterior: Recordatorio | null; himno: number; texto: string; paraId: string | null; minuta: string | null }, registrado: boolean) {
   const { anterior, himno, texto, paraId, minuta } = datos;
   // Visor (o recordatorio que se guardó cuando era visor): solo en este celular.
-  if (!puedeEditar || anterior?.local) {
+  if (!registrado || anterior?.local) {
     if (anterior) fijarLocales(locales.map(r => (r.id === anterior.id ? { ...r, texto, minuta } : r)));
-    else fijarLocales([...locales, { id: crypto.randomUUID(), himno, texto, minuta, creado: new Date().toISOString(), mio: true, autor: null, para: null, local: true }]);
+    else fijarLocales([...locales, { id: crypto.randomUUID(), himno, texto, minuta, estado: 'enviado', creado: new Date().toISOString(), mio: true, autor: null, para: null, local: true }]);
     return;
   }
   const r = anterior
     ? await api<Recordatorio>(`recordatorios/${anterior.id}`, { metodo: 'PATCH', datos: { texto, para: paraId, minuta } })
     : await api<Recordatorio>('recordatorios', { metodo: 'POST', datos: { himno, texto, para: paraId, minuta } });
   fijarServidor(anterior ? delServidor.map(x => (x.id === r.id ? r : x)) : [...delServidor, r]);
+}
+
+/** Quien lo recibe: avisa (una vez) que le apareció, para que quien lo dejó vea "Visto". Sin internet, otro día. */
+export function marcarVisto(r: Recordatorio) {
+  if (r.local || !r.autor || r.estado !== 'enviado') return;
+  api(`recordatorios/${r.id}/visto`, { metodo: 'POST' })
+    .then(() => fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, estado: 'visto' } : x))))
+    .catch(() => {});
 }
 
 export async function borrarRecordatorio(r: Recordatorio) {

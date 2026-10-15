@@ -22,6 +22,10 @@ interface Dispositivo {
   color: string;
   rol: 'creador' | 'admin';
   estado: 'pendiente' | 'aprobado' | 'rechazado' | 'deshabilitado';
+  /** 0 = músico: tiene nombre (recibe recordatorios) pero no crea minutas (1.7.1). */
+  crea_minutas: number;
+  /** 1 = puede dejar recordatorios a otras personas (el admin siempre puede). */
+  recordatorios_otros: number;
 }
 
 const COLORES = [
@@ -59,14 +63,30 @@ function llaveDe(request: Request): string | null {
 async function dispositivoActual(request: Request, env: Env): Promise<Dispositivo | null> {
   const llave = llaveDe(request);
   if (!llave) return null;
-  return env.DB.prepare('SELECT id, nombre, color, rol, estado FROM dispositivos WHERE llave_hash = ?')
+  return env.DB.prepare('SELECT id, nombre, color, rol, estado, crea_minutas, recordatorios_otros FROM dispositivos WHERE llave_hash = ?')
     .bind(await sha256(llave)).first<Dispositivo>();
 }
 
 function exigirEditor(d: Dispositivo | null): Dispositivo {
-  if (!d || d.estado !== 'aprobado') throw new ErrorApi(403, 'No tienes permiso para crear o editar minutas.');
+  if (!d || d.estado !== 'aprobado' || (d.rol !== 'admin' && !d.crea_minutas)) throw new ErrorApi(403, 'No tienes permiso para crear o editar minutas.');
   return d;
 }
+
+/** Cualquier persona aprobada con nombre (creador, músico o admin): recordatorios en el servidor. */
+function exigirConNombre(d: Dispositivo | null): Dispositivo {
+  if (!d || d.estado !== 'aprobado') throw new ErrorApi(403, 'Necesitas tener tu nombre aprobado en la app.');
+  return d;
+}
+
+/** Dejar recordatorios a otras personas: el admin y quienes él autorice. */
+const puedeDejarAOtros = (d: Dispositivo) => d.rol === 'admin' || !!d.recordatorios_otros;
+
+/** Lo que el celular necesita saber de sí mismo. */
+const datosAcceso = (d: { nombre: string; color: string; rol: string; estado: string; crea_minutas?: number; recordatorios_otros?: number }) => ({
+  nombre: d.nombre, color: d.color, rol: d.rol, estado: d.estado,
+  crea_minutas: d.rol === 'admin' || d.crea_minutas !== 0,
+  recordatorios_otros: d.rol === 'admin' || !!d.recordatorios_otros,
+});
 
 function exigirAdmin(d: Dispositivo | null): Dispositivo {
   if (!d || d.estado !== 'aprobado' || d.rol !== 'admin') throw new ErrorApi(403, 'Solo el administrador puede hacer esto.');
@@ -205,8 +225,8 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       registrar(env, nueva, yo.id, 'duplicada', original.titulo),
       // Los recordatorios "solo en esta minuta" pasan a la copia SOLO si quien duplica podía verlos (los escribió o
       // eran para él). Los personales de otra persona no se copian: nadie ve recordatorios ajenos (Josué, 1.7.0).
-      env.DB.prepare(`INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, creado, actualizado)
-                      SELECT lower(hex(randomblob(16))), himno, autor_id, para_id, texto, ?, creado, ?
+      env.DB.prepare(`INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, estado, creado, actualizado)
+                      SELECT lower(hex(randomblob(16))), himno, autor_id, para_id, texto, ?, estado, creado, ?
                       FROM recordatorios WHERE minuta_id = ? AND (autor_id = ? OR para_id = ?)`).bind(nueva, t, id, yo.id, yo.id),
     ]);
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
@@ -269,7 +289,7 @@ async function rutasAcceso(request: Request, env: Env, partes: string[], ip: str
 
   if (accion === 'yo' && request.method === 'GET') {
     const d = await dispositivoActual(request, env);
-    return json(d ? { nombre: d.nombre, color: d.color, rol: d.rol, estado: d.estado } : { estado: 'ninguno' });
+    return json(d ? datosAcceso(d) : { estado: 'ninguno' });
   }
 
   if (accion === 'yo' && request.method === 'PATCH') {
@@ -280,24 +300,27 @@ async function rutasAcceso(request: Request, env: Env, partes: string[], ip: str
     const color = body.color !== undefined ? validarColor(body.color) : d.color;
     await env.DB.prepare('UPDATE dispositivos SET nombre = ?, color = ?, actualizado = ? WHERE id = ?')
       .bind(nombre, color, ahora(), d.id).run();
-    return json({ nombre, color, rol: d.rol, estado: d.estado });
+    return json(datosAcceso({ ...d, nombre, color }));
   }
 
   if (accion === 'solicitar' && request.method === 'POST') {
     const body = await leerJson(request);
     const nombre = validarNombre(body.nombre);
     const color = validarColor(body.color);
+    // (1.7.1, Josué) Registrarse: la persona pone su nombre y color y QUEDA REGISTRADA al instante (sin solicitud):
+    // ya se le pueden dejar recordatorios. Crear minutas y dejar recordatorios a otros los activa el admin.
+    const creaMinutas = 0;
     const llave = llaveDe(request);
     if (!llave) throw new ErrorApi(400, 'Falta la llave del dispositivo.');
     const hash = await sha256(llave);
-    const existente = await env.DB.prepare('SELECT id, rol, estado FROM dispositivos WHERE llave_hash = ?')
+    const existente = await env.DB.prepare('SELECT id, rol, estado, crea_minutas, recordatorios_otros FROM dispositivos WHERE llave_hash = ?')
       .bind(hash).first<Dispositivo>();
     if (existente) {
       if (existente.estado === 'deshabilitado') throw new ErrorApi(403, 'Este dispositivo fue deshabilitado por el administrador.');
-      const estado = existente.estado === 'rechazado' ? 'pendiente' : existente.estado;
+      const estado = 'aprobado';
       await env.DB.prepare('UPDATE dispositivos SET nombre = ?, color = ?, estado = ?, actualizado = ? WHERE id = ?')
         .bind(nombre, color, estado, ahora(), existente.id).run();
-      return json({ nombre, color, rol: existente.rol, estado });
+      return json(datosAcceso({ ...existente, nombre, color, estado }));
     }
     const pendientes = await env.DB.prepare("SELECT COUNT(*) AS n FROM dispositivos WHERE estado = 'pendiente'").first<{ n: number }>();
     if ((pendientes?.n ?? 0) >= MAX_PENDIENTES) throw new ErrorApi(429, 'Hay demasiadas solicitudes pendientes. Intenta más tarde.');
@@ -305,10 +328,10 @@ async function rutasAcceso(request: Request, env: Env, partes: string[], ip: str
       .bind(ip, haceHoras(24)).first<{ n: number }>();
     if ((deIp?.n ?? 0) >= MAX_SOLICITUDES_IP_DIA) throw new ErrorApi(429, 'Demasiadas solicitudes desde esta conexión. Intenta mañana.');
     const t = ahora();
-    await env.DB.prepare(`INSERT INTO dispositivos (id, llave_hash, nombre, color, rol, estado, ip, creado, actualizado)
-                          VALUES (?, ?, ?, ?, 'creador', 'pendiente', ?, ?, ?)`)
-      .bind(crypto.randomUUID(), hash, nombre, color, ip, t, t).run();
-    return json({ nombre, color, rol: 'creador', estado: 'pendiente' }, 201);
+    await env.DB.prepare(`INSERT INTO dispositivos (id, llave_hash, nombre, color, rol, estado, crea_minutas, ip, creado, actualizado)
+                          VALUES (?, ?, ?, ?, 'creador', 'aprobado', ?, ?, ?, ?)`)
+      .bind(crypto.randomUUID(), hash, nombre, color, creaMinutas, ip, t, t).run();
+    return json(datosAcceso({ nombre, color, rol: 'creador', estado: 'aprobado', crea_minutas: creaMinutas }), 201);
   }
 
   throw new ErrorApi(404, 'Ruta no encontrada.');
@@ -341,14 +364,14 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
                           ON CONFLICT (llave_hash) DO UPDATE SET nombre = excluded.nombre, color = excluded.color,
                             rol = 'admin', estado = 'aprobado', actualizado = excluded.actualizado`)
       .bind(crypto.randomUUID(), hash, nombre, color, ip, t, t).run();
-    return json({ nombre, color, rol: 'admin', estado: 'aprobado' });
+    return json(datosAcceso({ nombre, color, rol: 'admin', estado: 'aprobado' }));
   }
 
   const yo = exigirAdmin(await dispositivoActual(request, env));
 
   if (seccion === 'dispositivos' && request.method === 'GET') {
     const { results } = await env.DB.prepare(`
-      SELECT d.id, d.nombre, d.color, d.rol, d.estado, d.creado, d.actualizado,
+      SELECT d.id, d.nombre, d.color, d.rol, d.estado, d.creado, d.actualizado, d.crea_minutas, d.recordatorios_otros,
              (SELECT COUNT(*) FROM minutas m WHERE m.creada_por = d.id AND m.borrada = 0) AS minutas
       FROM dispositivos d ORDER BY d.estado = 'pendiente' DESC, d.actualizado DESC`).all();
     return json(results.map((d: any) => ({ ...d, yo: d.id === yo.id })));
@@ -356,10 +379,19 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
 
   if (seccion === 'dispositivos' && request.method === 'PATCH' && partes[2]) {
     const body = await leerJson(request);
-    if (!['aprobado', 'rechazado', 'deshabilitado'].includes(body.estado)) throw new ErrorApi(400, 'Estado no válido.');
     if (partes[2] === yo.id) throw new ErrorApi(400, 'No puedes cambiar tu propio acceso.');
-    const r = await env.DB.prepare('UPDATE dispositivos SET estado = ?, actualizado = ? WHERE id = ?')
-      .bind(body.estado, ahora(), partes[2]).run();
+    // Estado (aprobar, rechazar, deshabilitar) y, desde 1.7.1, los permisos: crear minutas y dejar recordatorios a otros.
+    const cambios: string[] = [];
+    const valores: unknown[] = [];
+    if (body.estado !== undefined) {
+      if (!['aprobado', 'rechazado', 'deshabilitado'].includes(body.estado)) throw new ErrorApi(400, 'Estado no válido.');
+      cambios.push('estado = ?'); valores.push(body.estado);
+    }
+    if (body.crea_minutas !== undefined) { cambios.push('crea_minutas = ?'); valores.push(body.crea_minutas ? 1 : 0); }
+    if (body.recordatorios_otros !== undefined) { cambios.push('recordatorios_otros = ?'); valores.push(body.recordatorios_otros ? 1 : 0); }
+    if (cambios.length === 0) throw new ErrorApi(400, 'Nada que cambiar.');
+    const r = await env.DB.prepare(`UPDATE dispositivos SET ${cambios.join(', ')}, actualizado = ? WHERE id = ? AND rol != 'admin'`)
+      .bind(...valores, ahora(), partes[2]).run();
     if (!r.meta.changes) throw new ErrorApi(404, 'Dispositivo no encontrado.');
     return json({ ok: true });
   }
@@ -426,7 +458,7 @@ const guardarConfig = (env: Env, clave: string, valor: string) =>
 async function estadoIa(env: Env, yo: Dispositivo | null) {
   const admin = esAdmin(yo);
   const paraCreadores = (await leerConfig(env, 'ia_creadores')) === '1';
-  const permitido = !!yo && yo.estado === 'aprobado' && (admin || paraCreadores);
+  const permitido = !!yo && yo.estado === 'aprobado' && (admin || (paraCreadores && !!yo.crea_minutas));
   const pausaGemini = Number((await leerConfig(env, 'gemini_pausa_hasta')) ?? 0);
   const pcVisto = Number((await leerConfig(env, 'pc_visto')) ?? 0);
   let restantes: number | null = null;
@@ -567,8 +599,9 @@ async function rutasPc(request: Request, env: Env, partes: string[]): Promise<Re
 }
 
 // ---------- Recordatorios (1.7.0) ----------
-// Creadores y admin. Cada uno recibe los que escribió (para sí o para otros) y los que le dejaron.
-// Solo el autor edita o borra. Los visores no pasan por aquí: los suyos quedan en su celular.
+// Personas con nombre aprobado (creadores, músicos y admin). Cada una recibe los que escribió y los que le dejaron.
+// Solo el autor edita. Dejar a otros: admin y autorizados. Quien recibe uno lo puede borrar: deja de verlo y el autor
+// ve "Eliminado por …" (1.7.1). Los visores no pasan por aquí: los suyos quedan en su celular.
 
 const MAX_RECORDATORIOS_AUTOR = 500;
 
@@ -591,9 +624,10 @@ function validarHimno(himno: unknown): number {
   return n;
 }
 
-/** El destinatario debe ser una persona aprobada (creador o admin). Sin "para" = para uno mismo. */
+/** El destinatario debe ser una persona aprobada. Sin "para" = para uno mismo. Para otros: solo con permiso. */
 async function validarPara(env: Env, para: unknown, yo: Dispositivo): Promise<string> {
   if (para === undefined || para === null || para === '' || para === yo.id) return yo.id;
+  if (!puedeDejarAOtros(yo)) throw new ErrorApi(403, 'No tienes permiso para dejar recordatorios a otras personas.');
   if (typeof para !== 'string') throw new ErrorApi(400, 'Destinatario no válido.');
   const d = await env.DB.prepare("SELECT id FROM dispositivos WHERE id = ? AND estado = 'aprobado'").bind(para).first();
   if (!d) throw new ErrorApi(400, 'Esa persona ya no está en la app.');
@@ -601,7 +635,7 @@ async function validarPara(env: Env, para: unknown, yo: Dispositivo): Promise<st
 }
 
 const SELECT_RECORDATORIOS = `
-  SELECT r.id, r.himno, r.texto, r.minuta_id, r.creado, r.actualizado, r.autor_id, r.para_id,
+  SELECT r.id, r.himno, r.texto, r.minuta_id, r.estado, r.creado, r.actualizado, r.autor_id, r.para_id,
          a.nombre AS autor_nombre, a.color AS autor_color, p.nombre AS para_nombre, p.color AS para_color
   FROM recordatorios r
   LEFT JOIN dispositivos a ON a.id = r.autor_id
@@ -609,7 +643,7 @@ const SELECT_RECORDATORIOS = `
 
 function filaARecordatorio(f: any, yo: Dispositivo) {
   return {
-    id: f.id, himno: f.himno, texto: f.texto, minuta: f.minuta_id ?? null, creado: f.creado, actualizado: f.actualizado,
+    id: f.id, himno: f.himno, texto: f.texto, estado: f.estado ?? 'enviado', minuta: f.minuta_id ?? null, creado: f.creado, actualizado: f.actualizado,
     mio: f.autor_id === yo.id, // lo escribí yo: puedo editarlo y borrarlo
     autor: f.autor_id === yo.id ? null : { nombre: f.autor_nombre ?? '—', color: f.autor_color ?? '#999' },
     para: f.para_id === yo.id ? null : { id: f.para_id, nombre: f.para_nombre ?? '—', color: f.para_color ?? '#999' },
@@ -617,11 +651,13 @@ function filaARecordatorio(f: any, yo: Dispositivo) {
 }
 
 async function rutasRecordatorios(request: Request, env: Env, partes: string[]): Promise<Response> {
-  const yo = exigirEditor(await dispositivoActual(request, env));
+  const yo = exigirConNombre(await dispositivoActual(request, env));
   const id = partes[1];
 
   if (!id && request.method === 'GET') {
-    const { results } = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.autor_id = ? OR r.para_id = ? ORDER BY r.creado`)
+    // Los que me dejaron y borré ya no los veo (quien los dejó sí, como "Eliminado por …").
+    const { results } = await env.DB.prepare(`${SELECT_RECORDATORIOS}
+      WHERE r.autor_id = ? OR (r.para_id = ? AND r.estado != 'eliminado') ORDER BY r.creado`)
       .bind(yo.id, yo.id).all();
     return json(results.map(f => filaARecordatorio(f, yo)));
   }
@@ -641,19 +677,35 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
     return json(filaARecordatorio(f, yo), 201);
   }
 
-  if (id && (request.method === 'PATCH' || request.method === 'DELETE')) {
-    const actual = await env.DB.prepare('SELECT autor_id FROM recordatorios WHERE id = ?').bind(id).first<{ autor_id: string }>();
+  if (id && (request.method === 'PATCH' || request.method === 'DELETE' || (request.method === 'POST' && partes[2] === 'visto'))) {
+    const actual = await env.DB.prepare('SELECT autor_id, para_id FROM recordatorios WHERE id = ?').bind(id).first<{ autor_id: string; para_id: string }>();
     if (!actual) throw new ErrorApi(404, 'Ese recordatorio ya no existe.');
-    if (actual.autor_id !== yo.id) throw new ErrorApi(403, 'Solo quien escribió el recordatorio puede cambiarlo.');
-    if (request.method === 'DELETE') {
-      await env.DB.prepare('DELETE FROM recordatorios WHERE id = ?').bind(id).run();
+    // Visto: lo marca el celular de quien lo recibe cuando le aparece.
+    if (request.method === 'POST') {
+      if (actual.para_id !== yo.id) throw new ErrorApi(403, 'Este recordatorio no es para ti.');
+      await env.DB.prepare("UPDATE recordatorios SET estado = 'visto' WHERE id = ? AND estado = 'enviado'").bind(id).run();
       return json({ ok: true });
     }
+    // Borrar: quien lo escribió lo elimina del todo. Quien lo recibió deja de verlo y quien lo dejó ve
+    // "Eliminado por …" (Josué, 1.7.1).
+    if (request.method === 'DELETE') {
+      if (actual.autor_id === yo.id) {
+        await env.DB.prepare('DELETE FROM recordatorios WHERE id = ?').bind(id).run();
+        return json({ ok: true });
+      }
+      if (actual.para_id !== yo.id) throw new ErrorApi(403, 'Este recordatorio no es tuyo.');
+      await env.DB.prepare("UPDATE recordatorios SET estado = 'eliminado' WHERE id = ?").bind(id).run();
+      return json({ ok: true });
+    }
+    // Editar: solo quien lo escribió.
+    if (actual.autor_id !== yo.id) throw new ErrorApi(403, 'Solo quien escribió el recordatorio puede cambiarlo.');
     const body = await leerJson(request);
     const texto = validarTexto(body.texto);
     const para = await validarPara(env, body.para, yo);
     const minuta = validarMinutaId(body.minuta);
-    await env.DB.prepare('UPDATE recordatorios SET texto = ?, para_id = ?, minuta_id = ?, actualizado = ? WHERE id = ?')
+    // Cambiado: vuelve a "enviado" (la otra persona lo verá de nuevo, aunque lo hubiera borrado).
+    await env.DB.prepare(`UPDATE recordatorios SET texto = ?, para_id = ?, minuta_id = ?, actualizado = ?, estado = 'enviado'
+                          WHERE id = ?`)
       .bind(texto, para, minuta, ahora(), id).run();
     const f = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.id = ?`).bind(id).first();
     return json(filaARecordatorio(f, yo));
@@ -662,9 +714,10 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
   throw new ErrorApi(404, 'Ruta no encontrada.');
 }
 
-/** Personas a quienes se les puede dejar un recordatorio: creadores y admin aprobados (menos uno mismo). */
+/** Personas a quienes se les puede dejar un recordatorio: todas las aprobadas (músicos incluidos), menos uno mismo. */
 async function rutasPersonas(request: Request, env: Env): Promise<Response> {
-  const yo = exigirEditor(await dispositivoActual(request, env));
+  const yo = exigirConNombre(await dispositivoActual(request, env));
+  if (!puedeDejarAOtros(yo)) throw new ErrorApi(403, 'No tienes permiso para dejar recordatorios a otras personas.');
   if (request.method !== 'GET') throw new ErrorApi(404, 'Ruta no encontrada.');
   const { results } = await env.DB.prepare("SELECT id, nombre, color FROM dispositivos WHERE estado = 'aprobado' AND id != ? ORDER BY nombre")
     .bind(yo.id).all();

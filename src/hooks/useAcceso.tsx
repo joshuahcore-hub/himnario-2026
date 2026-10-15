@@ -10,10 +10,19 @@ export interface Acceso {
   rol?: 'creador' | 'admin';
   nombre?: string;
   color?: string;
+  /** (1.7.1) Registrado sin permiso de crear minutas = false. El admin siempre true. */
+  crea_minutas?: boolean;
+  /** (1.7.1) Puede dejar recordatorios a otras personas (lo activa el admin). */
+  recordatorios_otros?: boolean;
 }
 
 interface ContextoAcceso extends Acceso {
+  /** Crear y editar minutas (creadores y admin). */
   puedeEditar: boolean;
+  /** Registrado con nombre y color (recordatorios en el servidor; se le pueden dejar recordatorios). */
+  registrado: boolean;
+  /** Dejar recordatorios a otras personas. */
+  puedeDejarAOtros: boolean;
   esAdmin: boolean;
   recargar: () => Promise<void>;
   solicitar: (nombre: string, color: string) => Promise<void>;
@@ -75,7 +84,9 @@ export function AccesoProvider({ children }: { children: ReactNode }) {
 
   const valor: ContextoAcceso = {
     ...acceso,
-    puedeEditar: acceso.estado === 'aprobado',
+    puedeEditar: acceso.estado === 'aprobado' && (acceso.rol === 'admin' || acceso.crea_minutas !== false),
+    registrado: acceso.estado === 'aprobado',
+    puedeDejarAOtros: acceso.estado === 'aprobado' && (acceso.rol === 'admin' || !!acceso.recordatorios_otros),
     esAdmin: acceso.estado === 'aprobado' && acceso.rol === 'admin',
     recargar,
     solicitar,

@@ -101,8 +101,8 @@ export default function MinutaReader() {
   const { t } = useI18n();
   const horizontal = useHorizontal();
   // Recordatorios (1.7.0): los "siempre en esta alabanza" y los "solo en esta minuta".
-  const { puedeEditar } = useAcceso();
-  const notasDe = useRecordatorios(puedeEditar, id ?? null);
+  const { registrado } = useAcceso();
+  const notasDe = useRecordatorios(registrado, id ?? null);
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
   const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
@@ -314,7 +314,7 @@ export default function MinutaReader() {
             <BotonRecordatorio onClick={() => abrirPanel(null)} />
           </div>
           {puedeGirar && (
-            <button onClick={() => girarPantalla(horizontal)} onTouchStart={e => e.stopPropagation()} aria-label="Girar"
+            <button onClick={() => girarPantalla(horizontal)} onTouchStart={e => e.stopPropagation()} aria-label="Girar" style={{ touchAction: 'none' }}
                     className="tap-btn-overlay p-2 rounded-full bg-card/70 backdrop-blur-sm border border-border text-foreground/70">
               <RotateCwSquare size={18} />
             </button>

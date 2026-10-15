@@ -179,6 +179,12 @@ export interface Translations {
   access_pending: string;
   access_check: string;
   access_approved: string;
+  access_registered: string;
+  access_can_remind_others: string;
+  admin_can_create: string;
+  admin_can_remind: string;
+  admin_registered: string;
+  admin_role_creator: string;
   access_admin: string;
   access_rejected: string;
   access_disabled: string;
@@ -263,11 +269,18 @@ export interface Translations {
   rec_save: string;
   rec_cancel: string;
   rec_delete: string;
+  rec_edit: string;
   rec_only_view: string;
   rec_needs_internet: string;
   rec_always: string;
   rec_this_minuta: string;
   rec_private_hint: string;
+  rec_sent: string;
+  rec_seen: string;
+  rec_deleted_by: (nombre: string) => string;
+  rec_delete_confirm: string;
+  rec_delete_both: (nombre: string) => string;
+  rec_delete_received: (nombre: string) => string;
 }
 
 export const es: Translations = {
@@ -431,20 +444,26 @@ export const es: Translations = {
 
   access_title: 'Crear minutas',
   access_intro: 'Para crear o editar minutas, pide acceso de creador. El administrador lo aprobará.',
-  access_request: 'Solicitar ser creador',
-  access_dialog_title: 'Solicitar ser creador',
+  access_request: 'Registrarme',
+  access_dialog_title: 'Registrarme',
   access_viewer: 'Eres visor: puedes ver el himnario y las minutas publicadas, incluso sin internet.',
-  access_want_create: '¿Quieres crear minutas?',
+  access_want_create: 'Regístrate con tu nombre y un color: así te pueden dejar recordatorios en las alabanzas.',
   access_my_profile: 'Mi perfil',
   settings_more: 'Más opciones',
-  access_dialog_text: 'Escribe tu nombre y elige un color: así se distinguen tus minutas.',
-  access_send: 'Enviar solicitud',
+  access_dialog_text: 'Escribe tu nombre y elige un color: así te reconocen en la app.',
+  access_send: 'Registrarme',
   access_name_required: 'Escribe tu nombre.',
   access_pending: 'Tu solicitud está enviada. Espera a que el administrador la apruebe.',
   access_check: 'Revisar estado',
   access_approved: 'Eres creador: puedes crear, editar y borrar minutas.',
+  access_registered: 'Estás registrado: te pueden dejar recordatorios en las alabanzas. Si quieres crear minutas, pídeselo al administrador.',
+  access_can_remind_others: 'Puedes dejar recordatorios a otras personas.',
+  admin_can_create: 'Crear minutas',
+  admin_can_remind: 'Dejar recordatorios a otros',
+  admin_registered: 'Registrado',
+  admin_role_creator: 'Creador',
   access_admin: 'Eres administrador: puedes crear, editar y borrar minutas, y aprobar creadores.',
-  access_rejected: 'Tu solicitud anterior fue rechazada. Puedes volver a solicitarlo.',
+  access_rejected: 'Regístrate con tu nombre y un color: así te pueden dejar recordatorios en las alabanzas.',
   access_disabled: 'El administrador deshabilitó el acceso de este celular.',
   access_edit_profile: 'Cambiar nombre o color',
 
@@ -458,7 +477,7 @@ export const es: Translations = {
   admin_history: 'Historial',
   admin_pending_requests: 'Solicitudes pendientes',
   admin_no_people: 'Todavía nadie ha pedido acceso.',
-  admin_requested: 'Pidió acceso el',
+  admin_requested: 'Se registró el',
   admin_this_device: 'este celular',
   admin_role_admin: 'Administrador',
   admin_state_pending: 'Pendiente',
@@ -521,10 +540,17 @@ export const es: Translations = {
   rec_save: 'Guardar',
   rec_cancel: 'Cancelar',
   rec_delete: 'Eliminar',
+  rec_edit: 'Editar',
   rec_only_view: 'Te lo dejó otra persona: solo quien lo escribió puede cambiarlo.',
   rec_needs_internet: 'Se necesita internet para guardar este recordatorio.',
   rec_always: 'Siempre en esta alabanza',
   rec_this_minuta: 'Solo esta minuta',
+  rec_sent: 'Enviado',
+  rec_seen: 'Visto',
+  rec_deleted_by: nombre => `Eliminado por ${nombre}`,
+  rec_delete_confirm: '¿Eliminar este recordatorio?',
+  rec_delete_both: nombre => `También se borra para ${nombre}.`,
+  rec_delete_received: nombre => `${nombre} verá que lo eliminaste.`,
   rec_private_hint: 'Esta minuta es privada: para dejárselo a otra persona, elige "Siempre en esta alabanza".',
 };
 
@@ -689,20 +715,26 @@ export const en: Translations = {
 
   access_title: 'Create services',
   access_intro: 'To create or edit services, request creator access. The administrator will approve it.',
-  access_request: 'Request creator access',
-  access_dialog_title: 'Request creator access',
+  access_request: 'Sign up',
+  access_dialog_title: 'Sign up',
   access_viewer: 'You are a viewer: you can see the hymnal and published services, even offline.',
-  access_want_create: 'Want to create services?',
+  access_want_create: 'Sign up with your name and a color so others can leave you reminders on songs.',
   access_my_profile: 'My profile',
   settings_more: 'More options',
-  access_dialog_text: 'Enter your name and pick a color: it identifies your services.',
-  access_send: 'Send request',
+  access_dialog_text: 'Enter your name and pick a color: it identifies you in the app.',
+  access_send: 'Sign up',
   access_name_required: 'Enter your name.',
   access_pending: 'Your request has been sent. Wait for the administrator to approve it.',
   access_check: 'Check status',
   access_approved: 'You are a creator: you can create, edit and delete services.',
+  access_registered: 'You are signed up: others can leave you reminders on songs. To create services, ask the administrator.',
+  access_can_remind_others: 'You can leave reminders for other people.',
+  admin_can_create: 'Create services',
+  admin_can_remind: 'Leave reminders for others',
+  admin_registered: 'Signed up',
+  admin_role_creator: 'Creator',
   access_admin: 'You are the administrator: you can create, edit and delete services, and approve creators.',
-  access_rejected: 'Your previous request was rejected. You can request access again.',
+  access_rejected: 'Sign up with your name and a color so others can leave you reminders on songs.',
   access_disabled: 'The administrator disabled access for this phone.',
   access_edit_profile: 'Change name or color',
 
@@ -716,7 +748,7 @@ export const en: Translations = {
   admin_history: 'History',
   admin_pending_requests: 'Pending requests',
   admin_no_people: 'Nobody has requested access yet.',
-  admin_requested: 'Requested on',
+  admin_requested: 'Signed up on',
   admin_this_device: 'this phone',
   admin_role_admin: 'Administrator',
   admin_state_pending: 'Pending',
@@ -779,10 +811,17 @@ export const en: Translations = {
   rec_save: 'Save',
   rec_cancel: 'Cancel',
   rec_delete: 'Delete',
+  rec_edit: 'Edit',
   rec_only_view: 'Someone left this for you: only who wrote it can change it.',
   rec_needs_internet: 'Internet is needed to save this reminder.',
   rec_always: 'Always on this song',
   rec_this_minuta: 'Only this service',
+  rec_sent: 'Sent',
+  rec_seen: 'Seen',
+  rec_deleted_by: nombre => `Deleted by ${nombre}`,
+  rec_delete_confirm: 'Delete this reminder?',
+  rec_delete_both: nombre => `It is also deleted for ${nombre}.`,
+  rec_delete_received: nombre => `${nombre} will see that you deleted it.`,
   rec_private_hint: 'This service is private: to leave it for someone else, choose "Always on this song".',
 };
 

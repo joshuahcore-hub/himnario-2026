@@ -19,6 +19,23 @@ interface DispositivoAdmin {
   creado: string;
   minutas: number;
   yo: boolean;
+  /** (1.7.1) 0 = registrado sin crear minutas. */
+  crea_minutas: number;
+  /** (1.7.1) 1 = puede dejar recordatorios a otras personas. */
+  recordatorios_otros: number;
+}
+
+/** Interruptor propio (sin controles nativos), como el de la IA. */
+function Interruptor({ activo, onCambiar, texto }: { activo: boolean; onCambiar: () => void; texto: string }) {
+  return (
+    <button type="button" onClick={onCambiar} className="w-full flex items-center justify-between gap-3 py-1 text-left">
+      <span className="text-xs text-foreground">{texto}</span>
+      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${activo ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+        <span className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-background shadow-sm"
+              style={{ transform: activo ? 'translateX(16px)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+      </span>
+    </button>
+  );
 }
 
 interface EntradaHistorial {
@@ -79,6 +96,18 @@ export default function Admin() {
     }
   };
 
+  // (1.7.1) Permisos por persona: crear minutas y dejar recordatorios a otros. Cambia al instante; si falla, vuelve.
+  const cambiarPermiso = async (d: DispositivoAdmin, campo: 'crea_minutas' | 'recordatorios_otros') => {
+    const valor = d[campo] ? 0 : 1;
+    setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, [campo]: valor } : x)));
+    try {
+      await api(`admin/dispositivos/${d.id}`, { metodo: 'PATCH', datos: { [campo]: !!valor } });
+    } catch (e: any) {
+      setDispositivos(prev => prev.map(x => (x.id === d.id ? { ...x, [campo]: d[campo] } : x)));
+      toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
+    }
+  };
+
   const cambiarIaCreadores = async (valor: boolean) => {
     setIaCreadores(valor);
     try {
@@ -135,13 +164,21 @@ export default function Admin() {
       <div className="flex items-center justify-between gap-2">
         <ChipAutor autor={{ nombre: d.nombre, color: d.color }} />
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${colorEstado[d.estado]}`}>
-          {d.rol === 'admin' ? t.admin_role_admin : etiquetaEstado[d.estado]}
+          {d.rol === 'admin' ? t.admin_role_admin
+            : d.estado === 'aprobado' ? (d.crea_minutas ? t.admin_role_creator : t.admin_registered) : etiquetaEstado[d.estado]}
         </span>
       </div>
       <p className="text-[10px] text-muted-foreground">
         {t.admin_requested} {fechaHora(d.creado)} · {d.minutas} {t.minutas_title.toLowerCase()}
         {d.yo && ` · ${t.admin_this_device}`}
       </p>
+      {/* Permisos (1.7.1): la persona se registra sola; aquí se le activa crear minutas o dejar recordatorios a otros. */}
+      {!d.yo && d.rol !== 'admin' && d.estado === 'aprobado' && (
+        <div className="border-t border-border pt-1.5 space-y-0.5">
+          <Interruptor texto={t.admin_can_create} activo={!!d.crea_minutas} onCambiar={() => cambiarPermiso(d, 'crea_minutas')} />
+          <Interruptor texto={t.admin_can_remind} activo={!!d.recordatorios_otros} onCambiar={() => cambiarPermiso(d, 'recordatorios_otros')} />
+        </div>
+      )}
       {!d.yo && (
         <div className="flex justify-end gap-2">
           {d.estado === 'pendiente' && (
