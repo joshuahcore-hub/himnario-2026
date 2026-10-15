@@ -32,7 +32,7 @@ interface DispositivoAdmin {
 /** Interruptor propio (sin controles nativos), como el de la IA. */
 function Interruptor({ activo, onCambiar, texto }: { activo: boolean; onCambiar: () => void; texto: string }) {
   return (
-    <button type="button" onClick={onCambiar} className="w-full flex items-center justify-between gap-3 py-1 text-left">
+    <button type="button" onClick={onCambiar} className="tap-btn w-full min-h-[40px] flex items-center justify-between gap-3 py-1.5 text-left">
       <span className="text-xs text-foreground">{texto}</span>
       <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${activo ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
         <span className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-background shadow-sm"
