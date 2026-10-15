@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
-import { espacioActual } from '@/lib/espacios';
+import { espacioActual, useEspacios } from '@/lib/espacios';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ArrowUp, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -238,6 +238,7 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
 }
 
 export default function EditorMinuta() {
+  const { espacios, actual: espacio, siguiente: otroEspacio } = useEspacios();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -456,6 +457,15 @@ export default function EditorMinuta() {
     <div className="flex flex-col overflow-hidden w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - var(--barra))', overscrollBehavior: 'none' }}>
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <h1 className="text-xl font-bold text-foreground">{id ? t.editor_title_edit : t.create_title}</h1>
+        {/* (1.17.3, Josué) En qué espacio se crea: pequeño, a la derecha del título; tocarlo cambia de espacio. Es el
+            MISMO que se ve en Minutas (cambiar uno cambia el otro). */}
+        {!id && espacios.length > 1 && (
+          <BotonSeguro onClick={otroEspacio} aria-label={t.minutas_cambiar_espacio}
+                       className="tap-btn flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
+            <span key={espacio.id} className="animate-in fade-in duration-200">{espacio.nombre}</span>
+            <ArrowLeftRight size={12} className="text-muted-foreground" />
+          </BotonSeguro>
+        )}
         {id && (
           <BotonSeguro onClick={salida.intentarVolver} className="text-muted-foreground p-1.5" aria-label={t.minutas_cancel}>
             <X size={20} />
