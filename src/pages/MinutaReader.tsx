@@ -54,11 +54,13 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
       // Sin encabezado (Josué, 1.6.2): la imagen ya trae número y título; todo el alto para la letra.
       <Zoomable className="w-full m-auto" reiniciarCon={hymnNumber}>
         <div className="w-full flex flex-col items-center pt-3">
-          <NotasRecordatorio notas={notas} compacto onTocar={onTocarNota} className="px-3 pb-1.5" />
           {imgError ? (
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (
             <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)}>
+              {/* Sin mover: flotan sobre la esquina superior derecha de la letra (1.9.2: no la empujan). */}
+              <NotasRecordatorio notas={notas} compacto alDerecha onTocar={onTocarNota}
+                                 className="absolute top-1 left-0 right-0 px-2 z-10 pointer-events-none" />
               <NotasRecordatorio notas={notas} compacto sobreLetra onTocar={onTocarNota} />
             </HimnoRecortado>
           )}
@@ -74,7 +76,6 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
           <h2 className="text-lg font-bold text-foreground">{song.title}</h2>
           {song.key && <p translate="no" className="font-semibold text-hymn-key">{song.key}</p>}
         </div>
-        <NotasRecordatorio notas={notas} onTocar={onTocarNota} className="max-w-lg px-2 pt-2 shrink-0" />
         {imgError ? (
           <div className="flex-1 flex items-center px-4 text-center">
             {song.firstLine && <p className="text-muted-foreground text-sm italic">{song.firstLine}</p>}
@@ -84,6 +85,9 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
           // quedaba a otra altura según dónde venía la letra en la imagen). Se achica si no cabe de alto.
           <div className="flex-1 min-h-0 w-full max-w-lg flex items-center justify-center py-2" style={{ containerType: 'size' }}>
             <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)} ajustarAlto>
+              {/* Sin mover: en fila justo ARRIBA de la letra, flotando (1.9.2: antes estaban en el flujo y al agregar
+                  uno la letra bajaba, y al moverlo volvía a subir). */}
+              <NotasRecordatorio notas={notas} onTocar={onTocarNota} className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />
               <NotasRecordatorio notas={notas} sobreLetra onTocar={onTocarNota} />
             </HimnoRecortado>
           </div>

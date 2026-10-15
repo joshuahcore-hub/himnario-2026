@@ -57,8 +57,10 @@ function posicionAlSoltar(postit: HTMLElement): { x: number; y: number } | undef
   return { x: (izq - m.left) / m.width, y: (arr - m.top) / m.height };
 }
 
-function Nota({ r, compacto, indice, abierta, sobreLetra, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
+function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onAlternar, onCerrarOpciones, onEditar, onBorrar }: {
   r: Recordatorio;
+  /** En la fila: pegados a la derecha (celular girado: sobre la esquina del autor) en vez de a la izquierda. */
+  alDerecha?: boolean;
   compacto: boolean;
   /** Para inclinar los post-it un poco distinto uno de otro. */
   indice: number;
@@ -207,7 +209,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, onAlternar, onCerrarOp
       ref={caja}
       role="button"
       {...eventos}
-      className={sobreLetra ? 'absolute pointer-events-auto' : 'relative self-start max-w-[88%]'}
+      className={sobreLetra ? 'absolute pointer-events-auto' : `relative ${alDerecha ? 'self-end' : 'self-start'} max-w-[88%] pointer-events-auto`}
       style={{
         touchAction: 'none',
         zIndex: levantado ? 40 : abierta ? 30 : sobreLetra ? 10 : undefined,
@@ -277,8 +279,10 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, onAlternar, onCerrarOp
  *    que debe ser `relative` y llevar data-marco-letra; la página entera lleva data-pagina).
  * Mantener presionado uno lo despega y se arrastra; si se suelta arriba, fuera de la letra, vuelve a la fila.
  */
-export function NotasRecordatorio({ notas, compacto = false, onTocar, className = '', sobreLetra = false }: {
+export function NotasRecordatorio({ notas, compacto = false, onTocar, className = '', sobreLetra = false, alDerecha = false }: {
   notas: Recordatorio[];
+  /** Fila pegada a la derecha (ver Nota). */
+  alDerecha?: boolean;
   compacto?: boolean;
   /** Editar uno propio (abre el panel). Tocar una nota despliega Editar / Eliminar. */
   onTocar: (r: Recordatorio) => void;
@@ -311,7 +315,7 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
     <div ref={contenedor}
          className={sobreLetra ? `absolute inset-0 pointer-events-none ${className}` : `w-full flex flex-col pt-1.5 ${compacto ? 'gap-2.5' : 'gap-3.5'} ${className}`}>
       {lista.map((r, i) => (
-        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra}
+        <Nota key={r.id} r={r} compacto={compacto} indice={i} abierta={abiertaId === r.id} sobreLetra={sobreLetra} alDerecha={alDerecha}
               onAlternar={() => setAbiertaId(a => (a === r.id ? null : r.id))} onCerrarOpciones={() => setAbiertaId(null)}
               onEditar={editar} onBorrar={pedirBorrar} />
       ))}

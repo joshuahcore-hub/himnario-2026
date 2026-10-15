@@ -312,8 +312,11 @@ export default function HymnDetail() {
              style={{ transform: `translateX(${offset * 100}%)`, overscrollBehavior: 'contain',
                       padding: '3.25rem env(safe-area-inset-right, 0px) 1rem env(safe-area-inset-left, 0px)' }}>
           <Zoomable className="w-full m-auto" reiniciarCon={num}>
-            <NotasRecordatorio notas={notasDe(num)} compacto onTocar={abrirPanel} className="px-3 pb-1.5" />
+            {/* Los post-it sin mover FLOTAN sobre la esquina superior derecha de la letra (1.9.2, Josué: en la fila
+                empujaban la letra hacia abajo al agregarlos y la subían al moverlos). */}
             <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`}>
+              <NotasRecordatorio notas={notasDe(num)} compacto alDerecha onTocar={abrirPanel}
+                                 className="absolute top-1 left-0 right-0 px-2 z-10 pointer-events-none" />
               <NotasRecordatorio notas={notasDe(num)} compacto sobreLetra onTocar={abrirPanel} />
             </HimnoRecortado>
           </Zoomable>
@@ -328,7 +331,7 @@ export default function HymnDetail() {
         {/* Post-it: los que no se han movido van en fila justo arriba de la letra (fuera del flujo: la letra no se corre
             al agregarlos ni al moverlos); los movidos, pegados en su lugar de la letra, encima de la imagen (1.9.0). */}
         <div className="relative w-full min-h-0 flex justify-center">
-          <NotasRecordatorio notas={notasDe(num)} onTocar={abrirPanel} className="absolute bottom-full left-0 right-0 mx-auto max-w-lg px-4 pb-3" />
+          <NotasRecordatorio notas={notasDe(num)} onTocar={abrirPanel} className="absolute bottom-full left-0 right-0 mx-auto max-w-lg px-4 pb-3 pointer-events-none" />
           <ZoomableImage
             src={src}
             alt={`${t.hymn_alt}${num}`}
