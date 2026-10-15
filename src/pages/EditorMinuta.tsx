@@ -18,6 +18,7 @@ import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import PanelIA, { useEstadoIA } from '@/components/PanelIA';
 import type { LecturaMinuta } from '@/lib/leerMinuta';
+import BotonSeguro from '@/components/BotonSeguro';
 
 function hoy(): string {
   const d = new Date();
@@ -82,9 +83,9 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados }: {
             inputMode="search"
           />
         </div>
-        <button onClick={onCancel} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_cancel}>
+        <BotonSeguro onClick={onCancel} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_cancel}>
           <X size={20} />
-        </button>
+        </BotonSeguro>
       </div>
       <div className="flex-1 overflow-y-auto px-3 pt-2 pb-28 space-y-0.5">
         {resultados.map(h => {
@@ -337,9 +338,9 @@ export default function EditorMinuta() {
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <h1 className="text-xl font-bold text-foreground">{id ? t.editor_title_edit : t.create_title}</h1>
         {id && (
-          <button onClick={salida.intentarVolver} className="text-muted-foreground p-1.5" aria-label={t.minutas_cancel}>
+          <BotonSeguro onClick={salida.intentarVolver} className="text-muted-foreground p-1.5" aria-label={t.minutas_cancel}>
             <X size={20} />
-          </button>
+          </BotonSeguro>
         )}
       </div>
 
@@ -351,12 +352,12 @@ export default function EditorMinuta() {
               className="absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-md bg-background shadow-sm"
               style={{ transform: modo === 'ia' ? 'translateX(100%)' : 'none', transition: 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)' }}
             />
-            <button onClick={() => setModo('manual')} className={`relative h-8 transition-colors ${modo === 'manual' ? 'text-foreground' : 'text-muted-foreground'}`}>
+            <BotonSeguro onClick={() => setModo('manual')} className={`relative h-8 transition-colors ${modo === 'manual' ? 'text-foreground' : 'text-muted-foreground'}`}>
               {t.editor_mode_manual}
-            </button>
-            <button onClick={() => { setModo('ia'); revisarIA(); }} className={`relative h-8 transition-colors ${modo === 'ia' ? 'text-foreground' : 'text-muted-foreground'}`}>
+            </BotonSeguro>
+            <BotonSeguro onClick={() => { setModo('ia'); revisarIA(); }} className={`relative h-8 transition-colors ${modo === 'ia' ? 'text-foreground' : 'text-muted-foreground'}`}>
               {t.editor_mode_ai}
-            </button>
+            </BotonSeguro>
           </div>
         </div>
       )}

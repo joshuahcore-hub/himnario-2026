@@ -8,7 +8,7 @@ import { useRef } from 'react';
 const MOVIMIENTO_MAX = 12; // px: más que esto ya es un deslizamiento, no un toque
 const DURACION_MAX = 1000; // ms: más que esto es "mantener presionado"
 
-export function useToque<E extends HTMLElement = HTMLButtonElement>(accion: () => void) {
+export function useToque<E extends HTMLElement = HTMLButtonElement>(accion: (e: React.PointerEvent<E> | React.MouseEvent<E>) => void) {
   const inicio = useRef<{ x: number; y: number; t: number; id: number } | null>(null);
   const hecho = useRef(0);
   const accionRef = useRef(accion);
@@ -27,14 +27,14 @@ export function useToque<E extends HTMLElement = HTMLButtonElement>(accion: () =
       if (!i || i.id !== e.pointerId) return;
       if (Math.hypot(e.clientX - i.x, e.clientY - i.y) > MOVIMIENTO_MAX || Date.now() - i.t > DURACION_MAX) return;
       hecho.current = Date.now();
-      accionRef.current();
+      accionRef.current(e);
     },
     onPointerCancel: () => { inicio.current = null; },
     // El click que llega después del toque se ignora (ya se hizo). Sirve igual para teclado u otros casos.
     onClick: (e: React.MouseEvent<E>) => {
       e.stopPropagation();
       if (Date.now() - hecho.current < 700) return;
-      accionRef.current();
+      accionRef.current(e);
     },
   };
 }

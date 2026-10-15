@@ -13,6 +13,7 @@ import { FAST_HYMNS } from '@/lib/hymnConstants';
 import { useI18n } from '@/lib/i18n/index';
 import TonalityPicker from '@/components/TonalityPicker';
 import TempoPicker from '@/components/TempoPicker';
+import BotonSeguro from '@/components/BotonSeguro';
 
 function keyMatchesFilter(hymnKey: string, filterKey: string): boolean {
   return hymnKey.toUpperCase() === filterKey.toUpperCase();
@@ -137,14 +138,14 @@ export default function HymnalPage() {
             className="pl-9 h-10 text-xs"
           />
         </div>
-        <button
+        <BotonSeguro
           onClick={handleFilterTap}
           className={`tap-btn h-10 w-10 flex items-center justify-center rounded-md border transition-colors shrink-0 ${
             selectedKey || selectedTempo !== 'all' ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground'
           }`}
         >
           <SlidersHorizontal size={16} />
-        </button>
+        </BotonSeguro>
       </div>
 
       {showFilters && (
@@ -158,9 +159,9 @@ export default function HymnalPage() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-foreground font-semibold text-sm">{t.hymnal_filters}</h3>
-              <button onClick={() => setShowFilters(false)} className="text-muted-foreground p-1">
+              <BotonSeguro onClick={() => setShowFilters(false)} className="text-muted-foreground p-1">
                 <X size={18} />
-              </button>
+              </BotonSeguro>
             </div>
 
             {/* Tempo picker */}
@@ -184,24 +185,24 @@ export default function HymnalPage() {
       {(selectedKey || selectedTempo !== 'all') && !showFilters && (
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           {selectedTempo !== 'all' && (
-            <button
+            <BotonSeguro
               onClick={() => setSelectedTempo('all')}
               className="tap-btn flex items-center gap-1 bg-primary/10 text-primary text-[11px] font-semibold px-2.5 py-1 rounded-full"
             >
               {tempoLabels[selectedTempo]}
               <span className="text-primary/60">{filtered.length}</span>
               <X size={10} />
-            </button>
+            </BotonSeguro>
           )}
           {selectedKey && (
-            <button
+            <BotonSeguro
               onClick={() => setSelectedKey(null)}
               className="tap-btn flex items-center gap-1 bg-primary/10 text-primary text-[11px] font-semibold px-2.5 py-1 rounded-full"
             >
               <span translate="no">{selectedKey}</span>
               <span className="text-primary/60">{filtered.length}</span>
               <X size={10} />
-            </button>
+            </BotonSeguro>
           )}
         </div>
       )}

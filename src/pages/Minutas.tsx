@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { cargarRecordatorios } from '@/lib/recordatorios';
+import BotonSeguro from '@/components/BotonSeguro';
 
 export default function Minutas() {
   const navigate = useNavigate();
@@ -136,11 +137,11 @@ export default function Minutas() {
         <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
         {/* Al seleccionar, esto y la ayuda de abajo se desvanecen SIN quitar su espacio: si se quitaran,
             la lista (centrada en la pantalla) saltaría hacia arriba justo al mantener presionada una minuta. */}
-        <button onClick={refrescar} disabled={selectMode} aria-hidden={selectMode}
+        <BotonSeguro onClick={refrescar} disabled={selectMode} aria-hidden={selectMode}
           className={`tap-btn p-2 text-muted-foreground transition-opacity duration-200 ${selectMode ? 'opacity-0 pointer-events-none' : ''}`}
           aria-label={t.minutas_refresh}>
           <RefreshCw size={16} className={cargando ? 'animate-spin' : ''} />
-        </button>
+        </BotonSeguro>
       </div>
 
       {sinConexion && (
@@ -216,7 +217,7 @@ export default function Minutas() {
                       </div>
                       {/* Fijar: solo en las propias. */}
                       {/* Alfiler ARRIBA del recuadro (misma esquina izquierda): así no tapa "Minuta" (Josué, 1.5.7). */}
-                      {m.mia && <button
+                      {m.mia && <BotonSeguro
                         className={`absolute -top-8 left-1 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-sm animate-in fade-in zoom-in-95 duration-150 ${
                           m.fijada ? 'bg-primary text-primary-foreground' : 'bg-card/80 border border-border text-muted-foreground'
                         }`}
@@ -224,7 +225,7 @@ export default function Minutas() {
                         aria-label={t.minutas_pin}
                       >
                         <Pin size={13} />
-                      </button>}
+                      </BotonSeguro>}
                     </>
                   )}
                   {/* Quién la creó/editó: solo el administrador, y solo aquí en la lista (no dentro de la minuta). */}
@@ -247,39 +248,39 @@ export default function Minutas() {
           onClick={e => e.stopPropagation()}
         >
           {puedeEditar1 && (
-            <button
+            <BotonSeguro
               onClick={() => { const [id] = [...selected]; salirSeleccion(); navigate(`/editar/${id}`); }}
               className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
               aria-label={t.create_edit}
             >
               <Pencil size={22} />
-            </button>
+            </BotonSeguro>
           )}
-          <button
+          <BotonSeguro
             onClick={duplicar}
             disabled={selected.size !== 1 || duplicando}
             className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
             aria-label={t.minuta_duplicate}
           >
             {duplicando ? <Loader2 size={22} className="animate-spin" /> : <Copy size={22} />}
-          </button>
+          </BotonSeguro>
           {puedeCambiarVisibilidad && (
-            <button
+            <BotonSeguro
               onClick={cambiarVisibilidad}
               className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
               aria-label={unaSeleccionada?.publicada ? t.minuta_make_private : t.minuta_publish}
             >
               {unaSeleccionada?.publicada ? <Lock size={22} /> : <Globe size={22} className="text-green-600 dark:text-green-400" />}
-            </button>
+            </BotonSeguro>
           )}
           {todasPropias && (
-            <button
+            <BotonSeguro
               onClick={() => { setCantidadABorrar(selected.size); setConfirmarBorrar(true); }}
               className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-destructive animate-in fade-in zoom-in-95 duration-200"
               aria-label={t.minutas_delete}
             >
               <Trash2 size={22} />
-            </button>
+            </BotonSeguro>
           )}
         </div>
       )}
