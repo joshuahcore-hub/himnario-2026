@@ -180,20 +180,12 @@ export default function Admin() {
           <Interruptor texto={t.admin_can_remind} activo={!!d.recordatorios_otros} onCambiar={() => cambiarPermiso(d, 'recordatorios_otros')} />
         </div>
       )}
-      {!d.yo && (
+      {/* (1.7.8, Josué) Sin "Deshabilitar/Habilitar": cada persona se maneja solo con los dos interruptores. Solo las
+          solicitudes antiguas (de antes de 1.7.1) conservan Aprobar / Rechazar. */}
+      {!d.yo && d.estado === 'pendiente' && (
         <div className="flex justify-end gap-2">
-          {d.estado === 'pendiente' && (
-            <>
-              <Button size="sm" className="h-8 px-4 text-xs" onClick={() => cambiarEstado(d, 'aprobado')}>{t.admin_approve}</Button>
-              <Button size="sm" variant="outline" className="h-8 px-4 text-xs" onClick={() => cambiarEstado(d, 'rechazado')}>{t.admin_reject}</Button>
-            </>
-          )}
-          {d.estado === 'aprobado' && (
-            <Button size="sm" variant="outline" className="h-8 px-4 text-xs text-destructive" onClick={() => cambiarEstado(d, 'deshabilitado')}>{t.admin_disable}</Button>
-          )}
-          {(d.estado === 'deshabilitado' || d.estado === 'rechazado') && (
-            <Button size="sm" variant="outline" className="h-8 px-4 text-xs" onClick={() => cambiarEstado(d, 'aprobado')}>{t.admin_enable}</Button>
-          )}
+          <Button size="sm" className="h-8 px-4 text-xs" onClick={() => cambiarEstado(d, 'aprobado')}>{t.admin_approve}</Button>
+          <Button size="sm" variant="outline" className="h-8 px-4 text-xs" onClick={() => cambiarEstado(d, 'rechazado')}>{t.admin_reject}</Button>
         </div>
       )}
     </div>
