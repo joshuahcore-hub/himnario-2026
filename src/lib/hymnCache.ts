@@ -81,6 +81,12 @@ export function preloadHymnImageBoth(n: number): void {
   preloadHymnDarkImage(n);
 }
 
+/** Precarga solo la imagen del tema en uso (1.7.2: precargar los dos temas era el doble de trabajo para el celular). */
+export function precargarHimno(n: number, theme: 'light' | 'dark'): void {
+  if (theme === 'dark') preloadHymnDarkImage(n);
+  else preloadHymnImage(n);
+}
+
 export function isImageCached(n: number): boolean {
   const cached = imageCache.get(n);
   return !!cached?.complete;

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { ArrowLeft, RotateCwSquare } from 'lucide-react';
-import { getHymns, preloadHymnImageBoth, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
+import { getHymns, precargarHimno, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { getFilteredNumbers } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
@@ -167,11 +167,13 @@ export default function HymnDetail() {
 
   useEffect(() => {
     if (navNumbers.length === 0 || currentIndex < 0) return;
-    for (let d = -5; d <= 5; d++) {
+    // 2 antes y 2 después, solo del tema en uso (1.7.2). Antes 5 y 5 en los dos temas: hasta 22 imágenes grandes
+    // por cada paso, y el celular quedaba ocupado unos segundos (los toques "no pescaban" tras deslizar, Josué).
+    for (let d = -2; d <= 2; d++) {
       const i = currentIndex + d;
-      if (i >= 0 && i < navNumbers.length) preloadHymnImageBoth(navNumbers[i]);
+      if (i >= 0 && i < navNumbers.length) precargarHimno(navNumbers[i], theme);
     }
-  }, [currentIndex, navNumbers]);
+  }, [currentIndex, navNumbers, theme]);
 
   const goTo = useCallback((newIndex: number) => {
     if (newIndex < 0 || newIndex >= navNumbers.length) return;
@@ -343,7 +345,7 @@ export default function HymnDetail() {
       {/* overflow CLIP (no hidden): con hidden el navegador podía desplazarlo solo (al abrir un panel quedaba corrido
           113 px mostrando el himno vecino). clip recorta igual y no se puede desplazar (1.7.0). */}
       <div className="absolute top-3 left-3 z-20">
-        <button onClick={() => navigate('/hymnal')} style={{ touchAction: 'none' }} className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
+        <button onClick={() => navigate('/hymnal')} style={{ touchAction: 'none' }} className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
           <ArrowLeft size={20} />
         </button>
       </div>
@@ -352,7 +354,7 @@ export default function HymnDetail() {
         <BotonRecordatorio onClick={() => abrirPanel(null)} />
         {puedeGirar && (
           <button onClick={() => girarPantalla(horizontal)} aria-label="Girar" style={{ touchAction: 'none' }}
-                  className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
+                  className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
             <RotateCwSquare size={20} />
           </button>
         )}

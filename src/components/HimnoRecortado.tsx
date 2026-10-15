@@ -22,12 +22,12 @@ export default function HimnoRecortado({ num, src, alt, onError }: {
   onError?: () => void;
 }) {
   const r = tabla[String(num)];
-  if (!r) return <img src={src} alt={alt} className="block w-full h-auto" draggable={false} onError={onError} />;
+  if (!r) return <img src={src} alt={alt} decoding="async" className="block w-full h-auto" draggable={false} onError={onError} />;
   const [ancho, arriba, alto] = r;
   return (
     <div className="w-full overflow-hidden" style={{ aspectRatio: `${ancho} / ${alto}` }}>
       {/* margin-top en % se mide sobre el ANCHO: corre la imagen justo lo que sobra arriba. */}
-      <img src={src} alt={alt} className="block w-full h-auto" draggable={false} onError={onError}
+      <img src={src} alt={alt} decoding="async" className="block w-full h-auto" draggable={false} onError={onError}
            style={{ marginTop: `${(-arriba / ancho) * 100}%` }} />
     </div>
   );

@@ -5,7 +5,7 @@ import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
 import Zoomable from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
-import { getThemedHymnImageUrl, preloadHymnImageBoth, imageCache, imageCacheDark } from '@/lib/hymnCache';
+import { getThemedHymnImageUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
 import { RotateCwSquare } from 'lucide-react';
@@ -79,6 +79,7 @@ function SongPage({ song, horizontal, notas, onTocarNota }: {
         ) : (
           <img
             src={imgUrl}
+            decoding="async"
             alt={`${song.title} - #${hymnNumber}`}
             className="w-full max-w-lg flex-1 min-h-0 object-contain"
             draggable={false}
@@ -100,6 +101,7 @@ export default function MinutaReader() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const horizontal = useHorizontal();
+  const { theme: temaLector } = useTheme();
   // Recordatorios (1.7.0): los "siempre en esta alabanza" y los "solo en esta minuta".
   const { registrado } = useAcceso();
   const notasDe = useRecordatorios(registrado, id ?? null);
@@ -157,8 +159,8 @@ export default function MinutaReader() {
   const totalPages = swipeItems.length + 1;
 
   useEffect(() => {
-    swipeItems.forEach(s => { if (s.hymnNumber) preloadHymnImageBoth(s.hymnNumber); });
-  }, [minuta]);
+    swipeItems.forEach(s => { if (s.hymnNumber) precargarHimno(s.hymnNumber, temaLector); }); // solo el tema en uso (1.7.2)
+  }, [minuta, temaLector]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -315,7 +317,7 @@ export default function MinutaReader() {
           </div>
           {puedeGirar && (
             <button onClick={() => girarPantalla(horizontal)} onTouchStart={e => e.stopPropagation()} aria-label="Girar" style={{ touchAction: 'none' }}
-                    className="tap-btn-overlay p-2 rounded-full bg-card/70 backdrop-blur-sm border border-border text-foreground/70">
+                    className="tap-btn-overlay p-2 rounded-full bg-card/90 border border-border text-foreground/70">
               <RotateCwSquare size={18} />
             </button>
           )}

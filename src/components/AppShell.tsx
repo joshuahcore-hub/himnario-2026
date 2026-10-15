@@ -32,15 +32,18 @@ export default function AppShell({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border z-50">
-        <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
+      {/* Sin desenfoque de fondo (backdrop-blur): en el celular costaba mucho mientras la canción se deslizaba detrás
+          y los toques se atrasaban (1.7.2). */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
+        <div className="flex items-stretch h-16 max-w-lg mx-auto px-2">
           {tabs.map(tab => {
             const active = location.pathname === tab.path;
             return (
               <button
                 key={tab.path}
                 onClick={() => intentarSalir(() => navigate(tab.path))}
-                className={`tap-btn flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200 ${
+                // Toda la franja de la pestaña recibe el toque (flex-1, alto completo): antes solo el ícono y el texto.
+                className={`tap-btn flex-1 flex flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-200 ${
                   active
                     ? 'text-foreground'
                     : 'text-muted-foreground hover:text-foreground/70'

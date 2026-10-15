@@ -144,6 +144,7 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
         ref={imgRef}
         src={src}
         alt={alt}
+        decoding="async"
         className={className}
         onError={onError}
         draggable={false}
