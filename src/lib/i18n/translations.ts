@@ -230,6 +230,12 @@ export interface Translations {
   admin_enable: string;
   admin_restore: string;
   admin_restored: string;
+  admin_restore_title: string;
+  admin_restore_text: string;
+  admin_restore_mine: string;
+  admin_restore_mine_desc: string;
+  admin_restore_public: string;
+  admin_restore_public_desc: string;
   admin_action_created: string;
   admin_action_edited: string;
   admin_action_deleted: string;
@@ -534,6 +540,12 @@ export const es: Translations = {
   admin_enable: 'Habilitar',
   admin_restore: 'Restaurar',
   admin_restored: 'Minuta restaurada.',
+  admin_restore_title: '¿Cómo quieres restaurarla?',
+  admin_restore_text: 'Elige quién la verá.',
+  admin_restore_mine: 'Solo para ti',
+  admin_restore_mine_desc: 'Pasa a ser tuya y privada.',
+  admin_restore_public: 'Pública',
+  admin_restore_public_desc: 'La ven todos.',
   admin_action_created: 'Creó',
   admin_action_edited: 'Editó',
   admin_action_deleted: 'Borró',
@@ -833,6 +845,12 @@ export const en: Translations = {
   admin_enable: 'Enable',
   admin_restore: 'Restore',
   admin_restored: 'Service restored.',
+  admin_restore_title: 'How do you want to restore it?',
+  admin_restore_text: 'Choose who will see it.',
+  admin_restore_mine: 'Only for you',
+  admin_restore_mine_desc: 'It becomes yours and private.',
+  admin_restore_public: 'Public',
+  admin_restore_public_desc: 'Everyone sees it.',
   admin_action_created: 'Created',
   admin_action_edited: 'Edited',
   admin_action_deleted: 'Deleted',
@@ -1132,6 +1150,12 @@ export const pt: Translations = {
   admin_enable: 'Ativar',
   admin_restore: 'Restaurar',
   admin_restored: 'Minuta restaurada.',
+  admin_restore_title: 'Como quer restaurá-la?',
+  admin_restore_text: 'Escolha quem vai vê-la.',
+  admin_restore_mine: 'Só para você',
+  admin_restore_mine_desc: 'Passa a ser sua e privada.',
+  admin_restore_public: 'Pública',
+  admin_restore_public_desc: 'Todos a veem.',
   admin_action_created: 'Criou',
   admin_action_edited: 'Editou',
   admin_action_deleted: 'Excluiu',

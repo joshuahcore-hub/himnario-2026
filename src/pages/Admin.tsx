@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, EyeOff, RefreshCw, RotateCcw } from 'lucide-react';
+import { ArrowLeft, EyeOff, Globe, Lock, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { marcarTodasVistas } from '@/lib/notificaciones';
@@ -162,9 +162,13 @@ export default function Admin() {
     }
   };
 
-  const restaurar = async (minutaId: string) => {
+  // Restaurar (1.11.2, Josué): primero se elige "Solo para ti" (pasa a ser tuya y privada) o "Pública".
+  const [aRestaurar, setARestaurar] = useState<string | null>(null);
+  const [eligiendoRestaurar, setEligiendoRestaurar] = useState(false);
+  const restaurar = async (minutaId: string, modo: 'mia' | 'publica') => {
+    setEligiendoRestaurar(false);
     try {
-      await api(`admin/restaurar/${minutaId}`, { metodo: 'POST' });
+      await api(`admin/restaurar/${minutaId}`, { metodo: 'POST', datos: { modo } });
       await refrescarMinutas();
       toast.success(t.admin_restored);
       cargar();
@@ -303,7 +307,7 @@ export default function Admin() {
                   </div>
                 </div>
                 {h.accion === 'borrada' && h.borrada === 1 && (
-                  <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => restaurar(h.minuta_id)}>
+                  <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => { setARestaurar(h.minuta_id); setEligiendoRestaurar(true); }}>
                     <RotateCcw size={11} />{t.admin_restore}
                   </Button>
                 )}
@@ -314,6 +318,30 @@ export default function Admin() {
           </>
         )}
       </div>
+
+      {/* Restaurar: ¿solo para ti o pública? (tocar fuera cancela). */}
+      <Dialog open={eligiendoRestaurar} onOpenChange={o => { if (!o) setEligiendoRestaurar(false); }}>
+        <DialogContent className="max-w-[320px] rounded-2xl gap-3">
+          <DialogHeader>
+            <DialogTitle className="text-base">{t.admin_restore_title}</DialogTitle>
+            <DialogDescription className="text-xs text-center">{t.admin_restore_text}</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => aRestaurar && restaurar(aRestaurar, 'mia')}
+                    className="tap-btn rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-1.5 text-foreground">
+              <Lock size={18} className="text-muted-foreground" />
+              <span className="text-sm font-semibold">{t.admin_restore_mine}</span>
+              <span className="text-[10px] text-muted-foreground text-center leading-tight">{t.admin_restore_mine_desc}</span>
+            </button>
+            <button type="button" onClick={() => aRestaurar && restaurar(aRestaurar, 'publica')}
+                    className="tap-btn rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-1.5 text-foreground">
+              <Globe size={18} className="text-green-600 dark:text-green-400" />
+              <span className="text-sm font-semibold">{t.admin_restore_public}</span>
+              <span className="text-[10px] text-muted-foreground text-center leading-tight">{t.admin_restore_public_desc}</span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Quitar de la lista (tocar fuera cancela). El aviso se fija al abrir (aQuitar no cambia al cerrar). */}
       <Dialog open={confirmarQuitar} onOpenChange={o => { if (!o) setConfirmarQuitar(false); }}>

@@ -452,8 +452,13 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
   if (seccion === 'restaurar' && request.method === 'POST' && partes[2]) {
     const f = await env.DB.prepare('SELECT titulo, fecha FROM minutas WHERE id = ? AND borrada = 1').bind(partes[2]).first<{ titulo: string; fecha: string }>();
     if (!f) throw new ErrorApi(404, 'No hay una minuta borrada con ese código.');
+    // (1.11.2, Josué) Al restaurar se elige: "publica" (la ven todos, sigue siendo de quien la creó) o "mia" (solo para
+    // el administrador: pasa a ser suya y privada, aunque la haya creado otra persona).
+    const body = await leerJson(request).catch(() => ({}));
+    const cambio = body?.modo === 'mia' ? ', publicada = 0, creada_por = ?' : body?.modo === 'publica' ? ', publicada = 1' : '';
+    const extra = body?.modo === 'mia' ? [yo.id] : [];
     await env.DB.batch([
-      env.DB.prepare('UPDATE minutas SET borrada = 0, editada_por = ?, actualizada = ? WHERE id = ?').bind(yo.id, ahora(), partes[2]),
+      env.DB.prepare(`UPDATE minutas SET borrada = 0${cambio}, editada_por = ?, actualizada = ? WHERE id = ?`).bind(...extra, yo.id, ahora(), partes[2]),
       registrar(env, partes[2], yo.id, 'restaurada', f.titulo),
     ]);
     avisar(env, { tipo: 'restaurada', autorId: yo.id, autor: yo.nombre, minutaId: partes[2], titulo: tituloAviso(f.titulo, f.fecha) });
