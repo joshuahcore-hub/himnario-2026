@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
 import { RotateCwSquare } from 'lucide-react';
 import { useAcceso } from '@/hooks/useAcceso';
+import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
 import { BotonRecordatorio, NotasRecordatorio, PanelRecordatorio } from '@/components/Recordatorios';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
@@ -108,6 +109,7 @@ export default function MinutaReader() {
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
   const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
+  const toqueGirar = useToque(() => girarPantalla(horizontal)); // al soltar el dedo (ver useToque)
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -316,7 +318,7 @@ export default function MinutaReader() {
             <BotonRecordatorio onClick={() => abrirPanel(null)} />
           </div>
           {puedeGirar && (
-            <button onClick={() => girarPantalla(horizontal)} onTouchStart={e => e.stopPropagation()} aria-label="Girar" style={{ touchAction: 'none' }}
+            <button {...toqueGirar} onTouchStart={e => e.stopPropagation()} aria-label="Girar" style={{ touchAction: 'none' }}
                     className="tap-btn-overlay p-2 rounded-full bg-card/90 border border-border text-foreground/70">
               <RotateCwSquare size={18} />
             </button>

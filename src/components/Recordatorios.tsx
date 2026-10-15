@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
+import { useToque } from '@/hooks/useToque';
 import { ErrorDeRed } from '@/lib/api';
 import {
   borrarRecordatorio, cargarPersonas, marcarVisto, guardarRecordatorio, personasGuardadas, type Persona, type Recordatorio,
@@ -39,12 +40,15 @@ function Nota({ r, compacto, abierta, onAlternar, onEditar, onBorrar }: {
 
   const colorEstado = r.estado === 'visto' ? 'text-green-600 dark:text-green-400' : r.estado === 'eliminado' ? 'text-destructive' : '';
   const textoEstado = r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
+  const toqueNota = useToque<HTMLDivElement>(onAlternar);
+  const toqueEditar = useToque(() => onEditar(r));
+  const toqueBorrar = useToque(() => onBorrar(r));
   const opcion = `flex items-center gap-1.5 rounded-full font-medium [touch-action:none] ${compacto ? 'h-7 px-3 text-[11px]' : 'h-8 px-3.5 text-xs'}`;
 
   return (
     <div
       role="button"
-      onClick={onAlternar}
+      {...toqueNota}
       onDoubleClick={e => e.stopPropagation()}
       className={`relative w-full text-left rounded-xl border ${compacto ? 'px-2.5 py-1 text-xs' : 'px-3 py-2 text-sm'} ${
         dejadaAOtro ? 'border-dashed border-yellow-500/60 bg-transparent' : 'border-yellow-400/50 bg-yellow-300/20 dark:bg-yellow-300/10'
@@ -72,13 +76,11 @@ function Nota({ r, compacto, abierta, onAlternar, onEditar, onBorrar }: {
              pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out, transform 160ms ease-out',
            }}>
         {r.mio && (
-          <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} text-foreground`}
-                  onClick={e => { e.stopPropagation(); onEditar(r); }}>
+          <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} text-foreground`} {...toqueEditar}>
             <PenLine size={compacto ? 12 : 13} />{t.rec_edit}
           </button>
         )}
-        <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} bg-destructive/10 text-destructive`}
-                onClick={e => { e.stopPropagation(); onBorrar(r); }}>
+        <button type="button" tabIndex={abierta ? 0 : -1} className={`${opcion} bg-destructive/10 text-destructive`} {...toqueBorrar}>
           <Trash2 size={compacto ? 12 : 13} />{t.rec_delete}
         </button>
       </div>
@@ -145,10 +147,13 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
 
 export function BotonRecordatorio({ onClick, className = '' }: { onClick: () => void; className?: string }) {
   const { t } = useI18n();
+  // Se activa al soltar el dedo (useToque): tras deslizar a otra canción el navegador no generaba el click del
+  // primer toque (Josué, 1.7.4).
+  const toque = useToque(onClick);
   return (
     <button
       type="button"
-      onClick={onClick}
+      {...toque}
       onTouchStart={e => e.stopPropagation()}
       // touch-action none: si el dedo se mueve un poquito, el navegador no lo toma como desplazamiento y no cancela
       // el toque (a Josué a veces el primer toque "no funcionaba", 1.7.1).

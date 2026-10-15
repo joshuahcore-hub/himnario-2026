@@ -6,6 +6,36 @@ import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { intentarSalir } from '@/lib/guardiaSalida';
 import { usePendientes } from '@/hooks/usePendientes';
+import { useToque } from '@/hooks/useToque';
+
+/** Pestaña de abajo. Se activa al soltar el dedo (useToque): tras mover una lista, el navegador a veces no generaba
+ *  el click del primer toque (Josué, 1.7.4). Toda su franja recibe el toque (flex-1, alto completo). */
+function Pestana({ activa, etiqueta, Icono, aviso, onTocar }: {
+  activa: boolean;
+  etiqueta: string;
+  Icono: typeof Music;
+  aviso: boolean;
+  onTocar: () => void;
+}) {
+  const toque = useToque(onTocar);
+  return (
+    <button
+      {...toque}
+      className={`tap-btn flex-1 flex flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-200 ${
+        activa ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/70'
+      }`}
+    >
+      <span className="relative">
+        <Icono size={22} strokeWidth={activa ? 2.2 : 1.6} />
+        {/* Solicitudes de creador por aprobar (solo el administrador). */}
+        {aviso && (
+          <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-card animate-in zoom-in-50 duration-200" />
+        )}
+      </span>
+      <span className="text-[11px] font-medium">{etiqueta}</span>
+    </button>
+  );
+}
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -36,30 +66,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
           y los toques se atrasaban (1.7.2). */}
       <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-stretch h-16 max-w-lg mx-auto px-2">
-          {tabs.map(tab => {
-            const active = location.pathname === tab.path;
-            return (
-              <button
-                key={tab.path}
-                onClick={() => intentarSalir(() => navigate(tab.path))}
-                // Toda la franja de la pestaña recibe el toque (flex-1, alto completo): antes solo el ícono y el texto.
-                className={`tap-btn flex-1 flex flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-200 ${
-                  active
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground/70'
-                }`}
-              >
-                <span className="relative">
-                  <tab.icon size={22} strokeWidth={active ? 2.2 : 1.6} />
-                  {/* Solicitudes de creador por aprobar (solo el administrador). */}
-                  {tab.path === '/settings' && pendientes > 0 && (
-                    <span className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-card animate-in zoom-in-50 duration-200" />
-                  )}
-                </span>
-                <span className="text-[11px] font-medium">{tab.label}</span>
-              </button>
-            );
-          })}
+          {tabs.map(tab => (
+            <Pestana key={tab.path} activa={location.pathname === tab.path} etiqueta={tab.label} Icono={tab.icon}
+                     aviso={tab.path === '/settings' && pendientes > 0} onTocar={() => intentarSalir(() => navigate(tab.path))} />
+          ))}
         </div>
       </nav>
     </div>

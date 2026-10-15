@@ -8,6 +8,7 @@ import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
 import { useAcceso } from '@/hooks/useAcceso';
+import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
 import { BotonRecordatorio, NotasRecordatorio, PanelRecordatorio } from '@/components/Recordatorios';
 import ZoomableImage from '@/components/ZoomableImage';
@@ -95,6 +96,9 @@ export default function HymnDetail() {
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
   const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
+  // Botones de arriba: se activan al soltar el dedo (ver useToque: tras deslizar, el primer click no llegaba).
+  const toqueVolver = useToque(() => navigate('/hymnal'));
+  const toqueGirar = useToque(() => girarPantalla(horizontal));
 
   const initial = getHymns();
   const [navNumbers, setNavNumbers] = useState<number[]>(() => {
@@ -345,7 +349,7 @@ export default function HymnDetail() {
       {/* overflow CLIP (no hidden): con hidden el navegador podía desplazarlo solo (al abrir un panel quedaba corrido
           113 px mostrando el himno vecino). clip recorta igual y no se puede desplazar (1.7.0). */}
       <div className="absolute top-3 left-3 z-20">
-        <button onClick={() => navigate('/hymnal')} style={{ touchAction: 'none' }} className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
+        <button {...toqueVolver} style={{ touchAction: 'none' }} className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
           <ArrowLeft size={20} />
         </button>
       </div>
@@ -353,7 +357,7 @@ export default function HymnDetail() {
       <div className="absolute top-3 right-3 z-20 flex gap-2">
         <BotonRecordatorio onClick={() => abrirPanel(null)} />
         {puedeGirar && (
-          <button onClick={() => girarPantalla(horizontal)} aria-label="Girar" style={{ touchAction: 'none' }}
+          <button {...toqueGirar} aria-label="Girar" style={{ touchAction: 'none' }}
                   className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
             <RotateCwSquare size={20} />
           </button>
