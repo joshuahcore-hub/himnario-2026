@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { useImagenNitida, ZOOM_HD } from '@/lib/hymnCache';
 
 interface ZoomableImageProps {
   src: string;
@@ -14,9 +15,11 @@ interface ZoomableImageProps {
   children?: React.ReactNode;
   /** Clases del recuadro de la letra (imagen + capa), que lleva data-marco-letra. Solo con children. */
   claseMarco?: string;
+  /** (1.17.2) Versión nítida (el doble de resolución) que se usa al ampliar. */
+  srcHd?: string | null;
 }
 
-export default function ZoomableImage({ src, alt, className, onError, onEdgeSwipe, llenar = false, estilo, children, claseMarco = '' }: ZoomableImageProps) {
+export default function ZoomableImage({ src, alt, className, onError, onEdgeSwipe, llenar = false, estilo, children, claseMarco = '', srcHd = null }: ZoomableImageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [scale, setScale] = useState(1);
@@ -28,6 +31,16 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
   const isPanning = useRef(false);
   const edgeOverflow = useRef(0);
 
+  // (1.17.2, Josué) Zoom NÍTIDO: al ampliar se usa la versión del doble de resolución.
+  const srcVisible = useImagenNitida(src, srcHd, scale > ZOOM_HD);
+  // Límite INTELIGENTE: hasta donde la imagen nítida todavía se ve nítida en esta pantalla (cada píxel de la imagen
+  // no más grande que ~1,3 píxeles de la pantalla); entre 2,5 y 4.
+  const maxZoom = () => {
+    const ancho = imgRef.current?.getBoundingClientRect().width ?? 0;
+    if (!ancho) return 4;
+    const pixeles = (srcHd ? 2800 : 1400) / ((ancho / scale) * (window.devicePixelRatio || 1));
+    return Math.min(4, Math.max(2.5, pixeles * 1.3));
+  };
   // Reset zoom when src changes
   useEffect(() => {
     setScale(1);
@@ -76,7 +89,7 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
       e.stopPropagation();
       e.preventDefault();
       const dist = getDistance(e.touches[0], e.touches[1]);
-      const newScale = Math.min(4, Math.max(1, initialScale.current * (dist / initialDistance.current)));
+      const newScale = Math.min(maxZoom(), Math.max(1, initialScale.current * (dist / initialDistance.current)));
       setScale(newScale);
       if (newScale <= 1) {
         setTranslate({ x: 0, y: 0 });
@@ -153,13 +166,13 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
       {children !== undefined ? (
         // Con capa (post-it): el zoom se aplica al recuadro entero, así lo pegado sigue en su lugar de la letra.
         <div data-marco-letra className={`relative ${claseMarco}`} style={zoom}>
-          <img ref={imgRef} src={src} alt={alt} decoding="async" className={className} onError={onError} draggable={false} style={estilo} />
+          <img ref={imgRef} src={srcVisible} alt={alt} decoding="async" className={className} onError={onError} draggable={false} style={estilo} />
           {children}
         </div>
       ) : (
         <img
           ref={imgRef}
-          src={src}
+          src={srcVisible}
           alt={alt}
           decoding="async"
           className={className}

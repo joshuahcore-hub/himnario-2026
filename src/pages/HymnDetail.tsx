@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize, Minimize, RotateCwSquare } from 'lucide-react';
-import { getHymns, precargarHimno, getThemedHymnImageUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
+import { getHymns, precargarHimno, getThemedHymnImageUrl, getHymnHdUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { getFilteredNumbers, marcarUltimoHimno } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
@@ -122,6 +122,8 @@ export default function HymnDetail() {
     return Math.round(Math.min(780, pantalla.ancho * 0.62, disponible / proporcionLetra(n)));
   };
   const ruedaRef = useRef({ acum: 0, ultimo: 0, paso: 0 });
+  // (1.17.2) Himno girado que está ampliado (usa la imagen nítida).
+  const [ampliadoNum, setAmpliadoNum] = useState<number | null>(null);
   const pasoRef = useRef<((d: 1 | -1) => void) | null>(null);
 
   const initial = getHymns();
@@ -350,14 +352,14 @@ export default function HymnDetail() {
         <div key={num} data-pagina className="absolute inset-0 flex overflow-y-auto overflow-x-hidden"
              style={{ transform: `translateX(${offset * 100}%)`, overscrollBehavior: 'contain',
                       padding: '3.25rem env(safe-area-inset-right, 0px) 1rem env(safe-area-inset-left, 0px)' }}>
-          <Zoomable className="w-full m-auto" reiniciarCon={num}>
+          <Zoomable className="w-full m-auto" reiniciarCon={num} onAmpliado={a => setAmpliadoNum(a ? num : null)}>
             {/* Girado = solo para ver (1.9.10, Josué): los post-it de la letra en su lugar; los de arriba del título,
                 como acotación pequeña arriba del título. Ninguno se edita ni se mueve. */}
             <div className="w-full" style={{ containerType: 'inline-size' }}>
               <AcotacionesPostit notas={notasVista(num)} className="px-[5%] pb-1" />
               {/* Espacio para los post-it que asoman por arriba de la letra (padding en % = del ancho). */}
               <div style={{ paddingTop: `${sobresaleArriba(notasVista(num), num) * 100}%` }} />
-              <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`}>
+              <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`} srcHd={getHymnHdUrl(num, theme)} ampliado={ampliadoNum === num}>
                 <NotasRecordatorio notas={notasVista(num).filter(vaSobreLetra)} sobreLetra soloVer enviados={verEnviados} onTocar={abrirPanel} />
               </HimnoRecortado>
             </div>
@@ -380,6 +382,7 @@ export default function HymnDetail() {
             className="block w-full h-auto"
             claseMarco={enComputador ? 'w-full' : 'w-full max-w-lg'}
             estilo={vistaRecortada(num)}
+            srcHd={getHymnHdUrl(num, theme)}
             onEdgeSwipe={handleEdgeSwipe}
           >
             <NotasRecordatorio notas={notasVista(num)} sobreLetra enviados={verEnviados} onTocar={abrirPanel} />

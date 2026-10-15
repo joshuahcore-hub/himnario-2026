@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 // Los himnos vienen incluidos en la app (src/datos/himnos.json): no se piden a ningún servidor,
 // así la lista y la búsqueda funcionan siempre sin internet.
 import datos from '@/datos/himnos.json';
@@ -55,6 +56,29 @@ export function getHymnDarkImageUrl(hymnNumber: number): string {
 
 export function getThemedHymnImageUrl(hymnNumber: number, theme: 'light' | 'dark'): string {
   return theme === 'dark' ? getHymnDarkImageUrl(hymnNumber) : getHymnImageUrl(hymnNumber);
+}
+
+/** (1.17.2) Versión nítida (el doble de resolución) para cuando se amplía el himno. */
+export function getHymnHdUrl(hymnNumber: number, theme: 'light' | 'dark'): string {
+  return `/himnos-hd/${theme === 'dark' ? 'oscuro' : 'claro'}/${hymnNumber}.webp`;
+}
+
+/** Usa la versión nítida cuando la imagen se amplía más de esto. */
+export const ZOOM_HD = 1.15;
+
+/** Hook: devuelve la URL a mostrar; pasa a la nítida (ya descargada, sin parpadeo) cuando `ampliado` es true. Si no
+ *  hay internet y no estaba guardada, se queda con la normal. */
+export function useImagenNitida(normal: string, hd: string | null, ampliado: boolean): string {
+  const [lista, setLista] = useState<string | null>(null);
+  useEffect(() => { setLista(null); }, [normal]);
+  useEffect(() => {
+    if (!ampliado || !hd || lista === hd) return;
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => setLista(hd);
+    img.src = hd;
+  }, [ampliado, hd, lista]);
+  return lista === hd && hd ? hd : normal;
 }
 
 const imageCache = new Map<number, HTMLImageElement>();

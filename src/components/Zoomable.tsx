@@ -2,7 +2,9 @@
 // ampliado, se puede mover con un dedo. Sin zoom, deja pasar el deslizamiento horizontal (cambiar de canto).
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
-export default function Zoomable({ children, className = '', reiniciarCon }: {
+export default function Zoomable({ children, className = '', reiniciarCon, onAmpliado }: {
+  /** (1.17.2) Avisa si está ampliado (para usar la imagen nítida). */
+  onAmpliado?: (ampliado: boolean) => void;
   children: ReactNode;
   className?: string;
   /** Cuando cambia este valor (p. ej. el canto mostrado) el zoom vuelve a 1. */
@@ -16,6 +18,8 @@ export default function Zoomable({ children, className = '', reiniciarCon }: {
   const [gesto, setGesto] = useState(false);
 
   useEffect(() => { setEscala(1); setMover({ x: 0, y: 0 }); }, [reiniciarCon]);
+  const ampliado = escala > 1.15;
+  useEffect(() => { onAmpliado?.(ampliado); }, [ampliado]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const limitar = useCallback((x: number, y: number, s: number) => {
     const el = contenedor.current;

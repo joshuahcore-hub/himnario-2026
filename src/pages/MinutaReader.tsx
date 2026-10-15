@@ -5,7 +5,7 @@ import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
 import Zoomable from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
-import { getThemedHymnImageUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
+import { getThemedHymnImageUrl, getHymnHdUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla, usePantallaCompleta } from '@/hooks/useHorizontal';
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize, Minimize, Music2, RotateCwSquare } from 'lucide-react';
@@ -31,6 +31,8 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
   onTocarNota: (r: Recordatorio) => void;
 }) {
   const [imgError, setImgError] = useState(false);
+  // (1.17.2) Ampliado: se usa la imagen nítida.
+  const [ampliado, setAmpliado] = useState(false);
   const { theme } = useTheme();
   const { t } = useI18n();
   const hymnNumber = song.hymnNumber;
@@ -57,7 +59,7 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
   if (horizontal) {
     return (
       // Sin encabezado (Josué, 1.6.2): la imagen ya trae número y título; todo el alto para la letra.
-      <Zoomable className="w-full m-auto" reiniciarCon={hymnNumber}>
+      <Zoomable className="w-full m-auto" reiniciarCon={hymnNumber} onAmpliado={setAmpliado}>
         <div className="w-full flex flex-col items-center pt-3" style={{ containerType: 'inline-size' }}>
           {/* Girado = solo para ver (1.9.10, Josué): ver HymnDetail. */}
           <AcotacionesPostit notas={notas} className="w-full px-[5%] pb-1" />
@@ -66,7 +68,8 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
           {imgError ? (
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (
-            <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)}>
+            <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)}
+                            srcHd={getHymnHdUrl(hymnNumber, theme)} ampliado={ampliado}>
               <NotasRecordatorio notas={notas.filter(vaSobreLetra)} sobreLetra soloVer enviados={enviados} onTocar={onTocarNota} />
             </HimnoRecortado>
           )}
@@ -75,7 +78,7 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
     );
   }
   return (
-    <Zoomable className="w-full h-full" reiniciarCon={hymnNumber}>
+    <Zoomable className="w-full h-full" reiniciarCon={hymnNumber} onAmpliado={setAmpliado}>
       <div className="h-full w-full flex flex-col items-center px-2">
         <div className="text-center shrink-0 pt-4">
           <p className="text-sm font-semibold text-hymn-number">#{hymnNumber}</p>
@@ -90,7 +93,8 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
           // Solo la franja con letra, CENTRADA en el espacio libre (1.9.0, Josué: con la hoja completa cada himno
           // quedaba a otra altura según dónde venía la letra en la imagen). Se achica si no cabe de alto.
           <div className="flex-1 min-h-0 w-full max-w-lg flex items-center justify-center py-2" style={{ containerType: 'size' }}>
-            <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)} ajustarAlto>
+            <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)} ajustarAlto
+                            srcHd={getHymnHdUrl(hymnNumber, theme)} ampliado={ampliado}>
               {/* Sin mover: en fila justo ARRIBA de la letra, flotando (1.9.2: antes estaban en el flujo y al agregar
                   uno la letra bajaba, y al moverlo volvía a subir). */}
               <NotasRecordatorio notas={notas} enviados={enviados} onTocar={onTocarNota} className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />

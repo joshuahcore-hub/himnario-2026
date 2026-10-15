@@ -1,6 +1,7 @@
 // Celular girado (1.6.0): muestra SOLO la franja de la imagen que tiene el himno, a todo el ancho, sin el fondo
 // vacío de arriba y abajo del lienzo. Los límites los calcula scripts/recortes.mjs (src/datos/recortes.json).
 import recortes from '@/datos/recortes.json';
+import { useImagenNitida } from '@/lib/hymnCache';
 
 const tabla = recortes as unknown as Record<string, [number, number, number, number]>; // [ancho, arriba, alto, altoTotal] en px
 
@@ -18,12 +19,16 @@ export function vistaRecortada(num: number): React.CSSProperties {
   const r = tabla[String(num)];
   if (!r) return {};
   const [, arriba, alto, total] = r;
-  return { objectViewBox: `inset(${arriba}px 0 ${total - arriba - alto}px 0)` } as React.CSSProperties;
+  // En % del tamaño de la imagen (1.17.2): vale igual para la normal y la nítida (el doble de píxeles).
+  return { objectViewBox: `inset(${(arriba / total) * 100}% 0 ${((total - arriba - alto) / total) * 100}% 0)` } as React.CSSProperties;
 }
 
-export default function HimnoRecortado({ num, src, alt, onError, children, ajustarAlto = false }: {
+export default function HimnoRecortado({ num, src: srcNormal, alt, onError, children, ajustarAlto = false, srcHd = null, ampliado = false }: {
   num: number;
   src: string;
+  /** (1.17.2) Versión nítida; se usa cuando `ampliado` (zoom) es true. */
+  srcHd?: string | null;
+  ampliado?: boolean;
   alt: string;
   onError?: () => void;
   /** Capa encima de la letra (1.9.0: post-it pegados). El recuadro lleva data-marco-letra. */
@@ -31,6 +36,7 @@ export default function HimnoRecortado({ num, src, alt, onError, children, ajust
   /** Achicar si no cabe de alto (el contenedor debe tener container-type: size). Así queda centrada y entera. */
   ajustarAlto?: boolean;
 }) {
+  const src = useImagenNitida(srcNormal, srcHd, ampliado);
   const r = tabla[String(num)];
   if (!r) {
     return (

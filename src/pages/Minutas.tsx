@@ -236,16 +236,7 @@ export default function Minutas() {
         <RefreshCw size={18} className={actualizando ? 'animate-spin' : ''} />
       </div>
       <div className="flex items-center justify-between px-5 pt-4 gap-2 w-full max-w-5xl mx-auto">
-        {/* El nombre del espacio en vez de "Minutas"; tocarlo pasa al siguiente (con varios). */}
-        {espacios.length > 1 ? (
-          <BotonSeguro onClick={() => { if (!selectMode) otroEspacio(); }} aria-label={t.minutas_cambiar_espacio}
-                       className="tap-btn -ml-1 px-1 flex items-center gap-2 text-xl font-bold text-foreground">
-            <span key={espacio.id} className="animate-in fade-in duration-200">{espacio.nombre}</span>
-            <ArrowLeftRight size={15} className="text-muted-foreground" />
-          </BotonSeguro>
-        ) : (
-          <h1 className="text-xl font-bold text-foreground">{espacio?.nombre ?? t.minutas_title}</h1>
-        )}
+        <h1 className="text-xl font-bold text-foreground">{t.minutas_title}</h1>
         {/* Al seleccionar, esto y la ayuda de abajo se desvanecen SIN quitar su espacio: si se quitaran,
             la lista (centrada en la pantalla) saltaría hacia arriba justo al mantener presionada una minuta. */}
         <BotonSeguro onClick={refrescar} disabled={selectMode} aria-hidden={selectMode}
@@ -267,6 +258,18 @@ export default function Minutas() {
         </p>
       )}
 
+      {/* (1.16.0 → 1.17.2, Josué) Espacio (Batuco, Talca…): su nombre CENTRADO justo arriba de las minutas, como el
+          título de esa sección; tocarlo pasa al siguiente. Está también con el espacio vacío (para poder volver). */}
+      <div className="flex-1 min-h-0 flex flex-col justify-center">
+      {espacios.length > 1 && (
+        <div className="flex justify-center pt-2">
+          <BotonSeguro onClick={() => { if (!selectMode) otroEspacio(); }} aria-label={t.minutas_cambiar_espacio}
+                       className={`tap-btn px-3 py-1 rounded-full flex items-center gap-2 text-base font-semibold text-foreground transition-opacity duration-200 ${selectMode ? 'opacity-40' : ''}`}>
+            <span key={espacio.id} className="animate-in fade-in duration-200">{espacio.nombre}</span>
+            <ArrowLeftRight size={14} className="text-muted-foreground" />
+          </BotonSeguro>
+        </div>
+      )}
       {ordenadas.length === 0 ? (
         <div className="flex-1 flex items-center justify-center px-5">
           <p className="text-muted-foreground text-sm text-center">
@@ -377,6 +380,7 @@ export default function Minutas() {
           </div>
         </div>
       )}
+      </div>
 
       {/* Acciones de la selección: abajo, al alcance del pulgar. Solo íconos. Copiar = duplicar (copia privada
           propia; con una sola minuta, propia o ajena). Lápiz (editar), globo/candado (publicar/privada) y basurero

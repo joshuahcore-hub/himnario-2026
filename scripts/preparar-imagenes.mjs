@@ -7,9 +7,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 
-const ORIGEN = path.resolve('..', 'imagenes-originales');
-const DESTINO = path.resolve('public', 'himnos');
-const ANCHO_MAX = 1400;
+// (1.17.2) --hd: versión NÍTIDA para el zoom (2800 px de ancho), desde ../imagenes-originales-hd (las genera
+// `python -I scripts/himnario-pdf/extraer.py <pdf> <carpeta> --escala 2` + oscuro.mjs). Va a public/himnos-hd y NO se
+// guarda al instalar: el celular la baja solo al ampliar un himno (y la conserva).
+const HD = process.argv.includes('--hd');
+const ORIGEN = path.resolve('..', HD ? 'imagenes-originales-hd' : 'imagenes-originales');
+const DESTINO = path.resolve('public', HD ? 'himnos-hd' : 'himnos');
+const ANCHO_MAX = HD ? 2800 : 1400;
 // WebP SIN PÉRDIDA (11-10-2026): con pérdida (calidad 82) el fondo quedaba 1–2 tonos corrido y con manchitas por
 // bloques, y se notaba una franja entre la imagen y la pantalla (Josué). Sin pérdida el fondo es EXACTO y, como
 // las partituras tienen pocos colores, los archivos pesan ~60 % menos.
