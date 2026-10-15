@@ -252,7 +252,7 @@ export default function Minutas() {
           {t.minutas_offline}
         </div>
       )}
-      {ordenadas.length > 0 && (
+      {todas.length > 0 && (
         <p className={`px-5 pt-2 text-[10px] text-muted-foreground/70 transition-opacity duration-200 w-full max-w-5xl mx-auto ${selectMode || enComputador ? 'opacity-0' : ''}`}>
           {puedeEditar ? t.minutas_hint_select : t.minutas_hint_share}
         </p>
@@ -260,7 +260,7 @@ export default function Minutas() {
 
       {/* (1.16.0 → 1.17.2, Josué) Espacio (Batuco, Talca…): su nombre CENTRADO justo arriba de las minutas, como el
           título de esa sección; tocarlo pasa al siguiente. Está también con el espacio vacío (para poder volver). */}
-      <div className="flex-1 min-h-0 flex flex-col justify-center">
+      <div className="flex-1 min-h-0 flex flex-col">
       {espacios.length > 1 && (
         <div className="flex justify-center pt-2">
           <BotonSeguro onClick={() => { if (!selectMode) otroEspacio(); }} aria-label={t.minutas_cambiar_espacio}
