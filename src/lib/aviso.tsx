@@ -10,7 +10,7 @@ interface Opciones { description?: React.ReactNode; duration?: number }
 function Pildora({ texto, tipo, descripcion }: { texto: React.ReactNode; tipo: Tipo; descripcion?: React.ReactNode }) {
   return (
     <div className="w-full flex justify-center pointer-events-none">
-      <div className={`pointer-events-auto max-w-[calc(100vw-32px)] flex items-start gap-2 px-4 py-2 text-[13px] leading-snug font-medium
+      <div className={`pointer-events-auto max-w-[calc(100vw-32px)] flex items-start gap-2 px-4 py-2 text-[13px] leading-snug font-normal tracking-[0.01em]
                        bg-[#4a4642] text-white shadow-[0_4px_14px_rgba(0,0,0,0.18)] dark:bg-[#5a5550] ${descripcion ? 'rounded-2xl' : 'rounded-full'}`}>
         <span className="mt-[1px] shrink-0">
           {tipo === 'ok' ? <Check size={15} className="text-[#9ad8a8]" strokeWidth={2.5} />

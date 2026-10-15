@@ -324,6 +324,8 @@ export interface Translations {
   rec_for_me: string;
   rec_send: string;
   rec_deleted_short: string;
+  rec_simbolo: Record<'ojo' | 'arriba' | 'abajo' | 'corchea', string>;
+  rec_simbolo_texto: string;
   rec_te_lo_envio: (n: string) => string;
   rec_enviado_por: (n: string) => string;
   rec_from: string;
@@ -383,7 +385,7 @@ export const es: Translations = {
   minutas_date_updated: 'Fecha actualizada',
   minutas_error_delete: 'Error al eliminar',
   minutas_error_rename: 'Error al renombrar',
-  minutas_deleted: (n) => `${n} minuta(s) eliminada(s)`,
+  minutas_deleted: (n) => (n === 1 ? 'Minuta eliminada' : `${n} minutas eliminadas`),
   minutas_delete_confirm_title: n => (n === 1 ? '¿Eliminar esta minuta?' : `¿Eliminar ${n} minutas?`),
   minutas_delete_confirm_text: 'Se quitará para todos. El administrador puede recuperarla desde el historial.',
   minutas_pinned: 'Minuta fijada',
@@ -665,6 +667,8 @@ export const es: Translations = {
   rec_for_me: 'Para mí',
   rec_send: 'Enviar',
   rec_deleted_short: 'Lo eliminó',
+  rec_simbolo: { ojo: 'Ojo', arriba: 'Flecha arriba', abajo: 'Flecha abajo', corchea: 'Corchea' },
+  rec_simbolo_texto: 'Texto',
   rec_te_lo_envio: n => `Te lo envió ${n}`,
   rec_enviado_por: n => `Enviado por ${n}`,
   rec_from: 'De',
@@ -724,7 +728,7 @@ export const en: Translations = {
   minutas_date_updated: 'Date updated',
   minutas_error_delete: 'Error deleting',
   minutas_error_rename: 'Error renaming',
-  minutas_deleted: (n) => `${n} service(s) deleted`,
+  minutas_deleted: (n) => (n === 1 ? 'Service deleted' : `${n} services deleted`),
   minutas_delete_confirm_title: n => (n === 1 ? 'Delete this service?' : `Delete ${n} services?`),
   minutas_delete_confirm_text: 'It will be removed for everyone. The administrator can restore it from the history.',
   minutas_pinned: 'Service pinned',
@@ -1006,6 +1010,8 @@ export const en: Translations = {
   rec_for_me: 'For me',
   rec_send: 'Send',
   rec_deleted_short: 'Deleted it',
+  rec_simbolo: { ojo: 'Eye', arriba: 'Up arrow', abajo: 'Down arrow', corchea: 'Eighth note' },
+  rec_simbolo_texto: 'Text',
   rec_te_lo_envio: n => `${n} sent you this`,
   rec_enviado_por: n => `Sent by ${n}`,
   rec_from: 'From',
@@ -1065,7 +1071,7 @@ export const pt: Translations = {
   minutas_date_updated: 'Data atualizada',
   minutas_error_delete: 'Erro ao excluir',
   minutas_error_rename: 'Erro ao renomear',
-  minutas_deleted: (n) => `${n} minuta(s) excluída(s)`,
+  minutas_deleted: (n) => (n === 1 ? 'Minuta excluída' : `${n} minutas excluídas`),
   minutas_delete_confirm_title: n => (n === 1 ? 'Excluir esta minuta?' : `Excluir ${n} minutas?`),
   minutas_delete_confirm_text: 'Será removida para todos. O administrador pode recuperá-la no histórico.',
   minutas_pinned: 'Minuta fixada',
@@ -1347,6 +1353,8 @@ export const pt: Translations = {
   rec_for_me: 'Para mim',
   rec_send: 'Enviar',
   rec_deleted_short: 'Excluiu',
+  rec_simbolo: { ojo: 'Olho', arriba: 'Seta para cima', abajo: 'Seta para baixo', corchea: 'Colcheia' },
+  rec_simbolo_texto: 'Texto',
   rec_te_lo_envio: n => `${n} enviou para você`,
   rec_enviado_por: n => `Enviado por ${n}`,
   rec_from: 'De',

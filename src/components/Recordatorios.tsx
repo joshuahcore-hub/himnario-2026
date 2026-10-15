@@ -6,7 +6,7 @@
 // - PanelRecordatorio: escribir / editar / borrar. Para quién y si es "siempre" o "solo esta minuta".
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, Check, CheckCheck, MoveDiagonal2, PenLine, Send, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, CheckCheck, Eye, MoveDiagonal2, Music2, PenLine, Send, Trash2, Type } from 'lucide-react';
 import { toast } from '@/lib/aviso';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,6 +24,20 @@ import {
 const Punto = ({ color }: { color: string }) => (
   <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
 );
+
+/** Símbolos en vez de texto (1.13.3, Josué): ojo, flecha arriba, flecha abajo y corchea; íconos de LÍNEA, todos del
+ *  mismo estilo, sin papel amarillo. Se guardan como texto "::nombre::" (no hace falta otra columna). */
+export const SIMBOLOS = { ojo: Eye, arriba: ArrowUp, abajo: ArrowDown, corchea: Music2 } as const;
+export type Simbolo = keyof typeof SIMBOLOS;
+export const simboloDe = (texto: string): Simbolo | null => {
+  const m = texto.match(/^::(ojo|arriba|abajo|corchea)::$/);
+  return m ? (m[1] as Simbolo) : null;
+};
+export const textoSimbolo = (s: Simbolo) => `::${s}::`;
+export function IconoSimbolo({ simbolo, tam = 30, className = '' }: { simbolo: Simbolo; tam?: number; className?: string }) {
+  const I = SIMBOLOS[simbolo];
+  return <I size={tam} strokeWidth={1.6} className={className} />;
+}
 
 /** Letra manuscrita de los post-it (1.9.0: Patrick Hand, más legible que Caveat; sin internet, la del sistema). */
 export const LETRA_POSTIT = "'Patrick Hand', 'Segoe Print', 'Bradley Hand', cursive";
@@ -137,6 +151,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   // Recibido y todavía sin reconocer en este celular: contorno celeste + "Te lo envió X" (ver arriba).
   const [nuevoRecibido, setNuevoRecibido] = useState(() => !!r.autor && !r.local && !reconocidos.has(r.id));
 
+  const simbolo = simboloDe(r.texto);
   const colorEstado = r.estado === 'visto' ? 'text-green-700' : r.estado === 'eliminado' ? 'text-red-700' : '';
   const textoEstado = r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
   const toqueEditar = useToque(() => onEditar(r));
@@ -403,16 +418,19 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         style={{
           zoom: tam * f,
           opacity: enviado ? 0.62 : 1,
-          background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
-          boxShadow: levantado ? '0 10px 24px rgba(0,0,0,0.28)'
+          // Símbolo: sin papel (el ícono solo, del color del texto de la app; se ve en claro y en oscuro).
+          background: simbolo ? 'transparent' : '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
+          ...(simbolo ? { padding: 2 } : {}),
+          boxShadow: simbolo ? (nuevoRecibido && !soloVer ? '0 0 0 2px hsl(var(--especial) / 0.75)' : 'none')
+            : levantado ? '0 10px 24px rgba(0,0,0,0.28)'
             : nuevoRecibido && !soloVer ? '0 0 0 2px hsl(var(--especial) / 0.75), 0 2px 6px rgba(0,0,0,0.16)' : '0 2px 6px rgba(0,0,0,0.16)',
           transform: transformPapel,
           transition: 'transform 160ms ease-out, box-shadow 160ms ease-out',
         }}
       >
-        {/* Cinta adhesiva */}
-        <span className="absolute left-1/2 -top-1.5 h-3 w-10 -ml-5 bg-white/55 dark:bg-white/35 pointer-events-none"
-              style={{ transform: 'rotate(2deg)', boxShadow: '0 0 0 1px rgba(0,0,0,0.04)' }} />
+        {/* Cinta adhesiva (no en los símbolos: van sin papel) */}
+        {!simbolo && <span className="absolute left-1/2 -top-1.5 h-3 w-10 -ml-5 bg-white/55 dark:bg-white/35 pointer-events-none"
+              style={{ transform: 'rotate(2deg)', boxShadow: '0 0 0 1px rgba(0,0,0,0.04)' }} />}
         {persona && !enviado && !r.autor && (
           <span className={`flex items-center gap-1 font-semibold ${compacto ? 'text-[10px]' : 'text-[11px]'}`} style={{ color: '#7A6420' }}>
             {r.autor ? `${t.rec_from}:` : `${t.rec_for}:`}
@@ -421,10 +439,14 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
             {dejadaAOtro && <span className={colorEstado}>· {textoEstado}</span>}
           </span>
         )}
-        <span data-texto-postit className="block whitespace-pre-wrap break-words"
-              style={{ fontFamily: LETRA_POSTIT, fontSize: compacto ? 15 : 17.5, lineHeight: 1.2 }}>
-          {r.texto}
-        </span>
+        {simbolo ? (
+          <span data-texto-postit className="block text-foreground"><IconoSimbolo simbolo={simbolo} tam={compacto ? 24 : 30} /></span>
+        ) : (
+          <span data-texto-postit className="block whitespace-pre-wrap break-words"
+                style={{ fontFamily: LETRA_POSTIT, fontSize: compacto ? 15 : 17.5, lineHeight: 1.2 }}>
+            {r.texto}
+          </span>
+        )}
       </div>
       {/* Opciones al tocar (Josué, 1.7.1): Editar (solo las propias) y Eliminar. FLOTAN bajo la nota (no la agrandan):
           si la nota creciera, la letra y la propia nota se moverían bajo el dedo (regla de Josué, 1.4.4). */}
@@ -610,7 +632,7 @@ export function AcotacionesPostit({ notas, className = '' }: { notas: Recordator
           {/* Cinta adhesiva */}
           <span className="absolute left-1/2 -top-[0.22em] h-[0.42em] w-[1.6em] -ml-[0.8em] bg-white/55 dark:bg-white/35 pointer-events-none"
                 style={{ transform: 'rotate(2deg)' }} />
-          {r.texto}
+          {simboloDe(r.texto) ? <IconoSimbolo simbolo={simboloDe(r.texto)!} tam={18} className="inline-block align-[-0.15em]" /> : r.texto}
         </span>
       ))}
     </div>
@@ -832,7 +854,9 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
                         {t.rec_for}: <Punto color={r.para!.color} />{r.para!.nombre}
                         <span className={colorEstado(r)}>· {textoEstado(r)}</span>
                       </span>
-                      <span className="block whitespace-pre-wrap break-words" style={letraManuscrita}>{r.texto}</span>
+                      <span className="block whitespace-pre-wrap break-words" style={letraManuscrita}>
+                        {simboloDe(r.texto) ? <IconoSimbolo simbolo={simboloDe(r.texto)!} tam={20} /> : r.texto}
+                      </span>
                     </button>
                     {porBorrar !== r.id && (
                       <button type="button" aria-label={t.rec_delete} className="p-1.5 -mr-1 rounded-full text-red-700/80 shrink-0"
@@ -867,6 +891,28 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
           </DialogTitle>
         </DialogHeader>
 
+        {/* Texto o símbolo (1.13.3, Josué): "Aa" = escribir; o un símbolo (ojo, flecha arriba/abajo, corchea). */}
+        <div className="flex items-center gap-1.5">
+          {([null, ...Object.keys(SIMBOLOS)] as (Simbolo | null)[]).map(sim => {
+            const activo = (simboloDe(texto) ?? null) === sim;
+            return (
+              <button key={sim ?? 'texto'} type="button" aria-pressed={activo}
+                      onClick={() => setTexto(sim ? textoSimbolo(sim) : (simboloDe(texto) ? '' : texto))}
+                      aria-label={sim ? t.rec_simbolo[sim] : t.rec_simbolo_texto}
+                      className={`h-9 w-9 rounded-full flex items-center justify-center border transition-colors duration-150 ${
+                        activo ? 'bg-yellow-300/30 border-yellow-500/70 text-foreground' : 'border-border text-muted-foreground'}`}>
+                {sim ? <IconoSimbolo simbolo={sim} tam={18} /> : <Type size={17} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {simboloDe(texto) ? (
+          // Mismo alto que el cuadro de texto (el panel no cambia de tamaño al elegir un símbolo).
+          <div className="h-[86px] rounded-md border-[0.5px] border-input bg-[hsl(var(--campo))] flex items-center justify-center text-foreground">
+            <IconoSimbolo simbolo={simboloDe(texto)!} tam={44} />
+          </div>
+        ) : (
         <div className="relative">
           <Textarea
             value={texto}
@@ -874,13 +920,14 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
             maxLength={MAX_TEXTO}
             placeholder={t.rec_placeholder}
             rows={3}
-            className="text-sm resize-none pb-5"
+            className="text-sm resize-none pb-5 h-[86px]"
           />
           {/* Cuenta regresiva de letras (1.9.10, Josué). */}
           <span className={`absolute right-2.5 bottom-1.5 text-[11px] tabular-nums pointer-events-none ${MAX_TEXTO - texto.length <= 10 ? 'text-destructive' : 'text-muted-foreground'}`}>
             {MAX_TEXTO - texto.length}
           </span>
         </div>
+        )}
 
         {/* Alcance (1.13.1, Josué): interruptor largo. Por defecto, en una minuta: "Solo esta minuta". */}
         {minutaId && (

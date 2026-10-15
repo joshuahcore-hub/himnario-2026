@@ -322,6 +322,12 @@ export default function EditorMinuta() {
   // Guardar: la nueva queda privada (solo quien la crea); la existente conserva su visibilidad.
   // Publicar: guarda y la deja visible para todos.
   /** despues: hacia dónde ir tras guardar (por defecto, abrir la minuta guardada). */
+  // Descartar cambios (1.13.3): se sale sin guardar, igual que "Descartar" en la pregunta al salir.
+  const descartar = () => {
+    const hayDondeVolver = id && ((history.state as { idx?: number } | null)?.idx ?? 0) > 0;
+    salida.salirHacia(() => (hayDondeVolver ? history.back() : navigate('/minutas', { replace: true })));
+  };
+
   const guardar = async (publicar: boolean, despues?: () => void) => {
     if (cantos.length === 0) { toast.error(t.editor_empty); return; }
     setGuardando(publicar ? 'publicar' : 'guardar');
@@ -490,6 +496,14 @@ export default function EditorMinuta() {
         transform: mostrarBotones ? 'translateY(0)' : 'translateY(100%)',
         transition: 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)',
       }}>
+        {/* (1.13.3, Josué) Editando una minuta con cambios: "Descartar cambios" a la IZQUIERDA (sin tener que volver
+            atrás para descartar) y lo de guardar/publicar a la derecha. Sale sin guardar nada. */}
+        {!!id && hayCambios && (
+          <Button variant="ghost" onClick={descartar} disabled={!!guardando}
+                  className="h-10 px-3 text-sm text-muted-foreground mr-auto animate-in fade-in duration-200">
+            {t.editor_discard}
+          </Button>
+        )}
         {yaPublicada ? (
           // Ya la ven todos: un solo botón, "Publicar cambios" (solo aparece si hubo cambios).
           <Button onClick={() => guardar(false)} disabled={!!guardando} className="h-10 min-w-[120px] px-5 text-sm gap-1.5">
