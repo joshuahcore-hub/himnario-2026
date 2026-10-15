@@ -446,3 +446,6 @@ html.dark.color-salvia {
   --barra-fondo: 150 13% 14%;
   --barra-linea: 150 10% 23%;
 }
+
+/* index.html esconde la app hasta que estos estilos cargan (1.11.3). Fuera de @layer: que nunca se purgue. */
+#root { visibility: visible; }

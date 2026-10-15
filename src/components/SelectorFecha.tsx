@@ -34,6 +34,7 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   const { t, locale } = useI18n();
   const idioma = locale === 'es' ? es : locale === 'pt' ? ptBR : enUS;
   const [abierto, setAbierto] = useState(false);
+  const fondoTocado = useRef(false);
   const [elegida, setElegida] = useState<Date>(() => aFecha(valor));
   const [mes, setMes] = useState<Date>(() => aFecha(valor));
 
@@ -135,7 +136,9 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
         <div
           className="fixed inset-0 z-[60] flex justify-center items-start bg-black/40 animate-in fade-in duration-150"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16vh)' }}
-          onClick={() => setAbierto(false)}
+          // Tocar fuera cierra solo si el dedo empezó sobre el fondo (1.11.3: un click "fantasma" no lo cierra).
+          onPointerDown={e => { fondoTocado.current = e.target === e.currentTarget; }}
+          onClick={e => { if (fondoTocado.current && e.target === e.currentTarget) setAbierto(false); fondoTocado.current = false; }}
         >
           <div
             className="rounded-2xl border border-border bg-card shadow-xl animate-in zoom-in-95 duration-150 overflow-hidden"

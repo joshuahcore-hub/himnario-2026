@@ -20,7 +20,8 @@ if (typeof document !== 'undefined') {
   document.addEventListener('click', e => {
     if (Date.now() - ultimoToque > CLICK_FANTASMA_MS) return;
     if (botonDelToque && e.target instanceof Node && botonDelToque.contains(e.target)) return;
-    if (Math.hypot(e.clientX - puntoDelToque.x, e.clientY - puntoDelToque.y) > 30) return;
+    // Margen amplio: el teléfono puede correr el punto del click hacia el centro del botón más cercano.
+    if (Math.hypot(e.clientX - puntoDelToque.x, e.clientY - puntoDelToque.y) > 60) return;
     e.stopPropagation();
     e.preventDefault();
   }, true);

@@ -29,6 +29,7 @@ export default function HymnalPage() {
   const [selectedKey, setSelectedKey] = useState<string | null>(persisted.selectedKey);
   const [selectedTempo, setSelectedTempo] = useState<TempoFilter>(persisted.selectedTempo);
   const [showFilters, setShowFilters] = useState(false);
+  const fondoTocado = useRef(false);
 
   const { hymns, ready } = getHymns();
 
@@ -159,9 +160,12 @@ export default function HymnalPage() {
       </div>
 
       {showFilters && (
+        // Tocar fuera cierra, pero SOLO si el dedo empezó sobre el fondo (1.11.3): el click que el teléfono manda justo
+        // después del toque que ABRIÓ el panel caía en este fondo y lo cerraba al instante ("el filtro no responde").
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in duration-150"
-          onClick={() => setShowFilters(false)}
+          onPointerDown={e => { fondoTocado.current = e.target === e.currentTarget; }}
+          onClick={e => { if (fondoTocado.current && e.target === e.currentTarget) setShowFilters(false); fondoTocado.current = false; }}
         >
           <div
             className="bg-card rounded-2xl border border-border p-5 w-[calc(100%-2.5rem)] max-w-sm shadow-xl max-h-[85vh] overflow-y-auto animate-in zoom-in-95 fade-in duration-150"

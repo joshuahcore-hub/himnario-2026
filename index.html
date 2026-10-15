@@ -61,6 +61,10 @@
       html.dark.color-azul { background: #161B22; }
       html.color-salvia { background: #DEEDE3; }
       html.dark.color-salvia { background: #161D1A; }
+      /* (1.11.3, Josué) La app no se dibuja hasta que llegan SUS estilos (src/index.css la vuelve visible). Si al
+         recargar justo cuando entra una versión nueva faltaran, se ve solo el fondo un instante (en vez de letras
+         con otra fuente) y src/main.tsx recarga ya con la versión nueva. */
+      #root { visibility: hidden; }
     </style>
   </head>
 

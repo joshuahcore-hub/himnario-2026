@@ -118,6 +118,7 @@ export interface Translations {
   pdf_title: string;
   pdf_description: string;
   pdf_download: string;
+  pdf_downloaded: string;
   pdf_updated: string;
   minutas_refresh: string;
   minutas_offline: string;
@@ -423,6 +424,7 @@ export const es: Translations = {
   pdf_title: 'Himnario en PDF',
   pdf_description: 'La versión más reciente del himnario completo, para descargar o imprimir.',
   pdf_download: 'Descargar PDF',
+  pdf_downloaded: 'Descargado: Himnario 2026.pdf',
   pdf_updated: 'Actualizado el',
   minutas_refresh: 'Actualizar',
   minutas_offline: 'Sin conexión: mostrando las minutas guardadas en este celular.',
@@ -728,6 +730,7 @@ export const en: Translations = {
   pdf_title: 'Hymnal PDF',
   pdf_description: 'The latest version of the full hymnal, to download or print.',
   pdf_download: 'Download PDF',
+  pdf_downloaded: 'Downloaded: Himnario 2026.pdf',
   pdf_updated: 'Updated on',
   minutas_refresh: 'Refresh',
   minutas_offline: 'Offline: showing the services saved on this phone.',
@@ -1033,6 +1036,7 @@ export const pt: Translations = {
   pdf_title: 'Hinário em PDF',
   pdf_description: 'A versão mais recente do hinário completo, para baixar ou imprimir.',
   pdf_download: 'Baixar PDF',
+  pdf_downloaded: 'Baixado: Himnario 2026.pdf',
   pdf_updated: 'Atualizado em',
   minutas_refresh: 'Atualizar',
   minutas_offline: 'Sem conexão: mostrando as minutas salvas neste celular.',
