@@ -6,7 +6,7 @@
 // - PanelRecordatorio: escribir / editar / borrar. Para quién y si es "siempre" o "solo esta minuta".
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, MoveDiagonal2, PenLine, Send, StickyNote, Trash2 } from 'lucide-react';
+import { ArrowLeft, MoveDiagonal2, PenLine, Send, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -340,6 +340,25 @@ export function NotasRecordatorio({ notas, compacto = false, onTocar, className 
   );
 }
 
+/** Post-it en miniatura (1.9.6): el mismo papel amarillo con su cinta; con "+" en el botón de arriba. Se usa en
+ *  todos lados donde va el ícono de recordatorio, para que coincida con los post-it. */
+export function MiniPostit({ tam = 27, mas = true, className = '' }: { tam?: number; mas?: boolean; className?: string }) {
+  return (
+    <span className={`relative inline-block shrink-0 ${className}`}
+          style={{ width: tam, height: tam, background: '#FFF3B0', borderRadius: `${tam * 0.08}px ${tam * 0.08}px ${tam * 0.26}px ${tam * 0.08}px`,
+                   boxShadow: '0 1px 4px rgba(0,0,0,0.25)', transform: 'rotate(-5deg)' }}>
+      <span className="absolute left-1/2 bg-white/60"
+            style={{ top: -tam * 0.11, height: tam * 0.22, width: tam * 0.52, marginLeft: -tam * 0.26, transform: 'rotate(3deg)' }} />
+      {mas && (
+        <svg viewBox="0 0 24 24" className="absolute inset-0 m-auto" style={{ width: tam * 0.56, height: tam * 0.56 }}
+             fill="none" stroke="#7A6420" strokeWidth={2.6} strokeLinecap="round">
+          <path d="M12 6v12M6 12h12" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 export function BotonRecordatorio({ onClick, className = '' }: { onClick: () => void; className?: string }) {
   const { t } = useI18n();
   // Se activa al soltar el dedo (useToque): tras deslizar a otra canción el navegador no generaba el click del
@@ -358,13 +377,7 @@ export function BotonRecordatorio({ onClick, className = '' }: { onClick: () => 
       // su trozo de cinta y un "+". Mide lo mismo que los botones redondos de al lado (37 px).
       className={`tap-btn-overlay relative w-[37px] h-[37px] flex items-center justify-center ${className}`}
     >
-      <span className="relative block w-[27px] h-[27px]"
-            style={{ background: '#FFF3B0', borderRadius: '2px 2px 7px 2px', boxShadow: '0 1px 4px rgba(0,0,0,0.25)', transform: 'rotate(-5deg)' }}>
-        <span className="absolute left-1/2 -top-[3px] h-[6px] w-[14px] -ml-[7px] bg-white/60" style={{ transform: 'rotate(3deg)' }} />
-        <svg viewBox="0 0 24 24" className="absolute inset-0 m-auto w-[15px] h-[15px]" fill="none" stroke="#7A6420" strokeWidth={2.6} strokeLinecap="round">
-          <path d="M12 6v12M6 12h12" />
-        </svg>
-      </span>
+      <MiniPostit />
     </button>
   );
 }
@@ -535,7 +548,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
         ) : (<>
         <DialogHeader>
           <DialogTitle className="text-sm flex items-center gap-2">
-            <StickyNote size={16} className="text-yellow-500" />
+            <MiniPostit tam={17} mas={false} className="mr-0.5" />
             {ant ? t.rec_title_edit : t.rec_title_new}
           </DialogTitle>
         </DialogHeader>
