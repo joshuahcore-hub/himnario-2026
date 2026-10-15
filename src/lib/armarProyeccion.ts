@@ -186,7 +186,18 @@ function cambiarEspecial(xml: string, nombre: string, pres: string): string {
   cuadros.sort((a, b) => textoDe(b).length - textoDe(a).length);
   const referencia = cuadros[1];
   if (referencia) xml = xml.replace(referencia, '');
-  return cambiarPortada(xml, { versiculo: `ESPECIAL ${nombre}`.trim(), referencia: '' }, pres);
+  xml = cambiarPortada(xml, { versiculo: `ESPECIAL ${nombre}`.trim(), referencia: '' }, pres);
+  // (1.14.1, Josué) Diapositiva BLANCA como las de las alabanzas: sin la imagen de fondo de la portada, fondo blanco y
+  // letra negra.
+  const negro = '<a:solidFill><a:srgbClr val="000000"/></a:solidFill>';
+  xml = xml.replace(/<p:pic>[\s\S]*?<\/p:pic>/g, '')
+    .replace(/<p:bg>[\s\S]*?<\/p:bg>/, '')
+    .replace(/(<p:cSld\b[^>]*>)/, '$1<p:bg><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>')
+    .replace(/<a:rPr\b([^>]*?)\/>/g, `<a:rPr$1>${negro}</a:rPr>`)
+    .replace(/<a:rPr\b([^>]*[^/])>(?:<a:solidFill>[\s\S]*?<\/a:solidFill>)?/g, `<a:rPr$1>${negro}`)
+    // Misma letra que las diapositivas de las alabanzas (Calibri en negrita).
+    .replace(/<a:latin typeface="[^"]*"/g, '<a:latin typeface="Calibri"');
+  return xml;
 }
 
 /** Si el versículo es largo, la letra se achica para que quepa en la diapositiva (la plantilla usa 58 pt). */
