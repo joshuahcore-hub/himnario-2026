@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
+import { cargarRecordatorios } from '@/lib/recordatorios';
 
 export default function Minutas() {
   const navigate = useNavigate();
@@ -103,6 +104,7 @@ export default function Minutas() {
       const copia = await api<MinutaData>(`minutas/${unaSeleccionada.id}/duplicar`, { metodo: 'POST' });
       enfocar.current = copia.id; // al aparecer en la lista, queda al centro (junto a la original, misma fecha)
       guardarMinutaLocal(copia);
+      cargarRecordatorios(true, true); // la copia trae los recordatorios "solo en esta minuta" de quien duplica
       toast.success(t.minuta_duplicated_toast);
       salirSeleccion();
     } catch (e: any) {

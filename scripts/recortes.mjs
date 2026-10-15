@@ -13,7 +13,7 @@ for (const archivo of readdirSync(carpeta).filter(f => f.endsWith('.webp'))) {
   const meta = await sharp(`${carpeta}/${archivo}`).metadata();
   const arriba = Math.max(0, -info.trimOffsetTop - MARGEN);
   const alto = Math.min(meta.height - arriba, info.height + 2 * MARGEN);
-  recortes[n] = [meta.width, arriba, alto];
+  recortes[n] = [meta.width, arriba, alto, meta.height];
   void data;
 }
 writeFileSync('src/datos/recortes.json', JSON.stringify(recortes));

@@ -203,6 +203,11 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
         .bind(nueva, original.titulo, original.fecha, JSON.stringify(original.cantos), original.texto_original,
               yo.id, yo.id, t, t, id),
       registrar(env, nueva, yo.id, 'duplicada', original.titulo),
+      // Los recordatorios "solo en esta minuta" pasan a la copia SOLO si quien duplica podía verlos (los escribió o
+      // eran para él). Los personales de otra persona no se copian: nadie ve recordatorios ajenos (Josué, 1.7.0).
+      env.DB.prepare(`INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, creado, actualizado)
+                      SELECT lower(hex(randomblob(16))), himno, autor_id, para_id, texto, ?, creado, ?
+                      FROM recordatorios WHERE minuta_id = ? AND (autor_id = ? OR para_id = ?)`).bind(nueva, t, id, yo.id, yo.id),
     ]);
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
   }
@@ -561,6 +566,111 @@ async function rutasPc(request: Request, env: Env, partes: string[]): Promise<Re
   return json({ ok: true });
 }
 
+// ---------- Recordatorios (1.7.0) ----------
+// Creadores y admin. Cada uno recibe los que escribió (para sí o para otros) y los que le dejaron.
+// Solo el autor edita o borra. Los visores no pasan por aquí: los suyos quedan en su celular.
+
+const MAX_RECORDATORIOS_AUTOR = 500;
+
+function validarTexto(texto: unknown): string {
+  const t = typeof texto === 'string' ? texto.trim() : '';
+  if (t.length < 1 || t.length > 300) throw new ErrorApi(400, 'El recordatorio debe tener entre 1 y 300 letras.');
+  return t;
+}
+
+/** null = siempre en este canto; un id = solo en esa minuta. */
+function validarMinutaId(minuta: unknown): string | null {
+  if (minuta === undefined || minuta === null || minuta === '') return null;
+  if (typeof minuta !== 'string' || minuta.length > 64) throw new ErrorApi(400, 'Minuta no válida.');
+  return minuta;
+}
+
+function validarHimno(himno: unknown): number {
+  const n = Number(himno);
+  if (!Number.isInteger(n) || n < 1 || n > 9999) throw new ErrorApi(400, 'Himno no válido.');
+  return n;
+}
+
+/** El destinatario debe ser una persona aprobada (creador o admin). Sin "para" = para uno mismo. */
+async function validarPara(env: Env, para: unknown, yo: Dispositivo): Promise<string> {
+  if (para === undefined || para === null || para === '' || para === yo.id) return yo.id;
+  if (typeof para !== 'string') throw new ErrorApi(400, 'Destinatario no válido.');
+  const d = await env.DB.prepare("SELECT id FROM dispositivos WHERE id = ? AND estado = 'aprobado'").bind(para).first();
+  if (!d) throw new ErrorApi(400, 'Esa persona ya no está en la app.');
+  return para;
+}
+
+const SELECT_RECORDATORIOS = `
+  SELECT r.id, r.himno, r.texto, r.minuta_id, r.creado, r.actualizado, r.autor_id, r.para_id,
+         a.nombre AS autor_nombre, a.color AS autor_color, p.nombre AS para_nombre, p.color AS para_color
+  FROM recordatorios r
+  LEFT JOIN dispositivos a ON a.id = r.autor_id
+  LEFT JOIN dispositivos p ON p.id = r.para_id`;
+
+function filaARecordatorio(f: any, yo: Dispositivo) {
+  return {
+    id: f.id, himno: f.himno, texto: f.texto, minuta: f.minuta_id ?? null, creado: f.creado, actualizado: f.actualizado,
+    mio: f.autor_id === yo.id, // lo escribí yo: puedo editarlo y borrarlo
+    autor: f.autor_id === yo.id ? null : { nombre: f.autor_nombre ?? '—', color: f.autor_color ?? '#999' },
+    para: f.para_id === yo.id ? null : { id: f.para_id, nombre: f.para_nombre ?? '—', color: f.para_color ?? '#999' },
+  };
+}
+
+async function rutasRecordatorios(request: Request, env: Env, partes: string[]): Promise<Response> {
+  const yo = exigirEditor(await dispositivoActual(request, env));
+  const id = partes[1];
+
+  if (!id && request.method === 'GET') {
+    const { results } = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.autor_id = ? OR r.para_id = ? ORDER BY r.creado`)
+      .bind(yo.id, yo.id).all();
+    return json(results.map(f => filaARecordatorio(f, yo)));
+  }
+
+  if (!id && request.method === 'POST') {
+    const body = await leerJson(request);
+    const himno = validarHimno(body.himno);
+    const texto = validarTexto(body.texto);
+    const para = await validarPara(env, body.para, yo);
+    const minuta = validarMinutaId(body.minuta);
+    const cuantos = await env.DB.prepare('SELECT COUNT(*) AS n FROM recordatorios WHERE autor_id = ?').bind(yo.id).first<{ n: number }>();
+    if ((cuantos?.n ?? 0) >= MAX_RECORDATORIOS_AUTOR) throw new ErrorApi(429, 'Tienes demasiados recordatorios. Borra algunos.');
+    const nuevo = crypto.randomUUID(), t = ahora();
+    await env.DB.prepare('INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, creado, actualizado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(nuevo, himno, yo.id, para, texto, minuta, t, t).run();
+    const f = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.id = ?`).bind(nuevo).first();
+    return json(filaARecordatorio(f, yo), 201);
+  }
+
+  if (id && (request.method === 'PATCH' || request.method === 'DELETE')) {
+    const actual = await env.DB.prepare('SELECT autor_id FROM recordatorios WHERE id = ?').bind(id).first<{ autor_id: string }>();
+    if (!actual) throw new ErrorApi(404, 'Ese recordatorio ya no existe.');
+    if (actual.autor_id !== yo.id) throw new ErrorApi(403, 'Solo quien escribió el recordatorio puede cambiarlo.');
+    if (request.method === 'DELETE') {
+      await env.DB.prepare('DELETE FROM recordatorios WHERE id = ?').bind(id).run();
+      return json({ ok: true });
+    }
+    const body = await leerJson(request);
+    const texto = validarTexto(body.texto);
+    const para = await validarPara(env, body.para, yo);
+    const minuta = validarMinutaId(body.minuta);
+    await env.DB.prepare('UPDATE recordatorios SET texto = ?, para_id = ?, minuta_id = ?, actualizado = ? WHERE id = ?')
+      .bind(texto, para, minuta, ahora(), id).run();
+    const f = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.id = ?`).bind(id).first();
+    return json(filaARecordatorio(f, yo));
+  }
+
+  throw new ErrorApi(404, 'Ruta no encontrada.');
+}
+
+/** Personas a quienes se les puede dejar un recordatorio: creadores y admin aprobados (menos uno mismo). */
+async function rutasPersonas(request: Request, env: Env): Promise<Response> {
+  const yo = exigirEditor(await dispositivoActual(request, env));
+  if (request.method !== 'GET') throw new ErrorApi(404, 'Ruta no encontrada.');
+  const { results } = await env.DB.prepare("SELECT id, nombre, color FROM dispositivos WHERE estado = 'aprobado' AND id != ? ORDER BY nombre")
+    .bind(yo.id).all();
+  return json(results);
+}
+
 // ---------- Entrada ----------
 
 export const onRequest: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -573,6 +683,8 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, params }) =>
       case 'admin': return await rutasAdmin(request, env, partes, ip);
       case 'ia': return await rutasIa(request, env, partes);
       case 'pc': return await rutasPc(request, env, partes);
+      case 'recordatorios': return await rutasRecordatorios(request, env, partes);
+      case 'personas': return await rutasPersonas(request, env);
       case 'salud': return json({ ok: true });
       default: throw new ErrorApi(404, 'Ruta no encontrada.');
     }

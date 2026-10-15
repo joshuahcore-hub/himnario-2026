@@ -2,7 +2,18 @@
 // vacío de arriba y abajo del lienzo. Los límites los calcula scripts/recortes.mjs (src/datos/recortes.json).
 import recortes from '@/datos/recortes.json';
 
-const tabla = recortes as unknown as Record<string, [number, number, number]>; // [ancho, arriba, alto] en px de la imagen
+const tabla = recortes as unknown as Record<string, [number, number, number, number]>; // [ancho, arriba, alto, altoTotal] en px
+
+/**
+ * Para una <img> normal (con zoom propio): muestra solo la franja con letra usando object-view-box (Chrome/Android).
+ * Donde no se soporta, se ve la imagen completa como antes. (1.7.0: los recordatorios quedan justo sobre la letra.)
+ */
+export function vistaRecortada(num: number): React.CSSProperties {
+  const r = tabla[String(num)];
+  if (!r) return {};
+  const [, arriba, alto, total] = r;
+  return { objectViewBox: `inset(${arriba}px 0 ${total - arriba - alto}px 0)` } as React.CSSProperties;
+}
 
 export default function HimnoRecortado({ num, src, alt, onError }: {
   num: number;

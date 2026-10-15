@@ -252,6 +252,22 @@ export interface Translations {
 
   // General
   loading: string;
+  // Recordatorios (1.7.0)
+  rec_add: string;
+  rec_title_new: string;
+  rec_title_edit: string;
+  rec_placeholder: string;
+  rec_for: string;
+  rec_for_me: string;
+  rec_from: string;
+  rec_save: string;
+  rec_cancel: string;
+  rec_delete: string;
+  rec_only_view: string;
+  rec_needs_internet: string;
+  rec_always: string;
+  rec_this_minuta: string;
+  rec_private_hint: string;
 }
 
 export const es: Translations = {
@@ -495,6 +511,21 @@ export const es: Translations = {
   notifications_loading: 'Cargando historial...',
 
   loading: 'Cargando...',
+  rec_add: 'Añadir recordatorio',
+  rec_title_new: 'Nuevo recordatorio',
+  rec_title_edit: 'Recordatorio',
+  rec_placeholder: 'Escribe lo que quieres recordar…',
+  rec_for: 'Para',
+  rec_for_me: 'Mí',
+  rec_from: 'De',
+  rec_save: 'Guardar',
+  rec_cancel: 'Cancelar',
+  rec_delete: 'Eliminar',
+  rec_only_view: 'Te lo dejó otra persona: solo quien lo escribió puede cambiarlo.',
+  rec_needs_internet: 'Se necesita internet para guardar este recordatorio.',
+  rec_always: 'Siempre en esta alabanza',
+  rec_this_minuta: 'Solo esta minuta',
+  rec_private_hint: 'Esta minuta es privada: para dejárselo a otra persona, elige "Siempre en esta alabanza".',
 };
 
 export const en: Translations = {
@@ -738,6 +769,21 @@ export const en: Translations = {
   notifications_loading: 'Loading history...',
 
   loading: 'Loading...',
+  rec_add: 'Add reminder',
+  rec_title_new: 'New reminder',
+  rec_title_edit: 'Reminder',
+  rec_placeholder: 'Write what you want to remember…',
+  rec_for: 'For',
+  rec_for_me: 'Me',
+  rec_from: 'From',
+  rec_save: 'Save',
+  rec_cancel: 'Cancel',
+  rec_delete: 'Delete',
+  rec_only_view: 'Someone left this for you: only who wrote it can change it.',
+  rec_needs_internet: 'Internet is needed to save this reminder.',
+  rec_always: 'Always on this song',
+  rec_this_minuta: 'Only this service',
+  rec_private_hint: 'This service is private: to leave it for someone else, choose "Always on this song".',
 };
 
 const translations: Record<Locale, Translations> = { es, en };

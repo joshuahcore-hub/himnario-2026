@@ -9,12 +9,21 @@ import { getThemedHymnImageUrl, preloadHymnImageBoth, imageCache, imageCacheDark
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
 import { RotateCwSquare } from 'lucide-react';
+import { useAcceso } from '@/hooks/useAcceso';
+import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
+import { BotonRecordatorio, NotasRecordatorio, PanelRecordatorio } from '@/components/Recordatorios';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
 import { renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, UMBRAL_LADO } from '@/lib/deslizar';
-function SongPage({ song, horizontal }: { song: ParsedSong; horizontal: boolean }) {
+function SongPage({ song, horizontal, notas, onTocarNota }: {
+  song: ParsedSong;
+  horizontal: boolean;
+  /** Recordatorios de esta alabanza (1.7.0): van entre el título y la letra. */
+  notas: Recordatorio[];
+  onTocarNota: (r: Recordatorio) => void;
+}) {
   const [imgError, setImgError] = useState(false);
   const { theme } = useTheme();
   const { t } = useI18n();
@@ -44,6 +53,7 @@ function SongPage({ song, horizontal }: { song: ParsedSong; horizontal: boolean 
       // Sin encabezado (Josué, 1.6.2): la imagen ya trae número y título; todo el alto para la letra.
       <Zoomable className="w-full m-auto" reiniciarCon={hymnNumber}>
         <div className="w-full flex flex-col items-center pt-3">
+          <NotasRecordatorio notas={notas} compacto onTocar={onTocarNota} className="px-3 pb-1.5" />
           {imgError ? (
             song.firstLine && <p className="py-8 px-4 text-center text-muted-foreground text-sm italic">{song.firstLine}</p>
           ) : (
@@ -61,6 +71,7 @@ function SongPage({ song, horizontal }: { song: ParsedSong; horizontal: boolean 
           <h2 className="text-lg font-bold text-foreground">{song.title}</h2>
           {song.key && <p translate="no" className="font-semibold text-hymn-key">{song.key}</p>}
         </div>
+        <NotasRecordatorio notas={notas} onTocar={onTocarNota} className="max-w-lg px-2 pt-2 shrink-0" />
         {imgError ? (
           <div className="flex-1 flex items-center px-4 text-center">
             {song.firstLine && <p className="text-muted-foreground text-sm italic">{song.firstLine}</p>}
@@ -89,6 +100,12 @@ export default function MinutaReader() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const horizontal = useHorizontal();
+  // Recordatorios (1.7.0): los "siempre en esta alabanza" y los "solo en esta minuta".
+  const { puedeEditar } = useAcceso();
+  const notasDe = useRecordatorios(puedeEditar, id ?? null);
+  const [panelAbierto, setPanelAbierto] = useState(false);
+  const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
+  const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -225,6 +242,9 @@ export default function MinutaReader() {
 
   const paginaVisible = paginaDestino ?? currentPage;
   const itemAt = (page: number) => (page > 0 && page < totalPages ? swipeItems[page - 1] : null);
+  // Alabanza que se está viendo (para el botón de recordatorio): no en la portada ni en Palabra/Oración.
+  const itemVisible = itemAt(paginaVisible);
+  const cantoVisible = itemVisible && itemVisible.hymnNumber && itemVisible.found && !itemVisible.isPalabra && !itemVisible.isOracion ? itemVisible : null;
 
 
   const renderPage = (pageIdx: number, offset: number) => {
@@ -262,19 +282,21 @@ export default function MinutaReader() {
         ) : item?.isOracion ? (
           <span className="m-auto text-3xl font-bold text-oracion">{t.portada_oracion}</span>
         ) : item ? (
-          <SongPage song={item} horizontal={horizontal} />
+          <SongPage song={item} horizontal={horizontal} notas={notasDe(item.hymnNumber)} onTocarNota={abrirPanel} />
         ) : null}
       </div>
     );
   };
 
   return (
-    <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-hidden">
+    // overflow CLIP (no hidden): un contenedor "hidden" se puede desplazar solo (p. ej. al abrir un panel) y la
+    // página quedaba corrida mostrando la vecina. clip recorta igual y no se desplaza (1.7.0).
+    <div className="h-[100dvh] bg-background text-foreground flex flex-col overflow-clip">
       <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
       <div
         ref={areaRef}
-        className="flex-1 relative overflow-hidden"
+        className="flex-1 relative overflow-clip"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -285,14 +307,22 @@ export default function MinutaReader() {
           {renderPage(currentPage, 0)}
           {renderPage(currentPage + 1, 1)}
         </div>
-        {/* Girar a horizontal (o volver a vertical) con un toque (Josué, 1.6.1). Discreto, para no tapar la letra. */}
-        {puedeGirar && (
-          <button onClick={() => girarPantalla(horizontal)} onTouchStart={e => e.stopPropagation()} aria-label="Girar"
-                  className="tap-btn-overlay absolute top-2 right-2 z-20 p-2 rounded-full bg-card/70 backdrop-blur-sm border border-border text-foreground/70">
-            <RotateCwSquare size={18} />
-          </button>
-        )}
+        {/* Arriba a la derecha: añadir recordatorio a esta alabanza (1.7.0; solo en páginas de canto) y girar
+            (1.6.1). Discretos, para no tapar la letra. */}
+        <div className="absolute top-2 right-2 z-20 flex gap-2">
+          <div className="transition-opacity duration-200" style={{ opacity: cantoVisible ? 1 : 0, pointerEvents: cantoVisible ? 'auto' : 'none' }}>
+            <BotonRecordatorio onClick={() => abrirPanel(null)} />
+          </div>
+          {puedeGirar && (
+            <button onClick={() => girarPantalla(horizontal)} onTouchStart={e => e.stopPropagation()} aria-label="Girar"
+                    className="tap-btn-overlay p-2 rounded-full bg-card/70 backdrop-blur-sm border border-border text-foreground/70">
+              <RotateCwSquare size={18} />
+            </button>
+          )}
+        </div>
       </div>
+      <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={cantoVisible?.hymnNumber ?? null}
+                         anterior={notaEditada} minutaId={minuta.id} minutaPublicada={minuta.publicada} />
 
       <div className={`flex justify-center gap-1.5 pb-6 pt-2 flex-wrap px-4 ${pantallaCompleta ? 'hidden' : ''}`}>
         {Array.from({ length: totalPages }, (_, i) => (

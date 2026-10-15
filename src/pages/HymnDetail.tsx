@@ -7,9 +7,12 @@ import { getFilteredNumbers } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla } from '@/hooks/useHorizontal';
+import { useAcceso } from '@/hooks/useAcceso';
+import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
+import { BotonRecordatorio, NotasRecordatorio, PanelRecordatorio } from '@/components/Recordatorios';
 import ZoomableImage from '@/components/ZoomableImage';
 import Zoomable from '@/components/Zoomable';
-import HimnoRecortado from '@/components/HimnoRecortado';
+import HimnoRecortado, { vistaRecortada } from '@/components/HimnoRecortado';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, UMBRAL_LADO } from '@/lib/deslizar';
 /**
  * Barra para saltar a cualquier himno sin pasar uno por uno (pedido de Josué): se arrastra el círculo (o se toca un
@@ -86,6 +89,12 @@ export default function HymnDetail() {
   const { theme } = useTheme();
   // Celular girado: la letra a todo el ancho y se recorre hacia abajo (deslizar arriba/abajo ya no cierra).
   const horizontal = useHorizontal();
+  // Recordatorios (1.7.0): notas amarillas arriba de la letra. En el himnario solo los "siempre en esta alabanza".
+  const { puedeEditar } = useAcceso();
+  const notasDe = useRecordatorios(puedeEditar);
+  const [panelAbierto, setPanelAbierto] = useState(false);
+  const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
+  const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
 
   const initial = getHymns();
   const [navNumbers, setNavNumbers] = useState<number[]>(() => {
@@ -293,19 +302,27 @@ export default function HymnDetail() {
              style={{ transform: `translateX(${offset * 100}%)`, overscrollBehavior: 'contain',
                       padding: '3.25rem env(safe-area-inset-right, 0px) 1rem env(safe-area-inset-left, 0px)' }}>
           <Zoomable className="w-full m-auto" reiniciarCon={num}>
+            <NotasRecordatorio notas={notasDe(num)} compacto onTocar={abrirPanel} className="px-3 pb-1.5" />
             <HimnoRecortado num={num} src={src} alt={`${t.hymn_alt}${num}`} />
           </Zoomable>
         </div>
       );
     }
     return (
-      <div key={num} className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{ transform: `translateX(${offset * 100}%)` }}>
-        <ZoomableImage
-          src={src}
-          alt={`${t.hymn_alt}${num}`}
-          className="w-full max-w-lg max-h-full object-contain"
-          onEdgeSwipe={handleEdgeSwipe}
-        />
+      // Solo la franja con letra (vistaRecortada), centrada entre los botones de arriba y el contador de abajo, con los
+      // recordatorios justo encima de la letra (1.7.0). La letra a todo el ancho siempre cabe en vertical.
+      <div key={num} className="absolute inset-0 flex flex-col items-center justify-center overflow-clip"
+           style={{ transform: `translateX(${offset * 100}%)`, paddingTop: '3.75rem', paddingBottom: 'calc(4rem + 3.75rem)' }}>
+        <NotasRecordatorio notas={notasDe(num)} onTocar={abrirPanel} className="max-w-lg px-4 pb-3 shrink-0" />
+        <div className="w-full min-h-0 flex justify-center">
+          <ZoomableImage
+            src={src}
+            alt={`${t.hymn_alt}${num}`}
+            className="w-full max-w-lg h-auto"
+            estilo={vistaRecortada(num)}
+            onEdgeSwipe={handleEdgeSwipe}
+          />
+        </div>
       </div>
     );
   };
@@ -322,21 +339,25 @@ export default function HymnDetail() {
   return (
     // bg-background: el mismo fondo que tienen ahora las imágenes de los himnos (sin recuadro visible).
     // En horizontal tapa también la barra de pestañas (z-50): toda la pantalla para la letra.
-    <div ref={exteriorRef} className={`fixed inset-0 ${horizontal ? 'z-[55]' : 'z-40'} bg-background`} style={{ overflow: 'hidden', willChange: 'transform' }}>
+    <div ref={exteriorRef} className={`fixed inset-0 ${horizontal ? 'z-[55]' : 'z-40'} bg-background`} style={{ overflow: 'clip', willChange: 'transform' }}>
+      {/* overflow CLIP (no hidden): con hidden el navegador podía desplazarlo solo (al abrir un panel quedaba corrido
+          113 px mostrando el himno vecino). clip recorta igual y no se puede desplazar (1.7.0). */}
       <div className="absolute top-3 left-3 z-20">
         <button onClick={() => navigate('/hymnal')} className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
           <ArrowLeft size={20} />
         </button>
       </div>
-      {/* Girar a horizontal (o volver a vertical) con un toque, sin tener que girar el celular (Josué, 1.6.1). */}
-      {puedeGirar && (
-        <div className="absolute top-3 right-3 z-20">
+      {/* Arriba a la derecha: añadir recordatorio (1.7.0) y girar a horizontal o volver a vertical (1.6.1). */}
+      <div className="absolute top-3 right-3 z-20 flex gap-2">
+        <BotonRecordatorio onClick={() => abrirPanel(null)} />
+        {puedeGirar && (
           <button onClick={() => girarPantalla(horizontal)} aria-label="Girar"
                   className="tap-btn-overlay p-2 rounded-full bg-card/80 backdrop-blur-sm border border-border text-foreground">
             <RotateCwSquare size={20} />
           </button>
-        </div>
-      )}
+        )}
+      </div>
+      <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={currentNum} anterior={notaEditada} />
       <div ref={areaRef} className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderSlide(prevNum, -1)}

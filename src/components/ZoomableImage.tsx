@@ -6,9 +6,13 @@ interface ZoomableImageProps {
   className?: string;
   onError?: () => void;
   onEdgeSwipe?: (direction: 'left' | 'right') => void;
+  /** Ocupa todo el alto disponible (la imagen se ajusta dentro con object-contain). */
+  llenar?: boolean;
+  /** Estilo extra de la imagen (p. ej. object-view-box para recortar el fondo vacío). */
+  estilo?: React.CSSProperties;
 }
 
-export default function ZoomableImage({ src, alt, className, onError, onEdgeSwipe }: ZoomableImageProps) {
+export default function ZoomableImage({ src, alt, className, onError, onEdgeSwipe, llenar = false, estilo }: ZoomableImageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [scale, setScale] = useState(1);
@@ -129,7 +133,7 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
     <div
       ref={containerRef}
       // flex + justify-center: en pantallas anchas la imagen (máx. max-w-lg) queda centrada, no pegada a la izquierda.
-      className="w-full overflow-hidden rounded-lg flex justify-center"
+      className={`w-full overflow-hidden rounded-lg flex justify-center ${llenar ? 'h-full items-center' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -144,6 +148,7 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
         onError={onError}
         draggable={false}
         style={{
+          ...estilo,
           transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           transformOrigin: 'center center',
           transition: isPinching.current || isPanning.current ? 'none' : 'transform 200ms ease-out',
