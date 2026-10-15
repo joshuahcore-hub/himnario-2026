@@ -89,7 +89,9 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
   // mueve DIRECTO (style.transform, sin estado de React: fluido) y no deja que la página cambie de canción.
   const caja = useRef<HTMLDivElement>(null);
   const papel = useRef<HTMLDivElement>(null);
-  const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean } | null>(null);
+  // escala: cuánto está ampliada la letra (zoom). El movimiento se divide por ella para que el post-it siga al dedo
+  // (1.9.5, Josué: con zoom "saltaba lejos": se movía el doble que el dedo).
+  const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean; escala: number } | null>(null);
   const [levantado, setLevantado] = useState(false);
 
   // Opciones (Editar/Eliminar) hacia donde HAYA ESPACIO (1.9.1, Josué: pegado al borde izquierdo se salían de la
@@ -160,6 +162,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
       const id = e.pointerId;
       gesto.current = {
         x: e.clientX, y: e.clientY, t: Date.now(), id, arrastrando: false,
+        escala: caja.current && caja.current.offsetWidth ? caja.current.getBoundingClientRect().width / caja.current.offsetWidth : 1,
         timer: window.setTimeout(() => {
           const g = gesto.current;
           if (!g || r.id.startsWith('tmp-')) return;
@@ -179,7 +182,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, onA
         if (Math.hypot(dx, dy) > MOVER_MAX) { window.clearTimeout(g.timer); gesto.current = null; }
         return;
       }
-      if (caja.current) caja.current.style.transform = `translate(${dx}px, ${dy}px)`;
+      if (caja.current) caja.current.style.transform = `translate(${dx / g.escala}px, ${dy / g.escala}px)`;
     },
     onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
