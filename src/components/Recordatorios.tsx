@@ -144,7 +144,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     if (left >= izq) { setUbic({ dx: left - centro, arriba: false, baja: 0 }); return; }
     left = Math.min(Math.max(centro - o.width / 2, izq), der - o.width);
     setUbic({ dx: left - centro, arriba: false, baja: TIRADOR_SEP + TIRADOR_TAM });
-  }, [abierta, escala]);
+  }, [abierta, escala, r.tam]);
 
   // Tirador de la esquina para agrandar/achicar (1.9.1, Josué): sigue el dedo (zoom directo, sin estado de React) y
   // al soltar se guarda; entre TAM_MIN y TAM_MAX.
@@ -156,17 +156,39 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     const d = (e.clientX - g.x + (e.clientY - g.y)) / 2;
     return Math.min(TAM_MAX, Math.max(TAM_MIN, g.tam * (1 + d / g.ancho)));
   };
+  // Mientras se estira NO se cambia el zoom (eso vuelve a acomodar el texto en cada movimiento y, con la pantalla
+  // ampliada, la letra "temblaba"; 1.11.6, Josué): el papel se agranda con transform (fluido, como una imagen) dejando
+  // fija su esquina de arriba a la izquierda, y el tirador lo acompaña. Al soltar se fija el tamaño real (zoom).
+  const anclaTirador = useRef<HTMLDivElement>(null);
+  const transformPapel = `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg) scale(${levantado ? 1.05 : 1})`;
+  const transformAncla = `scale(${1 / escala})`;
+  const base = useRef({ w: 0, h: 0 });
+  const verEstirado = (k: number) => {
+    const p = papel.current, a = anclaTirador.current;
+    if (!p) return;
+    const { w, h } = base.current;
+    p.style.transition = 'none';
+    p.style.transform = `translate(${((k - 1) * w) / 2}px, ${((k - 1) * h) / 2}px) ${transformPapel} scale(${k})`;
+    if (a) a.style.transform = `translate(${(k - 1) * w}px, ${(k - 1) * h}px) ${transformAncla}`;
+  };
+  const dejarDeEstirar = (zoomFinal: number) => {
+    const p = papel.current, a = anclaTirador.current;
+    if (p) { p.style.zoom = String(zoomFinal); p.style.transform = transformPapel; p.style.transition = ''; }
+    if (a) a.style.transform = transformAncla;
+  };
   const tirador = {
     onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
       if (!papel.current) return;
+      // Tamaño del papel en px de su recuadro (sin el zoom de pellizcar), para mover el tirador junto con la esquina.
+      base.current = { w: papel.current.offsetWidth * tam * f, h: papel.current.offsetHeight * tam * f };
       estirar.current = { x: e.clientX, y: e.clientY, ancho: papel.current.getBoundingClientRect().width, tam, id: e.pointerId };
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* igual funciona */ }
     },
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
       if (!estirar.current || !papel.current) return;
-      papel.current.style.zoom = String(tamAl(e) * f);
+      verEstirado(tamAl(e) / tam);
     },
     onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
@@ -175,9 +197,9 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       estirar.current = null;
       flushSync(() => ajustarRecordatorio(r, { tam: nuevo }));
       // Queda EXACTAMENTE el tamaño que se veía al soltar (1.9.7, Josué: antes se borraba y volvía al normal).
-      if (papel.current) papel.current.style.zoom = String(nuevo * f);
+      dejarDeEstirar(nuevo * f);
     },
-    onPointerCancel: () => { estirar.current = null; if (papel.current) papel.current.style.zoom = String(tam * f); },
+    onPointerCancel: () => { estirar.current = null; dejarDeEstirar(tam * f); },
     // El gesto es del tirador: la página no se desliza ni se cierra.
     onTouchStart: (e: React.TouchEvent) => e.stopPropagation(),
     onTouchMove: (e: React.TouchEvent) => e.stopPropagation(),
@@ -294,7 +316,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
           zoom: tam * f,
           background: '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
           boxShadow: levantado ? '0 10px 24px rgba(0,0,0,0.28)' : '0 2px 6px rgba(0,0,0,0.16)',
-          transform: `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg) scale(${levantado ? 1.05 : 1})`,
+          transform: transformPapel,
           transition: 'transform 160ms ease-out, box-shadow 160ms ease-out',
         }}
       >
@@ -320,7 +342,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
           post-it) y siempre del mismo tamaño y distancia a la vista, aunque haya zoom (1.9.8, Josué). El ancla mide 0 y
           está en la esquina; dentro, todo va "des-ampliado". */}
       {!soloVer && <>
-      <div className="absolute right-0 bottom-0 w-0 h-0 z-20" style={{ transform: `scale(${1 / escala})`, transformOrigin: '0 0' }}>
+      <div ref={anclaTirador} className="absolute right-0 bottom-0 w-0 h-0 z-20" style={{ transform: transformAncla, transformOrigin: '0 0' }}>
         <div {...tirador} aria-label="Tamaño"
              className="absolute rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
              style={{ left: TIRADOR_SEP, top: TIRADOR_SEP, width: TIRADOR_TAM, height: TIRADOR_TAM, touchAction: 'none', opacity: abierta ? 1 : 0, pointerEvents: abierta ? 'auto' : 'none', transition: 'opacity 160ms ease-out' }}>
