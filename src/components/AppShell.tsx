@@ -74,10 +74,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   ];
 
   return (
-    // (1.19.1, Josué) 100dvh y no min-h-screen (100vh): en Android, al recargar, a veces 100vh se calculaba antes de
-    // descontar las barras del sistema y la página quedaba unos píxeles más alta que la pantalla (Ajustes se deslizaba
-    // arriba y abajo con la barrita a la derecha, "a veces sí, a veces no").
-    <div className="flex flex-col min-h-[100dvh] bg-background">
+    // (1.19.8, Josué) Pegado a los bordes REALES de la ventana (fixed inset-0), sin alto calculado: en Android, al
+    // recargar, a veces el alto (100vh y también 100dvh) se calculaba contando la barra de estado y toda la página
+    // quedaba ~40 px más alta que la pantalla (Ajustes se deslizaba arriba y abajo con la barrita; video de Josué).
+    // Así la página nunca es más alta que la pantalla; cada pantalla se desplaza por dentro, como siempre.
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
       {/* Safe area top padding instead of header bar */}
       <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
       {/* Computador: cada pantalla decide su ancho (Josué, 1.4.8). Ajustes, Crear y Administración en una columna
