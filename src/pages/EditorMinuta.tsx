@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { espacioActual, useEspacios } from '@/lib/espacios';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, HandCoins, Link2, Loader2, Plus, Search, Type, Unlink, X, ImageIcon } from 'lucide-react';
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Hand, Link2, Loader2, Plus, Search, Type, Unlink, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -554,22 +554,25 @@ export default function EditorMinuta() {
                     </div>
                   )}
                 </div>
-                {/* (1.18.2, Josué) Sin X ni flechas: se borra deslizando y se ordena manteniendo presionado. */}
-                {!esMarcador(c) && (
-                  <button onClick={() => alternarOfrenda(c._k!)} aria-pressed={!!c.ofrenda} aria-label={t.editor_ofrenda} title={t.editor_ofrenda}
-                          className="tap-btn p-1.5 shrink-0">
-                    <span className={`w-7 h-7 rounded-md border flex items-center justify-center ${
-                      c.ofrenda ? 'bg-ofrenda border-ofrenda text-white' : 'border-border text-muted-foreground'}`}
-                          style={{ transition: 'background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out' }}>
-                      <HandCoins size={15} />
-                    </span>
-                  </button>
-                )}
+                {/* (1.18.2, Josué) Sin X ni flechas: se borra deslizando y se ordena manteniendo presionado.
+                    (1.19.2) Unir/separar (solo en algunas filas) a la IZQUIERDA y la ofrenda siempre al extremo derecho:
+                    así los cuadraditos de ofrenda quedan todos en una misma columna. */}
                 {c.groupedWith && (
                   <button onClick={() => separar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_ungroup}><Unlink size={16} /></button>
                 )}
                 {puedeAgrupar(i) && (
                   <button onClick={() => agrupar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_group}><Link2 size={16} /></button>
+                )}
+                {!esMarcador(c) && (
+                  <button onClick={() => alternarOfrenda(c._k!)} aria-pressed={!!c.ofrenda} aria-label={t.editor_ofrenda} title={t.editor_ofrenda}
+                          className="tap-btn p-1.5 shrink-0">
+                    {/* (1.19.2, Josué) Solo la mano (sin monedas). Marcado: amarillo suave con la mano en café oscuro. */}
+                    <span className={`w-7 h-7 rounded-md border flex items-center justify-center ${
+                      c.ofrenda ? 'bg-ofrenda border-ofrenda text-[#4A3800]' : 'border-border text-muted-foreground'}`}
+                          style={{ transition: 'background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out' }}>
+                      <Hand size={15} />
+                    </span>
+                  </button>
                 )}
               </div>
             </FilaDeslizable>

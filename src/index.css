@@ -58,7 +58,8 @@
     /* Especial (1.13.0, Josué): azul tirado a celeste. */
     --especial: 201 80% 43%;
     /* (1.18.2, Josué) Ofrenda: amarillo (aviso arriba de la alabanza). Texto libre: naranjo suave, cálido. */
-    --ofrenda: 44 92% 42%;
+    /* (1.19.2, Josué) Más claro y tranquilo (antes 44 92% 42%, se veía intenso y oscuro). */
+    --ofrenda: 46 78% 54%;
     --nota: 24 80% 52%;
     --preview-badge: 45 80% 55%;
 
@@ -108,7 +109,7 @@
     --palabra: 120 20% 50%;
     --oracion: 120 20% 50%;
     --especial: 201 75% 64%;
-    --ofrenda: 46 90% 58%;
+    --ofrenda: 48 72% 68%;
     --nota: 24 85% 66%;
     --preview-badge: 45 70% 50%;
 
