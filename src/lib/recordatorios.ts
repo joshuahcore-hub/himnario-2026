@@ -132,7 +132,9 @@ export function useRecordatorios(registrado: boolean, minutaId: string | null = 
  * paraId null = para mí; para = datos de esa persona (nombre y color, para mostrarlo ya).
  */
 export async function guardarRecordatorio(
-  datos: { anterior: Recordatorio | null; himno: number; texto: string; paraId: string | null; para?: Persona | null; minuta: string | null },
+  datos: { anterior: Recordatorio | null; himno: number; texto: string; paraId: string | null; para?: Persona | null; minuta: string | null;
+    /** (1.17.15) Al crear: dónde y de qué tamaño (p. ej. al enviar uno mío que ya estaba ubicado). */
+    pos?: Pos | null; tam?: number | null },
   registrado: boolean,
 ) {
   const { anterior, himno, texto, paraId, minuta } = datos;
@@ -168,14 +170,16 @@ export async function guardarRecordatorio(
     }
     return;
   }
+  const { pos = null, tam = null } = datos;
   const temporal: Recordatorio = {
     id: 'tmp-' + crypto.randomUUID(), himno, texto, minuta, estado: 'enviado', creado: new Date().toISOString(), mio: true, autor: null, para,
+    pos, tam, ...(para ? { posPara: pos, tamPara: tam } : {}),
   };
   fijarServidor([...delServidor, temporal]);
   try {
     // titulo_himno: para el aviso a quien lo recibe ("X te dejó un recordatorio en «49 Me hablaron de Dios»").
     const titulo_himno = getHymns().hymns.find(h => h.hymn_number === himno)?.title ?? titulosVirtuales.get(himno) ?? '';
-    const r = await api<Recordatorio>('recordatorios', { metodo: 'POST', datos: { himno, texto, para: paraId, minuta, titulo_himno } });
+    const r = await api<Recordatorio>('recordatorios', { metodo: 'POST', datos: { himno, texto, para: paraId, minuta, titulo_himno, pos, tam } });
     fijarServidor(delServidor.map(x => (x.id === temporal.id ? r : x)));
   } catch (e) {
     fijarServidor(delServidor.filter(x => x.id !== temporal.id));

@@ -786,8 +786,13 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
     const cuantos = await env.DB.prepare('SELECT COUNT(*) AS n FROM recordatorios WHERE autor_id = ?').bind(yo.id).first<{ n: number }>();
     if ((cuantos?.n ?? 0) >= MAX_RECORDATORIOS_AUTOR) throw new ErrorApi(429, 'Tienes demasiados recordatorios. Borra algunos.');
     const nuevo = crypto.randomUUID(), t = ahora();
-    await env.DB.prepare('INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, creado, actualizado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(nuevo, himno, yo.id, para, texto, minuta, t, t).run();
+    // (1.17.15, Josué) Puede venir con posición y tamaño (al enviar uno que ya estaba ubicado): así le aparece a la otra
+    // persona en ese mismo lugar y, en "Enviados", se ve ahí mientras ella no lo mueva.
+    const valido = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= -5 && v <= 5;
+    const pos = body.pos && valido(body.pos.x) && valido(body.pos.y) ? body.pos : null;
+    const tam = typeof body.tam === 'number' && body.tam >= 0.3 && body.tam <= 4 ? body.tam : null;
+    await env.DB.prepare('INSERT INTO recordatorios (id, himno, autor_id, para_id, texto, minuta_id, creado, actualizado, pos_x, pos_y, tam) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(nuevo, himno, yo.id, para, texto, minuta, t, t, pos?.x ?? null, pos?.y ?? null, tam).run();
     const f = await env.DB.prepare(`${SELECT_RECORDATORIOS} WHERE r.id = ?`).bind(nuevo).first();
     if (para && para !== yo.id) {
       const titulo = typeof body.titulo_himno === 'string' ? body.titulo_himno.slice(0, 80) : '';

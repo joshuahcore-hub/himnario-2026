@@ -870,8 +870,10 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
         trabajos.push(guardarRecordatorio({ ...base, anterior: modo === 'nuevo' ? null : ant, paraId: null }, registrado));
       }
       // Y una copia para cada persona elegida.
+      // (1.17.15, Josué) Si es uno mío que ya estaba ubicado, la copia va en ESE lugar y de ese tamaño.
+      const ubicacion = modo === 'mio' && ant ? { pos: ant.pos ?? null, tam: ant.tam ?? null } : {};
       for (const id of enviaA) {
-        trabajos.push(guardarRecordatorio({ ...base, anterior: null, paraId: id, para: personas.find(p => p.id === id) ?? null }, registrado));
+        trabajos.push(guardarRecordatorio({ ...base, ...ubicacion, anterior: null, paraId: id, para: personas.find(p => p.id === id) ?? null }, registrado));
       }
     }
     Promise.all(trabajos).catch(avisarError);
