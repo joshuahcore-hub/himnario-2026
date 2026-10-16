@@ -27,7 +27,21 @@ const Punto = ({ color }: { color: string }) => (
 
 /** Símbolos en vez de texto (1.13.3, Josué): ojo, flecha arriba, flecha abajo y corchea; íconos de LÍNEA, todos del
  *  mismo estilo, sin papel amarillo. Se guardan como texto "::nombre::" (no hace falta otra columna). */
-export const SIMBOLOS = { ojo: Eye, arriba: ArrowUp, abajo: ArrowDown, corchea: Music2 } as const;
+/** (1.17.10, Josué) "Ojo" = DOS ojitos que miran hacia el lado (como el emoji 👀), de línea como los demás: el ojo
+ *  solo se veía raro. Mismo formato que los íconos de lucide (size, strokeWidth, className). */
+function Ojitos({ size = 24, strokeWidth = 1.6, className = '' }: { size?: number; strokeWidth?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth}
+         strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <ellipse cx="7.6" cy="12" rx="4.3" ry="6.2" />
+      <ellipse cx="16.4" cy="12" rx="4.3" ry="6.2" />
+      <circle cx="9.3" cy="12.6" r="2" fill="currentColor" stroke="none" />
+      <circle cx="18.1" cy="12.6" r="2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export const SIMBOLOS = { ojo: Ojitos, arriba: ArrowUp, abajo: ArrowDown, corchea: Music2 } as const;
 export type Simbolo = keyof typeof SIMBOLOS;
 export const simboloDe = (texto: string): Simbolo | null => {
   const m = texto.match(/^::(ojo|arriba|abajo|corchea)::$/);
