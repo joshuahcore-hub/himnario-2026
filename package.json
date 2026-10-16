@@ -1,7 +1,7 @@
 {
   "name": "himnario-2026",
   "private": true,
-  "version": "1.17.13",
+  "version": "1.17.14",
   "type": "module",
   "scripts": {
     "dev": "vite",
