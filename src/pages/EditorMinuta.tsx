@@ -528,6 +528,9 @@ export default function EditorMinuta() {
               <div className={`flex items-center gap-0.5 rounded-lg border pl-2 pr-1 py-2.5 animate-in fade-in slide-in-from-bottom-1 duration-200 ${
                 c.found === false ? 'border-destructive/50 bg-destructive/5' : 'border-border bg-card'
               }`}>
+                {/* (1.19.3, Josué) Todas las filas con el MISMO alto de antes (cuando tenían X y flechas de 32 px): sin
+                    esto Palabra/Especial/Texto quedaban más delgadas que las alabanzas. */}
+                <span aria-hidden className="h-8 w-0 shrink-0" />
                 <div className="flex-1 min-w-0">
                   {c.isPalabra ? (
                     <span className="text-palabra text-sm font-semibold pl-6">{t.portada_palabra}</span>
@@ -565,7 +568,7 @@ export default function EditorMinuta() {
                 )}
                 {!esMarcador(c) && (
                   <button onClick={() => alternarOfrenda(c._k!)} aria-pressed={!!c.ofrenda} aria-label={t.editor_ofrenda} title={t.editor_ofrenda}
-                          className="tap-btn p-1.5 shrink-0">
+                          className="tap-btn p-0.5 shrink-0">
                     {/* (1.19.2, Josué) Solo la mano (sin monedas). Marcado: amarillo suave con la mano en café oscuro. */}
                     <span className={`w-7 h-7 rounded-md border flex items-center justify-center ${
                       c.ofrenda ? 'bg-ofrenda border-ofrenda text-[#4A3800]' : 'border-border text-muted-foreground'}`}
