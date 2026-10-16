@@ -51,6 +51,13 @@ export default function HymnalPage() {
     saveFilters(selectedKey, selectedTempo, search);
   }, [selectedKey, selectedTempo, search]);
 
+  const [orden, setOrdenEstado] = useState<'numerico' | 'alfabetico'>(() => {
+    try { return localStorage.getItem('himnario_orden') === 'alfabetico' ? 'alfabetico' : 'numerico'; } catch { return 'numerico'; }
+  });
+  const setOrden = (o: 'numerico' | 'alfabetico') => {
+    setOrdenEstado(o);
+    try { localStorage.setItem('himnario_orden', o); } catch { /* da igual */ }
+  };
   const filtered = useMemo(() => {
     let list = hymns;
 
@@ -73,8 +80,13 @@ export default function HymnalPage() {
       );
     }
 
+    // (1.18.0, Josué) Orden: numérico (como el himnario) o alfabético por título (sin tildes ni signos al inicio).
+    if (orden === 'alfabetico') {
+      const clave = (t: string) => normalizar(t).replace(/^[^a-z0-9]+/, '');
+      list = [...list].sort((a, b) => clave(a.title).localeCompare(clave(b.title), 'es') || a.hymn_number - b.hymn_number);
+    }
     return list;
-  }, [hymns, search, selectedKey, selectedTempo]);
+  }, [hymns, search, selectedKey, selectedTempo, orden]);
 
   useEffect(() => {
     setFilteredNumbers(filtered.map(h => h.hymn_number));
@@ -145,7 +157,20 @@ export default function HymnalPage() {
     >
       {/* Computador: más abierto que el celular pero sin llegar a los bordes (max-w-3xl) y la lista en 2 columnas. */}
       <div className="max-w-3xl mx-auto">
-      <h1 className="text-xl font-bold text-foreground mb-3">{t.hymnal_title}</h1>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h1 className="text-xl font-bold text-foreground">{t.hymnal_title}</h1>
+        {/* (1.18.0, Josué) Ordenar: Numérico / Alfabético, arriba a la derecha (se recuerda en el celular). */}
+        <div role="radiogroup" aria-label={t.hymnal_ordenar} className="relative grid grid-cols-2 rounded-full bg-muted p-0.5 text-[12px] font-medium">
+          <span aria-hidden className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-card shadow-sm"
+                style={{ transform: orden === 'alfabetico' ? 'translateX(100%)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+          {(['numerico', 'alfabetico'] as const).map(o => (
+            <BotonSeguro key={o} role="radio" aria-checked={orden === o} onClick={() => setOrden(o)}
+                         className={`relative px-3 h-7 rounded-full transition-colors duration-200 ${orden === o ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {o === 'numerico' ? t.hymnal_orden_numerico : t.hymnal_orden_alfabetico}
+            </BotonSeguro>
+          ))}
+        </div>
+      </div>
 
       <div className="flex gap-2 mb-3">
         <div className="relative flex-1">

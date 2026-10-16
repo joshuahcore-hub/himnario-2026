@@ -9,6 +9,9 @@ export interface Translations {
 
   // Hymnal
   hymnal_title: string;
+  hymnal_ordenar: string;
+  hymnal_orden_numerico: string;
+  hymnal_orden_alfabetico: string;
   hymnal_search_placeholder: string;
   hymnal_loading: string;
   hymnal_no_results: string;
@@ -387,6 +390,9 @@ export const es: Translations = {
   tab_settings: 'Ajustes',
 
   hymnal_title: 'Himnario',
+  hymnal_ordenar: 'Ordenar',
+  hymnal_orden_numerico: 'Numérico',
+  hymnal_orden_alfabetico: 'Alfabético',
   hymnal_search_placeholder: 'Buscar por nombre o número',
   hymnal_loading: 'Cargando himnario...',
   hymnal_no_results: 'No se encontraron himnos',
@@ -759,6 +765,9 @@ export const en: Translations = {
   tab_settings: 'Settings',
 
   hymnal_title: 'Hymnal',
+  hymnal_ordenar: 'Sort',
+  hymnal_orden_numerico: 'Numeric',
+  hymnal_orden_alfabetico: 'Alphabetical',
   hymnal_search_placeholder: 'Search by name or number',
   hymnal_loading: 'Loading hymnal...',
   hymnal_no_results: 'No hymns found',
@@ -1131,6 +1140,9 @@ export const pt: Translations = {
   tab_settings: 'Ajustes',
 
   hymnal_title: 'Hinário',
+  hymnal_ordenar: 'Ordenar',
+  hymnal_orden_numerico: 'Numérico',
+  hymnal_orden_alfabetico: 'Alfabética',
   hymnal_search_placeholder: 'Buscar por nome ou número',
   hymnal_loading: 'Carregando hinário...',
   hymnal_no_results: 'Nenhum hino encontrado',
