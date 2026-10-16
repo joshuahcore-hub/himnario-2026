@@ -47,11 +47,11 @@ export function armarCadena(lista: ParsedSong[]): ParsedSong {
 /** (1.18.2, Josué) Títulos que son una CITA (Hebreos 13:8, Salmo 18…): en la portada llevan cómo empieza la letra. */
 export const esCita = (titulo: string) => /^\d?\s?\p{L}+\s+\d+([:.]\d+(-\d+)?)?$/u.test(titulo.trim());
 
-/** Comienzo de la letra para una cita: las primeras palabras y "…". */
-export function comienzoLetra(primera: string | null | undefined, palabras = 6): string | null {
+/** Comienzo de la letra para una cita: las primeras palabras (sin "…": lo pone quien lo muestra, pegado a la última). */
+export function comienzoLetra(primera: string | null | undefined, palabras = 6): string[] | null {
   if (!primera) return null;
-  const p = primera.replace(/[,;.:!?¡¿]+$/, '').split(/\s+/).filter(Boolean);
-  return p.slice(0, palabras).join(' ').replace(/[,;:.]+$/, '') + '…';
+  const p = primera.split(/\s+/).filter(Boolean).slice(0, palabras);
+  return p.length ? p : null;
 }
 
 /** "Especial Javiera" (sin punto, pedido de Josué). */

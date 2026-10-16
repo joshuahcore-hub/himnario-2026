@@ -57,6 +57,32 @@ function Corchete({ children, compact }: { children: React.ReactNode; compact: b
   );
 }
 
+/** (1.19.6, Josué) "(Jesucristo es el mismo de…)": si no cabe se quitan PALABRAS completas, así los "…" van siempre
+ *  pegados a la última palabra (sin espacio) y el paréntesis siempre se cierra. */
+function Comienzo({ palabras }: { palabras: string[] }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [n, setN] = useState(palabras.length);
+  const ancho = useRef(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.scrollWidth > el.clientWidth + 0.5 && n > 1) setN(n - 1);
+  });
+  useLayoutEffect(() => {
+    const el = ref.current?.parentElement;
+    if (!el) return;
+    // Si cambia el ancho (girar, otra pantalla), se vuelve a probar desde todas las palabras.
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      if (Math.abs(w - ancho.current) > 1) { ancho.current = w; setN(palabras.length); }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [palabras.length]);
+  const texto = palabras.slice(0, n).join(' ').replace(/[,;:.!?¡¿]+$/, '');
+  return <span ref={ref} className="min-w-0 overflow-hidden whitespace-nowrap italic text-muted-foreground/80">({texto}…)</span>;
+}
+
 /** Lista de cantos de la portada. En la tarjeta (compact) una minuta muy larga se corta y termina en "⋯" (1.18.2). */
 function ListaCantos({ compact, children }: { compact: boolean; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -94,7 +120,7 @@ export default function Portada({ date, songs, compact = false, creador, editor,
         <span data-num className="text-muted-foreground font-medium shrink-0">{position} -</span>
         {/* Con cita, el título no se parte: lo que se acorta es el paréntesis. */}
         <span className={`text-foreground font-medium ${comienzo ? 'shrink-0' : ''}`}>{s.title}</span>
-        {comienzo && <span className="min-w-0 truncate italic text-muted-foreground/80">({comienzo})</span>}
+        {comienzo && <Comienzo palabras={comienzo} />}
         {s.key && <span translate="no" className="text-hymn-key font-semibold shrink-0 ml-1">{s.key}</span>}
         {s.hymnNumber && <span className="text-hymn-number font-medium shrink-0">({s.hymnNumber})</span>}
         {s.found === false && <span className="text-muted-foreground text-[10px] italic ml-1 self-center">{t.portada_not_found}</span>}
