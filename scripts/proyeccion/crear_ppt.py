@@ -58,7 +58,10 @@ def main():
             inicio = cuerpo[: cuerpo.index("<a:p>")]
             # Sin "ajustar al cuadro" de PowerPoint: achicaba cada diapositiva distinto. El tamaño ya viene parejo.
             inicio = re.sub(r"<a:normAutofit[^>]*/>|<a:normAutofit[^>]*>.*?</a:normAutofit>", "<a:noAutofit/>", inicio, flags=re.S)
+            # CENTRADO de arriba a abajo (Josué, 16-10-2026): el cuadro ocupa todo el alto y el texto va al medio.
+            inicio = re.sub(r"<a:bodyPr\b([^>]*?)(/?)>", lambda m: "<a:bodyPr" + re.sub(r'\sanchor="[^"]*"', "", m.group(1)) + ' anchor="ctr"' + m.group(2) + ">", inicio, count=1)
             nuevo = plantilla.replace(cuerpo, inicio + "".join(ps) + "</p:txBody>")
+            nuevo = re.sub(r'(<p:spPr><a:xfrm><a:off x="\d+" y=")\d+("/><a:ext cx="\d+" cy=")\d+(")', r"\g<1>228600\g<2>6400800\g<3>", nuevo, count=1)
             nuevos[f"ppt/slides/slide{k}.xml"] = nuevo.encode("utf-8")
             if k > 2:
                 nuevos[f"ppt/slides/_rels/slide{k}.xml.rels"] = rels2.encode("utf-8")
