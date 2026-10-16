@@ -83,14 +83,16 @@ export function DialogEspecial({ abierto, nombreInicial, imagenInicial = null, n
   const listo = () => onListo(nombre.trim(), imagen);
   return (
     <Dialog open={abierto} onOpenChange={o => { if (!o) onCerrar(); }}>
-      <DialogContent capa="z-[70]" className="max-w-[340px] rounded-2xl gap-3 max-h-[92dvh] overflow-y-auto">
+      {/* (1.19.7, Josué) Al EDITAR no se abre el teclado solo (al agregar sí, para escribir al tiro). */}
+      <DialogContent capa="z-[70]" className="max-w-[340px] rounded-2xl gap-3 max-h-[92dvh] overflow-y-auto"
+                     onOpenAutoFocus={e => { if (!nuevo) e.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle className="text-base text-especial">{t.especial}</DialogTitle>
           <DialogDescription className="sr-only">{t.especial_nombre}</DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-2 rounded-lg bg-[hsl(var(--campo))] border-[0.5px] border-input px-3 h-11">
           <span className="text-especial font-semibold text-sm shrink-0">{t.especial}</span>
-          <input autoFocus value={nombre} onChange={e => setNombre(e.target.value.slice(0, 40))} placeholder={t.especial_nombre}
+          <input autoFocus={nuevo} value={nombre} onChange={e => setNombre(e.target.value.slice(0, 40))} placeholder={t.especial_nombre}
                  onKeyDown={e => { if (e.key === 'Enter') listo(); }}
                  className="flex-1 min-w-0 bg-transparent outline-none text-sm font-semibold text-especial placeholder:font-normal placeholder:text-muted-foreground/55" />
         </div>
@@ -182,7 +184,9 @@ export function DialogFuera({ abierto, inicial, nuevo, idGuardada = null, espera
 
   return (
     <Dialog open={abierto} onOpenChange={o => { if (!o && !guardando) onCerrar(); }}>
-      <DialogContent capa="z-[70]" className="max-w-[380px] rounded-2xl gap-3 max-h-[92dvh] overflow-y-auto">
+      {/* (1.19.7, Josué) Al EDITAR no se abre el teclado solo (antes el panel aparecía y saltaba hacia arriba). */}
+      <DialogContent capa="z-[70]" className="max-w-[380px] rounded-2xl gap-3 max-h-[92dvh] overflow-y-auto"
+                     onOpenAutoFocus={e => { if (!nuevo) e.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle className="text-base">{t.fuera_titulo}</DialogTitle>
           <DialogDescription className="text-xs">{t.fuera_texto}</DialogDescription>
@@ -236,13 +240,14 @@ export function DialogTexto({ abierto, textoInicial, nuevo, onListo, onCerrar }:
   const quedan = MAX_TEXTO - texto.length;
   return (
     <Dialog open={abierto} onOpenChange={o => { if (!o) onCerrar(); }}>
-      <DialogContent capa="z-[70]" className="max-w-[340px] rounded-2xl gap-3">
+      <DialogContent capa="z-[70]" className="max-w-[340px] rounded-2xl gap-3"
+                     onOpenAutoFocus={e => { if (!nuevo) e.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle className="text-base text-nota">{t.texto_titulo}</DialogTitle>
           <DialogDescription className="sr-only">{t.texto_placeholder}</DialogDescription>
         </DialogHeader>
         <div className="relative">
-          <textarea autoFocus value={texto} rows={3} placeholder={t.texto_placeholder}
+          <textarea autoFocus={nuevo} value={texto} rows={3} placeholder={t.texto_placeholder}
                     onChange={e => setTexto(e.target.value.replace(/\n/g, ' ').slice(0, MAX_TEXTO))}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); listo(); } }}
                     className="w-full resize-none rounded-lg bg-[hsl(var(--campo))] border-[0.5px] border-input px-3 py-2.5 text-sm font-medium text-nota outline-none placeholder:font-normal placeholder:text-muted-foreground/55" />
