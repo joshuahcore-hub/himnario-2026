@@ -188,11 +188,12 @@ export function DialogFuera({ abierto, inicial, nuevo, idGuardada = null, espera
           <DialogDescription className="text-xs">{t.fuera_texto}</DialogDescription>
         </DialogHeader>
         <Input autoFocus={nuevo} value={titulo} onChange={e => setTitulo(e.target.value.slice(0, 80))} placeholder={t.fuera_nombre} className="h-10 text-sm" />
-        <div className="flex items-center justify-between gap-2 -mb-1">
-          <p className="text-[11px] text-muted-foreground">{t.fuera_tonalidad}</p>
+        {/* (1.19.5, Josué) Tonalidad a la izquierda y Lenta | Rápida a la derecha, uno al lado del otro y centrados
+            (sin la palabra "Tonalidad"). */}
+        <div className="flex items-center justify-center gap-6 py-1">
+          <TonalityPicker selectedKey={tonalidad} onChange={setTonalidad} />
           <SelectorTempo valor={tempo} onCambiar={setTempo} />
         </div>
-        <TonalityPicker selectedKey={tonalidad} onChange={setTonalidad} />
         <p className="text-[11px] text-muted-foreground -mb-1">{t.fuera_imagen}</p>
         <ElegirImagen imagen={imagen} onCambiar={setImagen} onSubiendo={setSubiendo} />
         {/* Botones de abajo; con "Eliminar" la pregunta aparece en el mismo lugar (el panel no cambia de alto). */}
