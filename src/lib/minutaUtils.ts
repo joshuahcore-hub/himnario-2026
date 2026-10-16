@@ -21,11 +21,38 @@ export const especial = (nombre: string): ParsedSong =>
   ({ position: 0, title: 'ESPECIAL', key: null, hymnNumber: null, found: true, isEspecial: true, nombre: nombre.trim() });
 
 /** (1.13.0) Alabanza fuera del himnario. */
-export const cantoFuera = (titulo: string, tonalidad: string | null, imagen: string | null): ParsedSong =>
-  ({ position: 0, title: titulo.trim(), key: tonalidad || null, hymnNumber: null, found: true, fuera: true, imagen });
+export const cantoFuera = (titulo: string, tonalidad: string | null, imagen: string | null, tempo: 'lenta' | 'rapida' | null = null): ParsedSong =>
+  ({ position: 0, title: titulo.trim(), key: tonalidad || null, hymnNumber: null, found: true, fuera: true, imagen, ...(tempo ? { tempo } : {}) });
 
-/** Palabra, Oración y Especial: no son alabanzas (no llevan número). */
-export const esMarcador = (c: ParsedSong) => !!(c.isPalabra || c.isOracion || c.isEspecial);
+/** (1.18.2) Texto libre (lo que se quiera escribir entre medio). */
+export const MAX_TEXTO = 120;
+export const textoLibre = (texto: string): ParsedSong =>
+  ({ position: 0, title: 'TEXTO', key: null, hymnNumber: null, found: true, isTexto: true, texto: texto.trim().slice(0, MAX_TEXTO) });
+
+/** Palabra, Oración, Especial y Texto: no son alabanzas (no llevan número). */
+export const esMarcador = (c: ParsedSong) => !!(c.isPalabra || c.isOracion || c.isEspecial || c.isTexto);
+
+/** (1.18.2) Las alabanzas de un grupo en orden: la principal y las unidas a ella (cada una sin su `groupedWith`). */
+export function cadena(c: ParsedSong): ParsedSong[] {
+  const r: ParsedSong[] = [];
+  for (let x: ParsedSong | null | undefined = c; x; x = x.groupedWith) r.push({ ...x, groupedWith: null });
+  return r;
+}
+
+/** Vuelve a armar un grupo a partir de su lista (la primera lleva a las demás). */
+export function armarCadena(lista: ParsedSong[]): ParsedSong {
+  return lista.reduceRight<ParsedSong | null>((sig, x) => ({ ...x, groupedWith: sig }), null)!;
+}
+
+/** (1.18.2, Josué) Títulos que son una CITA (Hebreos 13:8, Salmo 18…): en la portada llevan cómo empieza la letra. */
+export const esCita = (titulo: string) => /^\d?\s?\p{L}+\s+\d+([:.]\d+(-\d+)?)?$/u.test(titulo.trim());
+
+/** Comienzo de la letra para una cita: las primeras palabras y "…". */
+export function comienzoLetra(primera: string | null | undefined, palabras = 6): string | null {
+  if (!primera) return null;
+  const p = primera.replace(/[,;.:!?¡¿]+$/, '').split(/\s+/).filter(Boolean);
+  return p.slice(0, palabras).join(' ').replace(/[,;:.]+$/, '') + '…';
+}
 
 /** "Especial Javiera" (sin punto, pedido de Josué). */
 export const textoEspecial = (c: ParsedSong, palabra = 'Especial') => (c.nombre ? `${palabra} ${c.nombre}` : palabra);
@@ -36,7 +63,7 @@ export function renumerar(cantos: ParsedSong[]): ParsedSong[] {
   return cantos.map(c => {
     if (esMarcador(c)) return { ...c, position: 0 };
     const r = { ...c, position: n, isGrouped: !!c.groupedWith };
-    n += c.groupedWith ? 2 : 1;
+    n += cadena(c).length;
     return r;
   });
 }
@@ -59,9 +86,10 @@ export function textoParaCompartir(m: Pick<MinutaData, 'id' | 'titulo' | 'fecha'
     if (c.isPalabra) lineas.push('— PALABRA —');
     else if (c.isOracion) lineas.push('— ORACIÓN —');
     else if (c.isEspecial) lineas.push(`— ${textoEspecial(c, 'ESPECIAL')} —`);
+    else if (c.isTexto) lineas.push(`— ${c.texto ?? ''} —`);
     else {
-      lineas.push(linea(c, c.position));
-      if (c.groupedWith) lineas.push(linea(c.groupedWith, c.position + 1));
+      if (c.ofrenda) lineas.push('— OFRENDA —');
+      cadena(c).forEach((x, k) => lineas.push(linea(x, c.position + k)));
     }
   }
   lineas.push('', `${origen}/minuta/${m.id}`);

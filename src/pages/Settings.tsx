@@ -44,7 +44,10 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="px-5 pt-4 pb-24 space-y-5 overflow-y-auto w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - var(--barra))' }}>
+    // (1.18.2, Josué) pb-6 (antes pb-24): el alto ya descuenta la barra de abajo; con el relleno grande, cuando aparecía
+    // un instante "Preparando himnos…" con su barra (al recargar tras una versión nueva) la pantalla pasaba a ser
+    // desplazable sin tener nada más abajo.
+    <div className="px-5 pt-4 pb-6 space-y-5 overflow-y-auto w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - var(--barra))' }}>
       {/* Título y, a la derecha, el menú ⋮ con las opciones avanzadas (creador, perfil, administración). */}
       {/* relative z-30: el menú desplegado queda por encima de las tarjetas de abajo. */}
       <div className="relative z-30 [&:has([data-menu-abierto])]:z-[60] flex items-center justify-between">

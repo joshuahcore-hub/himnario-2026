@@ -17,7 +17,7 @@ import { claveVirtual, useRecordatorios, type Recordatorio } from '@/lib/recorda
 import { normalizarTitulo } from '@/lib/cancionesExtra';
 import { AcotacionesPostit, BotonEnviados, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
 import { getMinuta, guardarMinutaLocal } from '@/lib/minutaCache';
-import { renumerar } from '@/lib/minutaUtils';
+import { cadena, renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
@@ -84,6 +84,8 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
           <p className="text-sm font-semibold text-hymn-number">#{hymnNumber}</p>
           <h2 className="text-lg font-bold text-foreground">{song.title}</h2>
           {song.key && <p translate="no" className="font-semibold text-hymn-key">{song.key}</p>}
+          {/* (1.18.2, Josué) Ofrenda antes de esta alabanza: en amarillo, más cerca del título que de la letra. */}
+          {song.ofrenda && <p className="text-sm font-semibold text-ofrenda mt-0.5 -mb-1">{t.ofrenda}</p>}
         </div>
         {imgError ? (
           <div className="flex-1 flex items-center px-4 text-center">
@@ -119,6 +121,7 @@ function PaginaFuera({ canto, horizontal, postit }: { canto: ParsedSong; horizon
           <Music2 size={34} className="text-muted-foreground/60" />
           <span className="text-2xl font-semibold text-foreground">{canto.title}</span>
           {canto.key && <span translate="no" className="text-xl font-semibold text-hymn-key">{canto.key}</span>}
+          {canto.ofrenda && <span className="text-base font-semibold text-ofrenda">{t.ofrenda}</span>}
           <span className="text-xs text-muted-foreground mt-2">{t.fuera_no_esta}</span>
         </div>
       </PaginaTexto>
@@ -128,7 +131,7 @@ function PaginaFuera({ canto, horizontal, postit }: { canto: ParsedSong; horizon
   return (
     <MarcoImagenes key={canto.imagen} imagen={canto.imagen} titulo={canto.title} horizontal={horizontal} onError={() => setError(true)}
                    indice={postit.indice} onIndice={postit.onIndice} notas={postit.notas} enviados={postit.enviados} onTocarNota={postit.onTocar}
-                   cabecera={<CabeceraFuera titulo={canto.title} tono={canto.key} etiqueta={!canto.isEspecial} />} />
+                   cabecera={<CabeceraFuera titulo={canto.title} tono={canto.key} etiqueta={!canto.isEspecial} ofrenda={!!canto.ofrenda} />} />
   );
 }
 
@@ -160,7 +163,8 @@ function PaginaTexto({ horizontal, postit, children }: { horizontal: boolean; po
 
 /** Cada canto (y cada canto agrupado) es una página; PALABRA y ORACIÓN también. */
 function paginasDe(cantos: ParsedSong[]): ParsedSong[] {
-  return renumerar(cantos).flatMap(c => (c.groupedWith ? [c, c.groupedWith] : [c]));
+  // (1.18.2) Grupos de cualquier tamaño: cada alabanza unida es su propia página (la ofrenda va en la primera).
+  return renumerar(cantos).flatMap(c => cadena(c).map((x, k) => (k === 0 ? { ...c, groupedWith: null } : { ...x, position: c.position + k })));
 }
 
 export default function MinutaReader() {
@@ -381,6 +385,7 @@ export default function MinutaReader() {
     if (item.isPalabra) return claveVirtual('palabra', t.portada_palabra);
     if (item.isOracion) return claveVirtual('oracion', t.portada_oracion);
     if (item.isEspecial) return claveVirtual(`especial${sufijo}`, `${t.especial} ${item.nombre ?? ''}`.trim());
+    if (item.isTexto) return claveVirtual(`texto:${item.texto ?? ''}`, t.texto_titulo);
     if (item.fuera) return claveVirtual(`t:${normalizarTitulo(item.title)}${sufijo}`, item.title);
     return null;
   };
@@ -397,7 +402,7 @@ export default function MinutaReader() {
   const renderPage = (pageIdx: number, offset: number) => {
     if (pageIdx < 0 || pageIdx >= totalPages) return null;
     const item = itemAt(pageIdx);
-    const esCanto = !!item && !item.isPalabra && !item.isOracion && !item.isEspecial;
+    const esCanto = !!item && !item.isPalabra && !item.isOracion && !item.isEspecial && !item.isTexto;
     // key: cada página con su propio nodo (en horizontal cada una guarda su desplazamiento y empieza arriba).
     // La portada lleva su margen DENTRO del zoom: si no, al ampliarla se recortaba 20 px antes del borde (1.6.5).
     const portada = pageIdx === 0;
@@ -419,9 +424,10 @@ export default function MinutaReader() {
           // m-auto: centrada, y si no cabe (horizontal) empieza arriba en vez de cortarse.
           // Con zoom como las canciones (Josué, 1.6.4): pellizcar o doble toque; el zoom ocupa toda la página.
           <Zoomable className="w-full h-full" reiniciarCon={minuta.id}>
-            {/* Derecho: el gesto vertical es para salir (como en las canciones), no para desplazar la portada. */}
+            {/* (1.18.2, Josué) Una minuta muy larga se ve completa: la portada se desplaza hacia abajo (desde 1.9.4 el
+                gesto vertical ya no sale del lector). Deslizar al lado sigue llevando a la primera canción. */}
             <div className="h-full w-full flex overflow-y-auto p-5"
-                 style={{ overscrollBehavior: 'contain', touchAction: horizontal ? 'pan-y' : 'none' }}>
+                 style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}>
               <div className="w-full max-w-sm m-auto">
                 {/* (1.17.11, Josué) Post-it también en la portada: pegados donde se sueltan, como en las alabanzas;
                     girado, solo para ver (los sin mover, como acotación arriba). */}
@@ -457,6 +463,11 @@ export default function MinutaReader() {
               {item.nombre && <span className="text-2xl font-semibold text-especial">{item.nombre}</span>}
             </div>
           </PaginaTexto>
+        ) : item?.isTexto ? (
+          // (1.18.2, Josué) Texto libre: tal cual se escribió, en naranjo.
+          <PaginaTexto horizontal={horizontal} postit={postitDe(item, pageIdx)}>
+            <span className="px-6 text-center text-2xl font-semibold text-nota break-words">{item.texto}</span>
+          </PaginaTexto>
         ) : item?.fuera ? (
           <PaginaFuera canto={item} horizontal={horizontal} postit={postitDe(item, pageIdx)} />
         ) : item ? (
@@ -480,8 +491,9 @@ export default function MinutaReader() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onWheel={alRueda}
-        // Derecho: todo el gesto lo maneja la app (cambiar de página o salir arriba/abajo). Girado: pan-y para recorrer.
-        style={{ touchAction: horizontal ? 'pan-y' : 'none' }}
+        // Derecho: todo el gesto lo maneja la app (cambiar de página). Girado: pan-y para recorrer. (1.18.2) En la
+        // portada también pan-y: una minuta muy larga se recorre hacia abajo.
+        style={{ touchAction: horizontal || paginaVisible === 0 ? 'pan-y' : 'none' }}
       >
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
           {renderPage(currentPage - 1, -1)}

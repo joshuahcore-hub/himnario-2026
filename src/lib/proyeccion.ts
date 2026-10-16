@@ -4,7 +4,7 @@
 // la siguiente vez es inmediato.
 import { llaveDispositivo, ErrorDeRed } from '@/lib/api';
 import type { MinutaData, ParsedSong } from '@/lib/types';
-import { esMarcador, formatearFecha } from '@/lib/minutaUtils';
+import { cadena, esMarcador, formatearFecha } from '@/lib/minutaUtils';
 import { claveTitulo, type IndiceMaestro } from '@/lib/armarProyeccion';
 
 export interface MetaProyeccion { version: string; partes: number; bytes: number; indice: IndiceMaestro }
@@ -99,7 +99,7 @@ export function clavesDeMinuta(m: Pick<MinutaData, 'cantos'>): { clave: string; 
     if (esMarcador(c)) return;
     out.push({ clave: c.hymnNumber && c.found !== false ? String(c.hymnNumber) : claveTitulo(c.title), canto: c });
   };
-  for (const c of m.cantos) { agregar(c); if (c.groupedWith) agregar(c.groupedWith); }
+  for (const c of m.cantos) cadena(c).forEach(agregar); // (1.18.2) grupos de cualquier tamaño
   return out;
 }
 

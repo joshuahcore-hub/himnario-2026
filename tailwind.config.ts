@@ -55,6 +55,8 @@ export default {
         palabra: "hsl(var(--palabra))",
         oracion: "hsl(var(--oracion))",
         especial: "hsl(var(--especial))",
+        ofrenda: "hsl(var(--ofrenda))",
+        nota: "hsl(var(--nota))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

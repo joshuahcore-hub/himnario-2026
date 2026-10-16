@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { espacioActual, useEspacios } from '@/lib/espacios';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowDown, ArrowLeftRight, ArrowUp, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, HandCoins, Link2, Loader2, Plus, Search, Type, Unlink, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -12,9 +12,9 @@ import { useSalidaProtegida } from '@/hooks/useSalidaProtegida';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import { getHymns, normalizar } from '@/lib/hymnCache';
-import { cantoDesdeHimno, cantoFuera, esMarcador, especial, ORACION, PALABRA, renumerar } from '@/lib/minutaUtils';
-import { DialogEspecial, DialogFuera, type DatosFuera } from '@/components/DialogosMinuta';
-import { useCancionesExtra, normalizarTitulo } from '@/lib/cancionesExtra';
+import { armarCadena, cadena, cantoDesdeHimno, cantoFuera, esMarcador, especial, ORACION, PALABRA, renumerar, textoLibre } from '@/lib/minutaUtils';
+import { DialogEspecial, DialogFuera, DialogTexto, type DatosFuera } from '@/components/DialogosMinuta';
+import { buscarCancionExtra, useCancionesExtra, normalizarTitulo } from '@/lib/cancionesExtra';
 import { useAtrasCierra } from '@/lib/atras';
 import { getMinuta, guardarMinutaLocal, marcarParaEnfocar } from '@/lib/minutaCache';
 import { api, ErrorDeRed } from '@/lib/api';
@@ -46,8 +46,8 @@ export interface BorradorMinuta {
 }
 
 /** Buscador para añadir cantos: tocar uno lo marca (queda en verde); tocarlo de nuevo lo desmarca y lo quita. */
-/** Duración del cambio a verde al marcar un canto en el buscador. */
-const MARCAR_MS = 180;
+/** Duración del cambio a verde al marcar un canto en el buscador (1.18.2, Josué: más ágil; antes 180). */
+const MARCAR_MS = 110;
 
 /** Círculo + / ✓ del buscador (cambia de color y de ícono en un solo cambio suave). */
 function Circulo({ marcado }: { marcado: boolean }) {
@@ -120,7 +120,7 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
     const marcado = marcadosFuera.has(normalizarTitulo(c.titulo));
     return (
       <button key={c.id} type="button" aria-pressed={marcado}
-              onClick={() => (marcado ? onRemoveFuera(normalizarTitulo(c.titulo)) : onAdd(cantoFuera(c.titulo, c.tonalidad, c.imagen)))}
+              onClick={() => (marcado ? onRemoveFuera(normalizarTitulo(c.titulo)) : onAdd(cantoFuera(c.titulo, c.tonalidad, c.imagen, c.tempo ?? null)))}
               className="flex items-center gap-2 py-2.5 px-2 rounded-lg w-full text-left"
               style={{ WebkitTapHighlightColor: 'transparent', backgroundColor: marcado ? 'rgb(22 163 74 / 0.15)' : 'transparent',
                        transition: `background-color ${MARCAR_MS}ms ease-out` }}>
@@ -244,6 +244,7 @@ export default function EditorMinuta() {
   const location = useLocation();
   const { t } = useI18n();
   const { puedeEditar } = useAcceso();
+  useCancionesExtra(); // (1.18.2) trae la lista al día: al editar una alabanza fuera se reemplaza la guardada (no se duplica)
   const borrador = (location.state as { borrador?: BorradorMinuta } | null)?.borrador;
   const existente: MinutaData | undefined = id ? getMinuta(id) : undefined;
 
@@ -253,7 +254,9 @@ export default function EditorMinuta() {
   const [buscando, setBuscando] = useState(false);
   // (1.13.0) Cuadros de Especial y de alabanza fuera del himnario: k = fila que se edita (null = nueva).
   const [dlgEspecial, setDlgEspecial] = useState<{ abierto: boolean; k: number | null; nombre: string; imagen?: string | null }>({ abierto: false, k: null, nombre: '' });
-  const [dlgFuera, setDlgFuera] = useState<{ abierto: boolean; k: number | null; datos: DatosFuera }>({ abierto: false, k: null, datos: { titulo: '', tonalidad: null, imagen: null } });
+  const [dlgFuera, setDlgFuera] = useState<{ abierto: boolean; k: number | null; datos: DatosFuera; idGuardada?: string | null }>({ abierto: false, k: null, datos: { titulo: '', tonalidad: null, tempo: null, imagen: null } });
+  // (1.18.2) Texto libre: k = fila que se edita (null = nuevo).
+  const [dlgTexto, setDlgTexto] = useState<{ abierto: boolean; k: number | null; texto: string }>({ abierto: false, k: null, texto: '' });
   // Toque corto en una fila = editar (mantener presionado sigue siendo mover la fila).
   const toqueFila = useRef<{ x: number; y: number; t: number } | null>(null);
   const tocarFila = (c: Fila) => ({
@@ -263,7 +266,10 @@ export default function EditorMinuta() {
       toqueFila.current = null;
       if (!t0 || Date.now() - t0.t > 350 || Math.hypot(e.clientX - t0.x, e.clientY - t0.y) > 8) return;
       if (c.isEspecial) setDlgEspecial({ abierto: true, k: c._k!, nombre: c.nombre ?? '', imagen: c.imagen ?? null });
-      else if (c.fuera) setDlgFuera({ abierto: true, k: c._k!, datos: { titulo: c.title, tonalidad: c.key, imagen: c.imagen ?? null } });
+      else if (c.isTexto) setDlgTexto({ abierto: true, k: c._k!, texto: c.texto ?? '' });
+      // (1.18.2, Josué) Si está guardada, se edita ESA (cambiarle el título ya no crea otra en la lista).
+      else if (c.fuera) setDlgFuera({ abierto: true, k: c._k!, idGuardada: buscarCancionExtra(c.title)?.id ?? null,
+                                      datos: { titulo: c.title, tonalidad: c.key, tempo: c.tempo ?? buscarCancionExtra(c.title)?.tempo ?? null, imagen: c.imagen ?? null } });
     },
   });
   // Posición de la lista desde donde empiezan los cantos añadidos en la búsqueda abierta (se pueden desmarcar ahí mismo).
@@ -347,13 +353,6 @@ export default function EditorMinuta() {
     setTimeout(() => finRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
   };
 
-  const mover = (i: number, d: -1 | 1) => setCantos(prev => {
-    const j = i + d;
-    if (j < 0 || j >= prev.length) return prev;
-    const next = [...prev];
-    [next[i], next[j]] = [next[j], next[i]];
-    return next;
-  });
   // Por clave (no por posición): la fila puede borrarse al terminar su animación, cuando la lista ya cambió.
   const quitar = (clave: number) => setCantos(prev => prev.filter(c => c._k !== clave));
 
@@ -366,23 +365,28 @@ export default function EditorMinuta() {
     return prev;
   });
 
+  // (1.18.2, Josué) Unir sin límite: una alabanza (o un grupo) se une con la de abajo (o con su grupo) y quedan todas
+  // en el mismo recuadro. Separar deja cada una en su propia fila.
   const puedeAgrupar = (i: number) =>
-    !esMarcador(cantos[i]) && !cantos[i].groupedWith && i + 1 < cantos.length &&
-    !esMarcador(cantos[i + 1]) && !cantos[i + 1].groupedWith;
+    !esMarcador(cantos[i]) && i + 1 < cantos.length && !esMarcador(cantos[i + 1]);
 
   const agrupar = (i: number) => setCantos(prev => {
     const next = [...prev];
-    next[i] = { ...next[i], groupedWith: { ...next[i + 1], position: 0 } };
+    next[i] = { ...armarCadena([...cadena(next[i]), ...cadena(next[i + 1]).map(x => ({ ...x, position: 0, ofrenda: undefined }))]), _k: next[i]._k };
     next.splice(i + 1, 1);
     return next;
   });
 
   const separar = (i: number) => setCantos(prev => {
     const next = [...prev];
-    const { groupedWith, ...principal } = next[i];
-    next.splice(i, 1, { ...principal, groupedWith: null }, conClave({ ...groupedWith!, groupedWith: null }));
+    const [primera, ...resto] = cadena(next[i]);
+    next.splice(i, 1, { ...primera, _k: next[i]._k } as Fila, ...resto.map(x => conClave(x)));
     return next;
   });
+
+  // (1.18.2, Josué) Ofrenda antes de esta alabanza: se marca/desmarca con el cuadradito.
+  const alternarOfrenda = (clave: number) =>
+    setCantos(prev => prev.map(x => (x._k === clave ? { ...x, ofrenda: x.ofrenda ? undefined : true } : x)));
 
   // Guardar: la nueva queda privada (solo quien la crea); la existente conserva su visibilidad.
   // Publicar: guarda y la deja visible para todos.
@@ -431,7 +435,7 @@ export default function EditorMinuta() {
     if (lectura.fecha) setFecha(lectura.fecha);
     setTextoOriginal(texto);
     setModo('manual');
-    const total = lectura.cantos.filter(c => !esMarcador(c)).reduce((n, c) => n + (c.groupedWith ? 2 : 1), 0);
+    const total = lectura.cantos.filter(c => !esMarcador(c)).reduce((n, c) => n + cadena(c).length, 0);
     // Con la conclusión que sacó la app (p. ej. la raya = Oración porque es miércoles), para revisarla.
     (lectura.noEncontrados ? toast.warning : toast.success)(t.ia_review(total, lectura.noEncontrados), {
       description: lectura.notas.map(n => t.ia_note_separator(n.cual, n.dia, n.porCantos)).join(' ') || undefined,
@@ -504,14 +508,17 @@ export default function EditorMinuta() {
         </div>
 
         {/* Botones fijos arriba; lo que se agrega va apareciendo debajo, así los botones no se mueven. */}
-        <div className="grid grid-cols-4 gap-1.5">
+        {/* (1.18.2) Al final, "+ texto" (solo el ícono): un texto libre, en naranjo. */}
+        <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-1.5">
           <Button onClick={() => { setInicioBusqueda(cantos.length); setBuscando(true); }} className="gap-1 text-xs h-10 px-2">
-            <Plus size={14} />{t.editor_add_song}
+            <Plus size={14} className="shrink-0" />{t.editor_add_song}
           </Button>
-          <Button variant="outline" onClick={() => agregar({ ...PALABRA })} className="text-xs h-10 text-palabra">{t.portada_palabra}</Button>
-          <Button variant="outline" onClick={() => agregar({ ...ORACION })} className="text-xs h-10 text-oracion">{t.portada_oracion}</Button>
+          <Button variant="outline" onClick={() => agregar({ ...PALABRA })} className="text-xs h-10 px-1 text-palabra">{t.portada_palabra}</Button>
+          <Button variant="outline" onClick={() => agregar({ ...ORACION })} className="text-xs h-10 px-1 text-oracion">{t.portada_oracion}</Button>
           {/* (1.13.0) Especial: se abre al instante el cuadro para el nombre. */}
-          <Button variant="outline" onClick={() => setDlgEspecial({ abierto: true, k: null, nombre: '' })} className="text-xs h-10 text-especial">{t.especial}</Button>
+          <Button variant="outline" onClick={() => setDlgEspecial({ abierto: true, k: null, nombre: '' })} className="text-xs h-10 px-1 text-especial">{t.especial}</Button>
+          <Button variant="outline" onClick={() => setDlgTexto({ abierto: true, k: null, texto: '' })} aria-label={t.texto_boton} title={t.texto_boton}
+                  className="h-10 w-10 px-0 text-nota gap-0"><Plus size={11} strokeWidth={2.5} className="-mr-px" /><Type size={15} /></Button>
         </div>
 
         <div ref={reordenar.contenedorRef}>
@@ -533,23 +540,37 @@ export default function EditorMinuta() {
                       {c.nombre && <span className="text-especial font-semibold"> {c.nombre}</span>}
                       {c.imagen && <ImageIcon size={13} className="inline-block ml-1.5 text-muted-foreground align-[-2px]" />}
                     </div>
-                  ) : c.fuera ? (
-                    <div {...tocarFila(c)} className="cursor-pointer">{filaCanto(c, c.position)}</div>
+                  ) : c.isTexto ? (
+                    // (1.18.2) Texto libre: un toque lo edita.
+                    <div {...tocarFila(c)} className="pl-6 text-sm font-medium text-nota cursor-pointer break-words">{c.texto}</div>
                   ) : (
-                    <>
-                      {filaCanto(c, c.position)}
-                      {c.groupedWith && <div className="border-l-2 border-border ml-2 pl-1 mt-1">{filaCanto(c.groupedWith, c.position + 1)}</div>}
-                    </>
+                    // (1.18.2, Josué) Unidas: todas ALINEADAS en el mismo recuadro (sin raya ni la segunda corrida).
+                    <div className="space-y-1">
+                      {cadena(c).map((x, k) => (
+                        <div key={k} {...(k === 0 && c.fuera ? tocarFila(c) : {})} className={k === 0 && c.fuera ? 'cursor-pointer' : undefined}>
+                          {filaCanto(x, c.position + k)}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                {c.groupedWith ? (
+                {/* (1.18.2, Josué) Sin X ni flechas: se borra deslizando y se ordena manteniendo presionado. */}
+                {!esMarcador(c) && (
+                  <button onClick={() => alternarOfrenda(c._k!)} aria-pressed={!!c.ofrenda} aria-label={t.editor_ofrenda} title={t.editor_ofrenda}
+                          className="tap-btn p-1.5 shrink-0">
+                    <span className={`w-7 h-7 rounded-md border flex items-center justify-center ${
+                      c.ofrenda ? 'bg-ofrenda border-ofrenda text-white' : 'border-border text-muted-foreground'}`}
+                          style={{ transition: 'background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out' }}>
+                      <HandCoins size={15} />
+                    </span>
+                  </button>
+                )}
+                {c.groupedWith && (
                   <button onClick={() => separar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_ungroup}><Unlink size={16} /></button>
-                ) : puedeAgrupar(i) ? (
+                )}
+                {puedeAgrupar(i) && (
                   <button onClick={() => agrupar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_group}><Link2 size={16} /></button>
-                ) : null}
-                <button onClick={() => mover(i, -1)} disabled={i === 0} className="tap-btn p-2 text-muted-foreground disabled:opacity-20" aria-label={t.editor_up}><ArrowUp size={16} /></button>
-                <button onClick={() => mover(i, 1)} disabled={i === cantos.length - 1} className="tap-btn p-2 text-muted-foreground disabled:opacity-20" aria-label={t.editor_down}><ArrowDown size={16} /></button>
-                <button onClick={() => quitar(c._k!)} className="tap-btn p-2 text-muted-foreground hover:text-destructive" aria-label={t.minutas_delete}><X size={16} /></button>
+                )}
               </div>
             </FilaDeslizable>
           ))}
@@ -642,16 +663,23 @@ export default function EditorMinuta() {
           else setCantos(prev => prev.map(x => (x._k === dlgEspecial.k ? { ...x, nombre, imagen } : x)));
           setDlgEspecial(d => ({ ...d, abierto: false }));
         }} />
-      <DialogFuera abierto={dlgFuera.abierto} inicial={dlgFuera.datos} nuevo={dlgFuera.k === null}
+      <DialogFuera abierto={dlgFuera.abierto} inicial={dlgFuera.datos} nuevo={dlgFuera.k === null} idGuardada={dlgFuera.idGuardada}
         onCerrar={() => setDlgFuera(d => ({ ...d, abierto: false }))}
         onListo={d => {
-          if (dlgFuera.k === null) agregar(cantoFuera(d.titulo, d.tonalidad, d.imagen));
-          else setCantos(prev => prev.map(x => (x._k === dlgFuera.k ? { ...x, title: d.titulo, key: d.tonalidad, imagen: d.imagen } : x)));
+          if (dlgFuera.k === null) agregar(cantoFuera(d.titulo, d.tonalidad, d.imagen, d.tempo));
+          else setCantos(prev => prev.map(x => (x._k === dlgFuera.k ? { ...x, title: d.titulo, key: d.tonalidad, imagen: d.imagen, tempo: d.tempo } : x)));
           setDlgFuera(v => ({ ...v, abierto: false }));
+        }} />
+      <DialogTexto abierto={dlgTexto.abierto} textoInicial={dlgTexto.texto} nuevo={dlgTexto.k === null}
+        onCerrar={() => setDlgTexto(d => ({ ...d, abierto: false }))}
+        onListo={texto => {
+          if (dlgTexto.k === null) agregar(textoLibre(texto));
+          else setCantos(prev => prev.map(x => (x._k === dlgTexto.k ? { ...x, texto } : x)));
+          setDlgTexto(d => ({ ...d, abierto: false }));
         }} />
       {buscando && (
         <BuscadorCantos
-          onFuera={() => setDlgFuera({ abierto: true, k: null, datos: { titulo: '', tonalidad: null, imagen: null } })}
+          onFuera={() => setDlgFuera({ abierto: true, k: null, idGuardada: null, datos: { titulo: '', tonalidad: null, tempo: null, imagen: null } })}
           seleccionadosFuera={cantos.slice(inicioBusqueda).filter(c => c.fuera).map(c => normalizarTitulo(c.title))}
           onRemoveFuera={titulo => setCantos(prev => {
             for (let k = prev.length - 1; k >= inicioBusqueda; k--) {

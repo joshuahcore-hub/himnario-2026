@@ -11,11 +11,13 @@ import { AcotacionesPostit, NotasRecordatorio, vaSobreLetra } from '@/components
 import type { Recordatorio } from '@/lib/recordatorios';
 
 export const MAX_IMAGENES = 10;
+/** (1.18.2) Duración de la hoja que se va o vuelve (ágil, no lenta). */
+const HOJA_MS = 320;
 export const imagenesDe = (imagen?: string | null): string[] => (imagen ? imagen.split(',').filter(Boolean) : []);
 export const unirImagenes = (ids: string[]): string | null => (ids.length ? ids.slice(0, MAX_IMAGENES).join(',') : null);
 
 /** Título centrado, tonalidad en rojo debajo y la etiqueta "fuera del himnario" (como en el lector de minutas). */
-export function CabeceraFuera({ titulo, tono, etiqueta = true }: { titulo: string; tono: string | null; etiqueta?: boolean }) {
+export function CabeceraFuera({ titulo, tono, etiqueta = true, ofrenda = false }: { titulo: string; tono: string | null; etiqueta?: boolean; ofrenda?: boolean }) {
   const { t } = useI18n();
   return (
     <div className="text-center shrink-0 pt-4 px-4">
@@ -24,6 +26,8 @@ export function CabeceraFuera({ titulo, tono, etiqueta = true }: { titulo: strin
       <div className="flex flex-col items-center gap-1">
         {tono && <span translate="no" className="font-semibold text-hymn-key">{tono}</span>}
         {etiqueta && <span className="rounded-md border border-border px-1.5 py-px text-[10px] text-muted-foreground">{t.fuera_etiqueta}</span>}
+        {/* (1.18.2, Josué) Ofrenda antes de esta alabanza. */}
+        {ofrenda && <span className="text-sm font-semibold text-ofrenda">{t.ofrenda}</span>}
       </div>
     </div>
   );
@@ -43,7 +47,8 @@ export function MarcoImagenes({ imagen, titulo, cabecera, horizontal = false, al
   const [iPropio, setIPropio] = useState(0);
   const i = indice ?? iPropio;
   const setI = (f: (v: number) => number) => { const n = f(i); setIPropio(n); onIndice?.(n); };
-  const actual = ids[Math.min(i, ids.length - 1)];
+  const iVista = Math.min(i, ids.length - 1);
+  const actual = ids[iVista];
   // Las flechas no inician ni el deslizamiento entre canciones ni el zoom.
   const cortar = { onTouchStart: (e: React.TouchEvent) => e.stopPropagation(), onDoubleClick: (e: React.MouseEvent) => e.stopPropagation(),
                    onPointerDown: (e: React.PointerEvent) => e.stopPropagation() };
@@ -69,16 +74,40 @@ export function MarcoImagenes({ imagen, titulo, cabecera, horizontal = false, al
             <span className="absolute -top-2.5 left-3 bg-background px-1.5 text-[10px] text-muted-foreground">
               {t.fuera_imagen_subida}{ids.length > 1 && ` · ${i + 1}/${ids.length}`}
             </span>
-            {/* data-marco-letra: los post-it se ubican como fracción de la imagen (igual que sobre la letra). */}
-            <div data-marco-letra className="relative">
-              <img key={actual} src={urlImagen(actual)} alt={titulo} draggable={false} onError={onError}
-                   className={`block w-full rounded ${horizontal ? 'h-auto' : `${altoMax} object-contain`}`} />
-              {onTocarNota && !horizontal && (
-                <NotasRecordatorio notas={notas} enviados={enviados} onTocar={onTocarNota} className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />
-              )}
-              {onTocarNota && (
-                <NotasRecordatorio notas={horizontal ? notas.filter(vaSobreLetra) : notas} sobreLetra soloVer={horizontal} enviados={enviados} onTocar={onTocarNota} />
-              )}
+            {/* (1.18.2, Josué) Las imágenes van APILADAS como hojas y todas quedan cargadas: al pasar a la siguiente ya
+                estaba dibujada debajo (antes se cambiaba la imagen y la segunda parpadeaba). La de adelante se va hacia
+                el lado como una hoja que se saca; al volver, la anterior regresa y se pone encima. */}
+            <div className="grid">
+              {ids.map((id, k) => {
+                const fuera = k < iVista, frente = k === iVista;
+                return (
+                  <div key={id} aria-hidden={!frente}
+                       className="[grid-area:1/1] flex items-center justify-center rounded bg-background"
+                       style={{
+                         zIndex: ids.length - k,
+                         transform: fuera ? 'translateX(-112%) rotate(-6deg)' : 'none',
+                         // Solo la de adelante y la que sigue (la que asoma al sacar la de adelante) se ven.
+                         opacity: fuera || k > iVista + 1 ? 0 : 1,
+                         // La hoja sale ENTERA (como papel) y se oculta recién al terminar de salir; al volver aparece
+                         // al instante y entra encima.
+                         transition: `transform ${HOJA_MS}ms cubic-bezier(0.32, 0.72, 0, 1), opacity 1ms linear ${fuera ? HOJA_MS : 0}ms`,
+                         boxShadow: fuera ? '0 8px 24px rgb(0 0 0 / 0.18)' : 'none',
+                         pointerEvents: frente ? 'auto' : 'none',
+                       }}>
+                    {/* data-marco-letra: los post-it se ubican como fracción de la imagen (igual que sobre la letra). */}
+                    <div data-marco-letra={frente ? '' : undefined} className="relative w-full">
+                      <img src={urlImagen(id)} alt={titulo} draggable={false} decoding="async" onError={onError}
+                           className={`block w-full rounded ${horizontal ? 'h-auto' : `${altoMax} object-contain`}`} />
+                      {frente && onTocarNota && !horizontal && (
+                        <NotasRecordatorio notas={notas} enviados={enviados} onTocar={onTocarNota} className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />
+                      )}
+                      {frente && onTocarNota && (
+                        <NotasRecordatorio notas={horizontal ? notas.filter(vaSobreLetra) : notas} sobreLetra soloVer={horizontal} enviados={enviados} onTocar={onTocarNota} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             {ids.length > 1 && <>{flecha('izq')}{flecha('der')}</>}
           </div>

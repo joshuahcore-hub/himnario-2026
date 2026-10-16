@@ -165,7 +165,7 @@ export default function Minutas() {
     try {
       const imagen = await imagenDeMinuta(m.fecha, m.cantos, {
         titulo: t.portada_title, palabra: t.portada_palabra, oracion: t.portada_oracion, noEncontrado: t.portada_not_found,
-        especial: t.especial, fuera: t.fuera_etiqueta,
+        especial: t.especial, fuera: t.fuera_etiqueta, ofrenda: t.ofrenda,
       });
       await compartirImagen(imagen, `Minuta ${formatearFecha(m.fecha)}`);
       salirSeleccion();
@@ -283,7 +283,9 @@ export default function Minutas() {
           </p>
         </div>
       ) : (
-        <div className="relative flex-1 flex items-center overflow-hidden">
+        // (1.18.2, Josué) Las minutas un poco más arriba (el relleno de abajo sube el centro; no tanto, para que no
+        // se vean descentradas).
+        <div className="relative flex-1 flex items-center overflow-hidden pb-[7dvh]">
           {/* Doble flecha (1.13.4, Josué): ir a la primera / a la última sin pasar una por una. Atenuada (sin efecto)
               cuando ya se está en ese extremo; se esconde mientras se seleccionan minutas. */}
           {!selectMode && ordenadas.length > 2 && (['izq', 'der'] as const).map(lado => {

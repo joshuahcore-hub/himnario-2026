@@ -1252,26 +1252,50 @@ async function rutasImagenes(request: Request, env: Env, partes: string[]): Prom
 }
 
 async function rutasCancionesExtra(request: Request, env: Env, partes: string[]): Promise<Response> {
+  const CAMPOS = 'id, titulo, tonalidad, tempo, imagen, actualizado';
+  const leerDatos = (body: Record<string, unknown>) => {
+    const titulo = typeof body.titulo === 'string' ? body.titulo.trim().replace(/\s+/g, ' ') : '';
+    if (titulo.length < 1 || titulo.length > 80) throw new ErrorApi(400, 'El título debe tener entre 1 y 80 letras.');
+    const tonalidad = typeof body.tonalidad === 'string' && body.tonalidad.length <= 8 ? body.tonalidad : null;
+    // (1.18.2) Tempo: lenta o rápida (las apps viejas no lo mandan: queda vacío).
+    const tempo = body.tempo === 'lenta' || body.tempo === 'rapida' ? body.tempo : null;
+    const imagen = typeof body.imagen === 'string' && /^[\w-]{10,60}(,[\w-]{10,60}){0,9}$/.test(body.imagen) ? body.imagen : null; // hasta 10 ids (1.13.4)
+    return { titulo, tonalidad, tempo, imagen };
+  };
   if (request.method === 'GET' && !partes[1]) {
-    const { results } = await env.DB.prepare('SELECT id, titulo, tonalidad, imagen, actualizado FROM canciones_extra ORDER BY clave').all();
+    const { results } = await env.DB.prepare(`SELECT ${CAMPOS} FROM canciones_extra ORDER BY clave`).all();
     return json(results);
   }
   if (request.method === 'POST' && !partes[1]) {
     const yo = exigirEditor(await dispositivoActual(request, env));
-    const body = await leerJson(request);
-    const titulo = typeof body.titulo === 'string' ? body.titulo.trim().replace(/\s+/g, ' ') : '';
-    if (titulo.length < 1 || titulo.length > 80) throw new ErrorApi(400, 'El título debe tener entre 1 y 80 letras.');
-    const tonalidad = typeof body.tonalidad === 'string' && body.tonalidad.length <= 8 ? body.tonalidad : null;
-    const imagen = typeof body.imagen === 'string' && /^[\w-]{10,60}(,[\w-]{10,60}){0,9}$/.test(body.imagen) ? body.imagen : null; // hasta 10 ids (1.13.4)
+    const { titulo, tonalidad, tempo, imagen } = leerDatos(await leerJson(request));
     const t = ahora();
     // Misma canción (mismo título) = se actualiza; la imagen solo se reemplaza si viene una nueva.
-    await env.DB.prepare(`INSERT INTO canciones_extra (id, clave, titulo, tonalidad, imagen, creada_por, creado, actualizado)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    await env.DB.prepare(`INSERT INTO canciones_extra (id, clave, titulo, tonalidad, tempo, imagen, creada_por, creado, actualizado)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                           ON CONFLICT (clave) DO UPDATE SET titulo = excluded.titulo, tonalidad = excluded.tonalidad,
+                            tempo = COALESCE(excluded.tempo, canciones_extra.tempo),
                             imagen = COALESCE(excluded.imagen, canciones_extra.imagen), actualizado = excluded.actualizado`)
-      .bind(crypto.randomUUID(), claveTitulo(titulo), titulo, tonalidad, imagen, yo.id, t, t).run();
-    return json(await env.DB.prepare('SELECT id, titulo, tonalidad, imagen, actualizado FROM canciones_extra WHERE clave = ?')
+      .bind(crypto.randomUUID(), claveTitulo(titulo), titulo, tonalidad, tempo, imagen, yo.id, t, t).run();
+    return json(await env.DB.prepare(`SELECT ${CAMPOS} FROM canciones_extra WHERE clave = ?`)
       .bind(claveTitulo(titulo)).first());
+  }
+  // (1.18.2, Josué) Editar UNA alabanza (por su id): cambiar el título la reemplaza, no crea otra. Solo creadores.
+  if (request.method === 'PATCH' && partes[1] && !partes[2]) {
+    exigirEditor(await dispositivoActual(request, env));
+    const { titulo, tonalidad, tempo, imagen } = leerDatos(await leerJson(request));
+    const otra = await env.DB.prepare('SELECT id FROM canciones_extra WHERE clave = ? AND id != ?').bind(claveTitulo(titulo), partes[1]).first();
+    if (otra) throw new ErrorApi(409, 'Ya hay otra alabanza guardada con ese título.');
+    const r = await env.DB.prepare(`UPDATE canciones_extra SET clave = ?, titulo = ?, tonalidad = ?, tempo = ?, imagen = ?, actualizado = ? WHERE id = ?`)
+      .bind(claveTitulo(titulo), titulo, tonalidad, tempo, imagen, ahora(), partes[1]).run();
+    if (!r.meta.changes) throw new ErrorApi(404, 'Esa alabanza ya no está.');
+    return json(await env.DB.prepare(`SELECT ${CAMPOS} FROM canciones_extra WHERE id = ?`).bind(partes[1]).first());
+  }
+  // (1.18.2) Eliminarla de la lista (las minutas que la tienen guardan su propia copia y no cambian).
+  if (request.method === 'DELETE' && partes[1] && !partes[2]) {
+    exigirEditor(await dispositivoActual(request, env));
+    await env.DB.prepare('DELETE FROM canciones_extra WHERE id = ?').bind(partes[1]).run();
+    return json({ ok: true });
   }
   throw new ErrorApi(404, 'Ruta no encontrada.');
 }

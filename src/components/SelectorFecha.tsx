@@ -39,6 +39,9 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   useAtrasCierra(abierto, () => setAbierto(false)); // "atrás" cierra el calendario (1.13.4)
   const [elegida, setElegida] = useState<Date>(() => aFecha(valor));
   const [mes, setMes] = useState<Date>(() => aFecha(valor));
+  // (1.18.2, Josué) El NOMBRE del mes cambia al instante de soltar (antes esperaba a que terminara la tira) y entra
+  // girando desde el lado hacia donde se va: { mes, dir } con dir 1 = siguiente, -1 = anterior, 0 = al abrir.
+  const [titulo, setTitulo] = useState<{ mes: Date; dir: 0 | 1 | -1 }>(() => ({ mes: aFecha(valor), dir: 0 }));
 
   // La tira de meses se mueve DIRECTAMENTE (style.transform), sin estado de React: así, mientras el dedo se
   // mueve, no se redibujan los tres calendarios en cada movimiento (eso se veía a saltos, "tac, tac"; Josué 1.5.3).
@@ -58,6 +61,7 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
     const f = aFecha(valor);
     setElegida(f);
     setMes(f);
+    setTitulo({ mes: f, dir: 0 });
     ocupado.current = false;
     setAbierto(true);
   };
@@ -71,6 +75,7 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   const cambiarMes = (dir: 1 | -1) => {
     if (ocupado.current) return;
     ocupado.current = true;
+    setTitulo(v => ({ mes: addMonths(v.mes, dir), dir }));
     moverTira(-dir * PASO, true);
     setTimeout(() => {
       flushSync(() => setMes(m => addMonths(m, dir))); // el mes nuevo queda dibujado…
@@ -158,7 +163,11 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="text-sm font-semibold capitalize" aria-live="polite">{format(mes, 'LLLL yyyy', { locale: idioma })}</span>
+              <span key={aIso(titulo.mes)} aria-live="polite"
+                    className={`text-sm font-semibold capitalize ${titulo.dir ? `animate-in fade-in ${titulo.dir > 0 ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2'}` : ''}`}
+                    style={{ animationDuration: '180ms' }}>
+                {format(titulo.mes, 'LLLL yyyy', { locale: idioma })}
+              </span>
               <button
                 type="button"
                 onClick={() => cambiarMes(1)}

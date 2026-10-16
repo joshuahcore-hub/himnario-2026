@@ -197,6 +197,21 @@ export interface Translations {
   fuera_imagen_subida: string;
   fuera_seccion: string;
   fuera_vacio: string;
+  fuera_tempo: string;
+  fuera_lenta: string;
+  fuera_rapida: string;
+  fuera_falta_tono: string;
+  fuera_falta_tempo: string;
+  fuera_editar: string;
+  fuera_eliminar: string;
+  fuera_eliminar_pregunta: string;
+  fuera_eliminar_texto: string;
+  fuera_eliminada: string;
+  ofrenda: string;
+  editor_ofrenda: string;
+  texto_boton: string;
+  texto_titulo: string;
+  texto_placeholder: string;
   editor_empty: string;
   editor_empty_hint: string;
   editor_no_access: string;
@@ -563,7 +578,7 @@ export const es: Translations = {
   fuera_titulo: 'Alabanza fuera del himnario',
   fuera_texto: 'Queda guardada para volver a usarla.',
   fuera_nombre: 'Título',
-  fuera_tonalidad: 'Tonalidad (opcional)',
+  fuera_tonalidad: 'Tonalidad',
   fuera_imagen: 'Imágenes (opcional)',
   fuera_elegir_imagen: 'Elegir imagen de la galería',
   fuera_quitar_imagen: 'Quitar imagen',
@@ -574,7 +589,22 @@ export const es: Translations = {
   fuera_no_esta: 'No está en el himnario',
   fuera_imagen_subida: 'Imagen subida',
   fuera_seccion: 'Alabanzas que no están en el himnario',
-  fuera_vacio: 'Todavía no hay canciones guardadas. Se agregan al crear una minuta.',
+  fuera_vacio: 'Todavía no hay alabanzas guardadas.',
+  fuera_tempo: 'Tempo',
+  fuera_lenta: 'Lenta',
+  fuera_rapida: 'Rápida',
+  fuera_falta_tono: 'Elige la tonalidad.',
+  fuera_falta_tempo: 'Elige si es lenta o rápida.',
+  fuera_editar: 'Editar',
+  fuera_eliminar: 'Eliminar',
+  fuera_eliminar_pregunta: '¿Eliminar esta alabanza?',
+  fuera_eliminar_texto: 'Deja de estar en la lista. Las minutas que ya la tienen no cambian.',
+  fuera_eliminada: 'Alabanza eliminada',
+  ofrenda: 'Ofrenda',
+  editor_ofrenda: 'Ofrenda antes de esta alabanza',
+  texto_boton: 'Agregar texto',
+  texto_titulo: 'Texto',
+  texto_placeholder: 'Escribe lo que quieras (p. ej. una oportunidad)',
   editor_empty: 'Agrega al menos un canto.',
   editor_empty_hint: 'Pulsa "+ Alabanza" para buscar y añadir alabanzas.',
   editor_no_access: 'Para crear minutas, pide acceso en Ajustes. El administrador debe aprobarlo.',
@@ -602,8 +632,8 @@ export const es: Translations = {
   access_registered: 'Estás registrado: te pueden dejar recordatorios en las alabanzas.',
   access_visor: 'Eres visor: puedes ver las minutas y te pueden dejar recordatorios en las alabanzas.',
   access_can_remind_others: 'Puedes dejar recordatorios a otras personas.',
-  admin_can_view: 'Ver minutas',
-  admin_can_create: 'Crear minutas',
+  admin_can_view: 'Habilitar como visor',
+  admin_can_create: 'Habilitar como creador',
   admin_can_remind: 'Dejar recordatorios a otros',
   admin_registered: 'Registrado',
   admin_role_viewer: 'Visor',
@@ -938,7 +968,7 @@ export const en: Translations = {
   fuera_titulo: 'Song not in the hymnal',
   fuera_texto: 'It is saved to use again.',
   fuera_nombre: 'Title',
-  fuera_tonalidad: 'Key (optional)',
+  fuera_tonalidad: 'Key',
   fuera_imagen: 'Images (optional)',
   fuera_elegir_imagen: 'Choose image from gallery',
   fuera_quitar_imagen: 'Remove image',
@@ -949,7 +979,22 @@ export const en: Translations = {
   fuera_no_esta: 'Not in the hymnal',
   fuera_imagen_subida: 'Uploaded image',
   fuera_seccion: 'Songs not in the hymnal',
-  fuera_vacio: 'No saved songs yet. They are added when creating a service.',
+  fuera_vacio: 'No saved songs yet.',
+  fuera_tempo: 'Tempo',
+  fuera_lenta: 'Slow',
+  fuera_rapida: 'Fast',
+  fuera_falta_tono: 'Choose the key.',
+  fuera_falta_tempo: 'Choose slow or fast.',
+  fuera_editar: 'Edit',
+  fuera_eliminar: 'Delete',
+  fuera_eliminar_pregunta: 'Delete this song?',
+  fuera_eliminar_texto: 'It leaves the list. Services that already have it do not change.',
+  fuera_eliminada: 'Song deleted',
+  ofrenda: 'Offering',
+  editor_ofrenda: 'Offering before this song',
+  texto_boton: 'Add text',
+  texto_titulo: 'Text',
+  texto_placeholder: 'Write anything (e.g. someone sharing)',
   editor_empty: 'Add at least one song.',
   editor_empty_hint: 'Tap "+ Song" to search and add songs.',
   editor_no_access: 'To create services, request access in Settings. The administrator must approve it.',
@@ -977,8 +1022,8 @@ export const en: Translations = {
   access_registered: 'You are signed up: others can leave you reminders on songs.',
   access_visor: 'You are a viewer: you can view services, and others can leave you reminders on songs.',
   access_can_remind_others: 'You can leave reminders for other people.',
-  admin_can_view: 'View services',
-  admin_can_create: 'Create services',
+  admin_can_view: 'Enable as viewer',
+  admin_can_create: 'Enable as creator',
   admin_can_remind: 'Leave reminders for others',
   admin_registered: 'Signed up',
   admin_role_viewer: 'Viewer',
@@ -1313,7 +1358,7 @@ export const pt: Translations = {
   fuera_titulo: 'Louvor fora do hinário',
   fuera_texto: 'Fica salvo para usar de novo.',
   fuera_nombre: 'Título',
-  fuera_tonalidad: 'Tom (opcional)',
+  fuera_tonalidad: 'Tom',
   fuera_imagen: 'Imagens (opcional)',
   fuera_elegir_imagen: 'Escolher imagem da galeria',
   fuera_quitar_imagen: 'Remover imagem',
@@ -1324,7 +1369,22 @@ export const pt: Translations = {
   fuera_no_esta: 'Não está no hinário',
   fuera_imagen_subida: 'Imagem enviada',
   fuera_seccion: 'Louvores que não estão no hinário',
-  fuera_vacio: 'Ainda não há canções salvas. São adicionadas ao criar uma minuta.',
+  fuera_vacio: 'Ainda não há louvores salvos.',
+  fuera_tempo: 'Tempo',
+  fuera_lenta: 'Lenta',
+  fuera_rapida: 'Rápida',
+  fuera_falta_tono: 'Escolha o tom.',
+  fuera_falta_tempo: 'Escolha se é lenta ou rápida.',
+  fuera_editar: 'Editar',
+  fuera_eliminar: 'Excluir',
+  fuera_eliminar_pregunta: 'Excluir este louvor?',
+  fuera_eliminar_texto: 'Sai da lista. As minutas que já o têm não mudam.',
+  fuera_eliminada: 'Louvor excluído',
+  ofrenda: 'Oferta',
+  editor_ofrenda: 'Oferta antes deste louvor',
+  texto_boton: 'Adicionar texto',
+  texto_titulo: 'Texto',
+  texto_placeholder: 'Escreva o que quiser (ex.: uma oportunidade)',
   editor_empty: 'Adicione pelo menos um louvor.',
   editor_empty_hint: 'Toque em "+ Louvor" para buscar e adicionar louvores.',
   editor_no_access: 'Para criar minutas, peça acesso em Ajustes. O administrador precisa aprovar.',
@@ -1352,8 +1412,8 @@ export const pt: Translations = {
   access_registered: 'Você está cadastrado: podem deixar lembretes para você nos louvores.',
   access_visor: 'Você é visor: pode ver as minutas e podem deixar lembretes para você nos louvores.',
   access_can_remind_others: 'Você pode deixar lembretes para outras pessoas.',
-  admin_can_view: 'Ver minutas',
-  admin_can_create: 'Criar minutas',
+  admin_can_view: 'Habilitar como visualizador',
+  admin_can_create: 'Habilitar como criador',
   admin_can_remind: 'Deixar lembretes para outros',
   admin_registered: 'Cadastrado',
   admin_role_viewer: 'Leitor',

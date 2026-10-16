@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { MinutaData } from '@/lib/types';
 import { api, ErrorDeRed } from '@/lib/api';
 import { preloadHymnImageBoth } from '@/lib/hymnCache';
+import { cadena } from '@/lib/minutaUtils';
 
 const CACHE_KEY = 'himnario_minutas_v2';
 
@@ -81,10 +82,9 @@ export function useMinutas() {
 
   // Deja guardadas en el celular las imágenes de los cantos de las minutas (ya vienen en la app, esto solo las adelanta).
   useEffect(() => {
-    minutas.slice(-4).forEach(m => m.cantos.forEach(c => {
-      if (c.hymnNumber) preloadHymnImageBoth(c.hymnNumber);
-      if (c.groupedWith?.hymnNumber) preloadHymnImageBoth(c.groupedWith.hymnNumber);
-    }));
+    minutas.slice(-4).forEach(m => m.cantos.forEach(c => cadena(c).forEach(x => {
+      if (x.hymnNumber) preloadHymnImageBoth(x.hymnNumber);
+    })));
   }, [minutas]);
 
   return { minutas, sinConexion, cargando, refrescar };

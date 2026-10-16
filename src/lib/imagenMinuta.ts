@@ -2,7 +2,7 @@
 // canvas con los colores del tema en uso, y enviada con el menú de compartir del celular (WhatsApp, etc.).
 // Se dibuja a mano (no captura de pantalla): funciona sin internet y sale igual en todos los celulares.
 import type { ParsedSong } from '@/lib/types';
-import { formatearFecha, renumerar } from '@/lib/minutaUtils';
+import { cadena, formatearFecha, renumerar } from '@/lib/minutaUtils';
 
 export interface TextosPortada {
   titulo: string;
@@ -12,6 +12,8 @@ export interface TextosPortada {
   /** (1.13.0) "Especial" y la etiqueta de las alabanzas fuera del himnario. */
   especial?: string;
   fuera?: string;
+  /** (1.18.2) "Ofrenda" (aviso arriba de una alabanza). */
+  ofrenda?: string;
 }
 
 const ANCHO = 1080;
@@ -39,7 +41,8 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
   const col = {
     fondo: colorDe('--background'), texto: colorDe('--foreground'), suave: colorDe('--muted-foreground'),
     tono: colorDe('--hymn-key'), numero: colorDe('--hymn-number'), palabra: colorDe('--palabra'),
-    oracion: colorDe('--oracion'), raya: colorDe('--border'), especial: colorDe('--especial'),
+    oracion: colorDe('--oracion'), raya: colorDe('--hymn-number'), especial: colorDe('--especial'),
+    ofrenda: colorDe('--ofrenda'), nota: colorDe('--nota'),
   };
   const fs = 14 * S;             // text-sm
   const alto = fs * 1.45;
@@ -101,14 +104,30 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
       y += 8 * S;
       escribir([{ texto: s.isPalabra ? txt.palabra : txt.oracion, color: s.isPalabra ? col.palabra : col.oracion, peso: 600, tam: fs }]);
       y += 8 * S;
-    } else if (s.groupedWith) {
-      const desde = y;
-      lineaCanto(s, s.position);
-      y += 4 * S;
-      lineaCanto({ ...s.groupedWith, found: s.groupedWith.found ?? true }, s.position + 1);
-      ops.push({ raya: [desde, y] });
+    } else if (s.isTexto) {
+      // (1.18.2) Texto libre, en naranjo, tal cual.
+      y += 8 * S;
+      escribir([{ texto: s.texto ?? '', color: col.nota, peso: 500, tam: fs }]);
+      y += 8 * S;
     } else {
-      lineaCanto(s, s.position);
+      // (1.18.2) Ofrenda: aviso pequeño arriba de la alabanza.
+      if (s.ofrenda && txt.ofrenda) {
+        escribir([{ texto: txt.ofrenda, color: col.ofrenda, peso: 600, tam: 11 * S }]);
+        y -= 4 * S;
+      }
+      const grupo = cadena(s);
+      if (grupo.length > 1) {
+        // Corchete: de la mitad del primer renglón a la mitad del último (apunta a los números).
+        const centros: number[] = [];
+        grupo.forEach((x, k) => {
+          if (k > 0) y += 4 * S;
+          centros.push(y + alto / 2);
+          lineaCanto({ ...x, found: x.found ?? true }, s.position + k);
+        });
+        ops.push({ raya: [centros[0], centros[centros.length - 1]] });
+      } else {
+        lineaCanto(s, s.position);
+      }
     }
   });
 
@@ -135,12 +154,19 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
   for (const op of ops) {
     if ('raya' in op) {
       // Corchete de los cantos agrupados, a la izquierda (como en la portada).
+      // (1.18.2) Línea fina en el color de los números, con las puntas hacia el centro de cada número.
       const [a, b] = op.raya;
-      const x = MARGEN - 5 * S, g = 2.5 * S;
-      ctx.fillStyle = col.raya;
-      ctx.fillRect(x - g, a + dy + 3 * S, g, b - a - 6 * S);
-      ctx.fillRect(x - g, a + dy + 3 * S, 7 * S, g);
-      ctx.fillRect(x - g, b + dy - 3 * S - g, 7 * S, g);
+      const g = 1.5 * S, x = MARGEN - 9 * S, w = 6 * S, r = 3 * S;
+      ctx.strokeStyle = col.raya;
+      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = g;
+      ctx.beginPath();
+      ctx.moveTo(x + w, a + dy);
+      ctx.arcTo(x, a + dy, x, b + dy, r);
+      ctx.arcTo(x, b + dy, x + w, b + dy, r);
+      ctx.lineTo(x + w, b + dy);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
       continue;
     }
     for (const { t, x } of op.trozos) {

@@ -14,7 +14,16 @@ export interface ParsedSong {
   fuera?: boolean;
   /** Id de la imagen subida para una alabanza fuera del himnario (sustituto provisorio de la letra). */
   imagen?: string | null;
+  /** (1.18.2) Texto libre entre medio (una acotación, "oportunidad de…"): no es alabanza, no lleva número. */
+  isTexto?: boolean;
+  /** Lo escrito en un texto libre. */
+  texto?: string;
+  /** (1.18.2) Antes de esta alabanza se anuncia la OFRENDA. */
+  ofrenda?: boolean;
+  /** (1.18.2) Alabanza fuera del himnario: 'lenta' o 'rapida'. */
+  tempo?: 'lenta' | 'rapida' | null;
   isGrouped?: boolean;
+  /** Alabanza unida a esta (van juntas). Puede tener a su vez otra unida: grupos de cualquier tamaño (1.18.2). */
   groupedWith?: ParsedSong | null;
   firstLine?: string | null;
   psalmTitle?: boolean;

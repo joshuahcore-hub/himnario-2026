@@ -4,7 +4,12 @@
 import { useEffect, useState } from 'react';
 import { api, llaveDispositivo, ErrorDeRed } from '@/lib/api';
 
-export interface CancionExtra { id: string; titulo: string; tonalidad: string | null; imagen: string | null; actualizado: string }
+export type Tempo = 'lenta' | 'rapida';
+export interface CancionExtra { id: string; titulo: string; tonalidad: string | null; tempo?: Tempo | null; imagen: string | null; actualizado: string }
+export interface DatosCancionExtra { titulo: string; tonalidad: string | null; tempo: Tempo | null; imagen: string | null }
+
+/** (1.18.2, Josué) Siempre en orden alfabético (sin tildes ni mayúsculas). */
+const ordenar = (l: CancionExtra[]) => [...l].sort((a, b) => normalizarTitulo(a.titulo).localeCompare(normalizarTitulo(b.titulo)));
 
 const GUARDADO = 'himnario_canciones_extra';
 let lista: CancionExtra[] = (() => {
@@ -18,7 +23,7 @@ function fijar(l: CancionExtra[]) {
 }
 
 export async function refrescarCancionesExtra() {
-  try { fijar(await api<CancionExtra[]>('canciones-extra')); } catch { /* sin internet: la copia local */ }
+  try { fijar(ordenar(await api<CancionExtra[]>('canciones-extra'))); } catch { /* sin internet: la copia local */ }
 }
 
 export function useCancionesExtra(): CancionExtra[] {
@@ -42,11 +47,28 @@ export const buscarCancionExtra = (titulo: string) => {
   return lista.find(x => normalizarTitulo(x.titulo) === c) ?? null;
 };
 
-export async function guardarCancionExtra(datos: { titulo: string; tonalidad: string | null; imagen: string | null }) {
+export async function guardarCancionExtra(datos: DatosCancionExtra) {
   const c = await api<CancionExtra>('canciones-extra', { metodo: 'POST', datos });
-  fijar([...lista.filter(x => x.id !== c.id && normalizarTitulo(x.titulo) !== normalizarTitulo(c.titulo)), c]
-    .sort((a, b) => normalizarTitulo(a.titulo).localeCompare(normalizarTitulo(b.titulo))));
+  fijar(ordenar([...lista.filter(x => x.id !== c.id && normalizarTitulo(x.titulo) !== normalizarTitulo(c.titulo)), c]));
   return c;
+}
+
+/** (1.18.2, Josué) Editar una guardada: se REEMPLAZA (antes, al cambiarle el título, aparecía como otra nueva).
+ *  Optimista: la lista cambia al instante; si el servidor falla, vuelve como estaba y se lanza el error. */
+export async function editarCancionExtra(id: string, datos: DatosCancionExtra) {
+  const antes = lista;
+  fijar(ordenar(lista.map(x => (x.id === id ? { ...x, ...datos } : x))));
+  try {
+    const c = await api<CancionExtra>(`canciones-extra/${id}`, { metodo: 'PATCH', datos });
+    fijar(ordenar(lista.map(x => (x.id === id ? c : x))));
+    return c;
+  } catch (e) { fijar(antes); throw e; }
+}
+
+export async function eliminarCancionExtra(id: string) {
+  const antes = lista;
+  fijar(lista.filter(x => x.id !== id));
+  try { await api(`canciones-extra/${id}`, { metodo: 'DELETE' }); } catch (e) { fijar(antes); throw e; }
 }
 
 export const urlImagen = (id: string) => `/api/imagenes/${id}`;
