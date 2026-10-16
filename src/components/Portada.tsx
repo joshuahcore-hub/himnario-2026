@@ -107,7 +107,8 @@ export default function Portada({ date, songs, compact = false, creador, editor,
   // abajo: el tamaño de letra va en el renglón (antes iba solo en el texto y el renglón tomaba el alto de la letra
   // normal, que dejaba más espacio arriba). El relleno es el promedio de los dos espacios que había.
   const marcador = (key: string, contenido: React.ReactNode) => (
-    <div key={key} className={`${tam} ${compact ? 'py-2' : 'py-2.5'}`}>{contenido}</div>
+    // (1.19.4, Josué) Un poco menos de espacio (antes py-2 / py-2.5): sigue parejo arriba y abajo.
+    <div key={key} className={`${tam} ${compact ? 'py-1' : 'py-1.5'}`}>{contenido}</div>
   );
 
   return (
