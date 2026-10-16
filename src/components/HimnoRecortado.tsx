@@ -1,7 +1,7 @@
 // Celular girado (1.6.0): muestra SOLO la franja de la imagen que tiene el himno, a todo el ancho, sin el fondo
 // vacío de arriba y abajo del lienzo. Los límites los calcula scripts/recortes.mjs (src/datos/recortes.json).
 import recortes from '@/datos/recortes.json';
-import { useImagenNitida } from '@/lib/hymnCache';
+import CapaNitida from '@/components/CapaNitida';
 
 const tabla = recortes as unknown as Record<string, [number, number, number, number]>; // [ancho, arriba, alto, altoTotal] en px
 
@@ -36,7 +36,7 @@ export default function HimnoRecortado({ num, src: srcNormal, alt, onError, chil
   /** Achicar si no cabe de alto (el contenedor debe tener container-type: size). Así queda centrada y entera. */
   ajustarAlto?: boolean;
 }) {
-  const src = useImagenNitida(srcNormal, srcHd, ampliado);
+  const src = srcNormal;
   const r = tabla[String(num)];
   if (!r) {
     return (
@@ -54,6 +54,9 @@ export default function HimnoRecortado({ num, src: srcNormal, alt, onError, chil
         {/* margin-top en % se mide sobre el ANCHO: corre la imagen justo lo que sobra arriba. */}
         <img src={src} alt={alt} decoding="async" className="block w-full h-auto" draggable={false} onError={onError}
              style={{ marginTop: `${(-arriba / ancho) * 100}%` }} />
+        {/* Nítida encima (sin parpadeo), en el mismo lugar. */}
+        <CapaNitida hd={srcHd} activa={ampliado} className="absolute left-0 top-0 block w-full h-auto"
+                    style={{ marginTop: `${(-arriba / ancho) * 100}%` }} />
       </div>
       {children}
     </div>

@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { useImagenNitida, ZOOM_HD } from '@/lib/hymnCache';
+import { ZOOM_HD } from '@/lib/hymnCache';
+import CapaNitida from '@/components/CapaNitida';
 
 interface ZoomableImageProps {
   src: string;
@@ -31,8 +32,8 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
   const isPanning = useRef(false);
   const edgeOverflow = useRef(0);
 
-  // (1.17.2, Josué) Zoom NÍTIDO: al ampliar se usa la versión del doble de resolución.
-  const srcVisible = useImagenNitida(src, srcHd, scale > ZOOM_HD);
+  // (1.17.2/1.17.6, Josué) Zoom NÍTIDO: al ampliar, la versión del doble de resolución se pone ENCIMA (CapaNitida).
+  const srcVisible = src;
   // Límite INTELIGENTE: hasta donde la imagen nítida todavía se ve nítida en esta pantalla (cada píxel de la imagen
   // no más grande que ~1,3 píxeles de la pantalla); entre 2,5 y 4.
   const maxZoom = () => {
@@ -167,6 +168,7 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
         // Con capa (post-it): el zoom se aplica al recuadro entero, así lo pegado sigue en su lugar de la letra.
         <div data-marco-letra className={`relative ${claseMarco}`} style={zoom}>
           <img ref={imgRef} src={srcVisible} alt={alt} decoding="async" className={className} onError={onError} draggable={false} style={estilo} />
+          <CapaNitida hd={srcHd} activa={scale > ZOOM_HD} className="absolute left-0 top-0 block w-full h-full" style={estilo} />
           {children}
         </div>
       ) : (
