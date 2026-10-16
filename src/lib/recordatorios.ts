@@ -212,7 +212,7 @@ export function marcarVisto(r: Recordatorio) {
  * Mover y/o cambiar el tamaño de un post-it (1.9.0–1.9.1). Se ve al instante. Los míos (o locales) se guardan donde
  * viven; los que me dejaron otros, solo en este celular.
  */
-export function ajustarRecordatorio(r: Recordatorio, cambios: Ajuste) {
+export function ajustarRecordatorio(r: Recordatorio, cambios: Ajuste, enEnviados = false) {
   if (r.local) { fijarLocales(locales.map(x => (x.id === r.id ? { ...x, ...cambios } : x))); return; }
   if (!r.mio) {
     posiciones = { ...posiciones, [r.id]: { ...posiciones[r.id], ...cambios } };
@@ -224,14 +224,16 @@ export function ajustarRecordatorio(r: Recordatorio, cambios: Ajuste) {
     return;
   }
   const antes = delServidor.find(x => x.id === r.id);
-  fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, ...cambios } : x)));
+  // (1.17.16) En "Enviados" se mueve también donde lo ve la otra persona (posPara/tamPara).
+  const extra = enEnviados ? { ...(cambios.pos !== undefined ? { posPara: cambios.pos } : {}), ...(cambios.tam !== undefined ? { tamPara: cambios.tam } : {}) } : {};
+  fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, ...cambios, ...extra } : x)));
   if (r.id.startsWith('tmp-') || !antes) return;
-  api(`recordatorios/${r.id}/posicion`, { metodo: 'PATCH', datos: cambios })
-    .catch(() => fijarServidor(delServidor.map(x => (x.id === r.id ? { ...x, pos: antes.pos, tam: antes.tam } : x))));
+  api(`recordatorios/${r.id}/posicion`, { metodo: 'PATCH', datos: enEnviados ? { ...cambios, ambos: true } : cambios })
+    .catch(() => fijarServidor(delServidor.map(x => (x.id === r.id ? antes : x))));
 }
 
 /** Compatibilidad: mover = ajustar solo la posición. */
-export const moverRecordatorio = (r: Recordatorio, pos: Pos) => ajustarRecordatorio(r, { pos });
+export const moverRecordatorio = (r: Recordatorio, pos: Pos, enEnviados = false) => ajustarRecordatorio(r, { pos }, enEnviados);
 
 // ---- Páginas que no son himnos (1.17.1, Josué): Palabra, Oración, Especial y canciones fuera del himnario (cada
 // imagen subida por separado). Usan los mismos post-it: se les da un número propio desde 1.000.000, calculado del

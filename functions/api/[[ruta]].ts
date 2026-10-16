@@ -809,19 +809,24 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
     // Quien lo escribió guarda la suya; quien lo RECIBIÓ, la suya aparte (1.13.2).
     const deQuienRecibe = actual.para_id === yo.id && actual.autor_id !== yo.id;
     if (actual.autor_id !== yo.id && !deQuienRecibe) throw new ErrorApi(403, 'Este recordatorio no es tuyo.');
-    const colX = deQuienRecibe ? 'pos_x_para' : 'pos_x', colY = deQuienRecibe ? 'pos_y_para' : 'pos_y', colT = deQuienRecibe ? 'tam_para' : 'tam';
     const body = await leerJson(request);
+    // (1.17.16, Josué) Quien lo envió, moviéndolo en "Enviados", cambia DÓNDE lo ve la otra persona (y el suyo igual).
+    const ambos = !deQuienRecibe && body.ambos === true;
+    const colX = deQuienRecibe ? 'pos_x_para' : ambos ? 'pos_x = ?, pos_x_para' : 'pos_x';
+    const colY = deQuienRecibe ? 'pos_y_para' : ambos ? 'pos_y = ?, pos_y_para' : 'pos_y';
+    const colT = deQuienRecibe ? 'tam_para' : ambos ? 'tam = ?, tam_para' : 'tam';
     const valido = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= -5 && v <= 5; // fuera de la letra también (arriba del título, a los lados)
     // Posición y/o tamaño (1.9.1): lo que no venga, no cambia.
     if (body.pos !== undefined) {
       const pos = body.pos == null ? null : valido(body.pos.x) && valido(body.pos.y) ? body.pos : undefined;
       if (pos === undefined) throw new ErrorApi(400, 'Posición no válida.');
-      await env.DB.prepare(`UPDATE recordatorios SET ${colX} = ?, ${colY} = ? WHERE id = ?`).bind(pos?.x ?? null, pos?.y ?? null, id).run();
+      const x = pos?.x ?? null, y = pos?.y ?? null;
+      await env.DB.prepare(`UPDATE recordatorios SET ${colX} = ?, ${colY} = ? WHERE id = ?`).bind(...(ambos ? [x, x, y, y] : [x, y]), id).run();
     }
     if (body.tam !== undefined) {
       const tam = body.tam == null ? null : typeof body.tam === 'number' && body.tam >= 0.3 && body.tam <= 4 ? body.tam : undefined; // 1.17.7
       if (tam === undefined) throw new ErrorApi(400, 'Tamaño no válido.');
-      await env.DB.prepare(`UPDATE recordatorios SET ${colT} = ? WHERE id = ?`).bind(tam, id).run();
+      await env.DB.prepare(`UPDATE recordatorios SET ${colT} = ? WHERE id = ?`).bind(...(ambos ? [tam, tam] : [tam]), id).run();
     }
     return json({ ok: true });
   }

@@ -317,7 +317,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       const pos = r.pos && marcoW && marcoH && (lado.izq || lado.arriba)
         ? { x: r.pos.x - (lado.izq ? ((k - 1) * g.pw) / marcoW : 0), y: r.pos.y - (lado.arriba ? ((k - 1) * g.ph) / marcoH : 0) }
         : undefined;
-      flushSync(() => ajustarRecordatorio(r, pos ? { tam: nuevo, pos } : { tam: nuevo }));
+      flushSync(() => ajustarRecordatorio(r, pos ? { tam: nuevo, pos } : { tam: nuevo }, enviado));
       // Queda EXACTAMENTE el tamaño que se veía al soltar (1.9.7, Josué: antes se borraba y volvía al normal).
       dejarDeEstirar(nuevo * f);
     },
@@ -363,7 +363,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
     const n = mover(inicio, dx, dy);
     const pos = { x: (n.left - zona.m.left) / zona.m.width, y: (n.top - zona.m.top) / zona.m.height };
     const fijar = () => {
-      flushSync(() => { setLevantado(false); moverRecordatorio(r, pos); });
+      flushSync(() => { setLevantado(false); moverRecordatorio(r, pos, enviado); });
       if (caja.current) { caja.current.style.transition = ''; caja.current.style.transform = ''; }
     };
     if (!animar) { fijar(); return; }
@@ -376,7 +376,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   // arrastra (un clic sin mover sigue abriendo las opciones).
   const despegar = () => {
     const g = gesto.current;
-    if (!g || g.arrastrando || r.id.startsWith('tmp-') || enviado) return;
+    // (1.17.16, Josué) También en "Enviados" se mueve y se estira (cambia donde lo ve la otra persona).
+    if (!g || g.arrastrando || r.id.startsWith('tmp-')) return;
     conMouse.current = !!g.mouse;
     g.arrastrando = true;
     navigator.vibrate?.(15);
@@ -531,7 +532,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         </div>
       )}
       {!soloVer && <>
-      {!enviado && <div ref={anclaTirador} className={`absolute ${lado.izq ? 'left-0' : 'right-0'} ${lado.arriba ? 'top-0' : 'bottom-0'} w-0 h-0 z-20`}
+      {<div ref={anclaTirador} className={`absolute ${lado.izq ? 'left-0' : 'right-0'} ${lado.arriba ? 'top-0' : 'bottom-0'} w-0 h-0 z-20`}
            style={{ transform: transformAncla, transformOrigin: '0 0' }}>
         <div {...tirador} aria-label="Tamaño"
              className="absolute rounded-full border border-border bg-card shadow-md flex items-center justify-center text-foreground"
