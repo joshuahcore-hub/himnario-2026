@@ -5,7 +5,7 @@ import { useTheme, applyTheme, applyColor } from '@/hooks/useTheme';
 import { COLORES_TEMA, MUESTRAS, type ColorTema } from '@/lib/colores';
 import Desplegable from '@/components/Desplegable';
 import { useOffline } from '@/lib/offline';
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import MenuAcceso, { EVENTO_ACTIVAR_ADMIN } from '@/components/SeccionAcceso';
 import SeccionPdf from '@/components/SeccionPdf';
 
@@ -33,20 +33,6 @@ export default function SettingsPage() {
   );
   const dark = theme === 'dark';
   const offline = useOffline();
-  // DIAGNÓSTICO TEMPORAL (1.19.8, Josué): Ajustes "a veces" se desliza tras recargar y no se reproduce en el PC.
-  // Si algo se desplaza aquí, junto a la versión se anota QUÉ se movió y sus medidas (alto total / alto visible), para
-  // que Josué mande una captura. Quitar cuando se encuentre la causa.
-  const [diag, setDiag] = useState('');
-  useEffect(() => {
-    const anotar = (e: Event) => {
-      const el = (e.target instanceof Document ? document.scrollingElement : e.target) as HTMLElement | null;
-      if (!el || !el.scrollTop) return;
-      const nombre = el === document.scrollingElement ? 'página' : `${el.tagName.toLowerCase()}.${String(el.className).split(' ').slice(0, 2).join('.')}`;
-      setDiag(`${nombre} ${el.scrollHeight}/${el.clientHeight} · ventana ${innerHeight}`);
-    };
-    window.addEventListener('scroll', anotar, { capture: true, passive: true });
-    return () => window.removeEventListener('scroll', anotar, { capture: true });
-  }, []);
   const toquesVersion = useRef<number[]>([]);
   const tocarVersion = () => {
     const ahora = Date.now();
@@ -142,7 +128,6 @@ export default function SettingsPage() {
       {/* 5 toques seguidos en la versión: "Activar como administrador" (escondido; ver SeccionAcceso). */}
       <p className="text-center text-[10px] text-muted-foreground/60 py-2" onClick={tocarVersion}>
         Himnario 2026 · {t.settings_version} {__APP_VERSION__}
-        {diag && <span className="block text-[9px] text-destructive/80">{diag}</span>}
       </p>
     </div>
   );
