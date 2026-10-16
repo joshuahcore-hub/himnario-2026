@@ -374,6 +374,7 @@ export default function MinutaReader() {
   // (1.17.1) Cada página tiene su número para los post-it: el del himno o uno propio (Palabra, Oración, Especial,
   // canción fuera del himnario y cada una de sus imágenes).
   const claveDe = (item: ParsedSong | null, pageIdx: number): number | null => {
+    if (pageIdx === 0) return claveVirtual('portada', t.portada_title); // (1.17.11) la portada también
     if (!item) return null;
     if (item.hymnNumber && item.found && !item.isPalabra && !item.isOracion && !item.isEspecial && !item.fuera) return item.hymnNumber;
     const i = imgIdx[pageIdx] ?? 0, sufijo = i > 0 ? `#${i}` : '';
@@ -384,7 +385,7 @@ export default function MinutaReader() {
     return null;
   };
   const claveVisible = claveDe(itemVisible, paginaVisible);
-  const postitDe = (item: ParsedSong, pageIdx: number): PostitPagina => {
+  const postitDe = (item: ParsedSong | null, pageIdx: number): PostitPagina => {
     const clave = claveDe(item, pageIdx);
     return {
       notas: verEnviados ? notasDe(clave, 'enviados') : notasDe(clave), enviados: verEnviados, onTocar: abrirPanel,
@@ -422,7 +423,18 @@ export default function MinutaReader() {
             <div className="h-full w-full flex overflow-y-auto p-5"
                  style={{ overscrollBehavior: 'contain', touchAction: horizontal ? 'pan-y' : 'none' }}>
               <div className="w-full max-w-sm m-auto">
-                <Portada date={minuta.fecha} songs={minuta.cantos} plano />
+                {/* (1.17.11, Josué) Post-it también en la portada: pegados donde se sueltan, como en las alabanzas;
+                    girado, solo para ver (los sin mover, como acotación arriba). */}
+                {horizontal && <div style={{ containerType: 'inline-size' }}><AcotacionesPostit notas={postitDe(null, 0).notas} className="pb-2" /></div>}
+                <div data-marco-letra className="relative">
+                  <Portada date={minuta.fecha} songs={minuta.cantos} plano />
+                  {!horizontal && (
+                    <NotasRecordatorio notas={postitDe(null, 0).notas} enviados={verEnviados} onTocar={abrirPanel}
+                                       className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />
+                  )}
+                  <NotasRecordatorio notas={horizontal ? postitDe(null, 0).notas.filter(vaSobreLetra) : postitDe(null, 0).notas}
+                                     sobreLetra soloVer={horizontal} enviados={verEnviados} onTocar={abrirPanel} />
+                </div>
               </div>
             </div>
           </Zoomable>
