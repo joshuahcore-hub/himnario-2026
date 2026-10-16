@@ -170,6 +170,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   const gesto = useRef<{ x: number; y: number; t: number; id: number; timer: number; arrastrando: boolean; escala: number; mouse?: boolean;
     fuera?: boolean; zona?: Zona; inicio?: DOMRect; texto?: DOMRect; dx?: number; dy?: number } | null>(null);
   const [levantado, setLevantado] = useState(false);
+  // (1.17.7) Despegado con el mouse: no se agranda.
+  const conMouse = useRef(false);
 
   // Opciones (Editar/Eliminar) hacia donde HAYA ESPACIO (1.9.1, Josué: pegado al borde izquierdo se salían de la
   // pantalla). Se calcula antes de dibujar al abrir: corrida para caber de lado y, si abajo no cabe, arriba.
@@ -229,18 +231,23 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   const f = escalaLetra;
   const estirar = useRef<{ x: number; y: number; ancho: number; tam: number; id: number;
     /** Tamaño del papel y del recuadro de la letra en la pantalla (para mover la posición si crece a la izq./arriba). */
-    pw: number; ph: number; marco: DOMRect | null } | null>(null);
+    pw: number; ph: number; marco: DOMRect | null;
+    /** (1.17.7) Ancho visible de la página: el post-it nunca más ancho que eso. */
+    anchoPagina: number } | null>(null);
   const tamAl = (e: React.PointerEvent) => {
     const g = estirar.current!;
     // Tirador a la izquierda o arriba: estirar hacia AFUERA (izquierda/arriba) también agranda.
     const d = ((e.clientX - g.x) * (lado.izq ? -1 : 1) + (e.clientY - g.y) * (lado.arriba ? -1 : 1)) / 2;
-    return Math.min(TAM_MAX, Math.max(TAM_MIN, g.tam * (1 + d / g.ancho)));
+    const maxPantalla = (g.tam * (g.anchoPagina - 16)) / g.ancho; // que no se salga de la pantalla
+    const limite = Math.max(g.tam, maxPantalla); // si ya era más ancho, al menos puede quedar como estaba
+    return Math.min(TAM_MAX, limite, Math.max(TAM_MIN, g.tam * (1 + d / g.ancho)));
   };
   // Mientras se estira NO se cambia el zoom (eso vuelve a acomodar el texto en cada movimiento y, con la pantalla
   // ampliada, la letra "temblaba"; 1.11.6, Josué): el papel se agranda con transform (fluido, como una imagen) dejando
   // fija su esquina de arriba a la izquierda, y el tirador lo acompaña. Al soltar se fija el tamaño real (zoom).
   const anclaTirador = useRef<HTMLDivElement>(null);
-  const transformPapel = `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg) scale(${levantado ? 1.05 : 1})`;
+  // (1.17.7, Josué) Con el MOUSE no se agranda al arrastrar (con el dedo sí, para que se vea "despegado").
+  const transformPapel = `rotate(${indice % 2 === 0 ? -1.2 : 0.9}deg) scale(${levantado && !conMouse.current ? 1.05 : 1})`;
   const transformAncla = `scale(${1 / escala})`;
   const base = useRef({ w: 0, h: 0 });
   const verEstirado = (k: number) => {
@@ -271,7 +278,8 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       const rp = papel.current.getBoundingClientRect();
       estirar.current = { x: e.clientX, y: e.clientY, ancho: rp.width, tam, id: e.pointerId, pw: papel.current.offsetWidth * tam * f,
                           ph: papel.current.offsetHeight * tam * f,
-                          marco: r.pos ? caja.current?.closest('[data-marco-letra]')?.getBoundingClientRect() ?? null : null };
+                          marco: r.pos ? caja.current?.closest('[data-marco-letra]')?.getBoundingClientRect() ?? null : null,
+                          anchoPagina: Math.min(innerWidth, caja.current?.closest('[data-pagina]')?.getBoundingClientRect().width ?? innerWidth) };
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* igual funciona */ }
     },
     onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => {
@@ -353,6 +361,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   const despegar = () => {
     const g = gesto.current;
     if (!g || g.arrastrando || r.id.startsWith('tmp-') || enviado) return;
+    conMouse.current = !!g.mouse;
     g.arrastrando = true;
     navigator.vibrate?.(15);
     try { caja.current?.setPointerCapture(g.id); } catch { /* sin captura igual funciona */ }
@@ -499,9 +508,9 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
           {r.estado === 'eliminado' ? (
             <span className="text-red-600 dark:text-red-400">· {t.rec_deleted_short}</span>
           ) : r.estado === 'visto' ? (
-            <CheckCheck size={13} className="text-especial" strokeWidth={2.4} aria-label={t.rec_seen} />
+            <Ticks dos className="text-especial" etiqueta={t.rec_seen} />
           ) : (
-            <Check size={13} className="text-muted-foreground" strokeWidth={2.4} aria-label={t.rec_sent} />
+            <Ticks className="text-muted-foreground" etiqueta={t.rec_sent} />
           )}
         </div>
       )}
@@ -672,11 +681,12 @@ export function AcotacionesPostit({ notas, className = '', grande = false }: { n
 
 /** Post-it en miniatura (1.9.6): el mismo papel amarillo con su cinta; con "+" en el botón de arriba. Se usa en
  *  todos lados donde va el ícono de recordatorio, para que coincida con los post-it. */
-export function MiniPostit({ tam = 27, mas = true, enviar = false, className = '' }: { tam?: number; mas?: boolean; enviar?: boolean; className?: string }) {
+export function MiniPostit({ tam = 27, mas = true, enviar = false, className = '', contorno = false }: { tam?: number; mas?: boolean; enviar?: boolean; className?: string; contorno?: boolean }) {
   return (
     <span className={`relative inline-block shrink-0 ${className}`}
           style={{ width: tam, height: tam, background: '#FFF3B0', borderRadius: `${tam * 0.08}px ${tam * 0.08}px ${tam * 0.26}px ${tam * 0.08}px`,
-                   boxShadow: '0 1px 4px rgba(0,0,0,0.25)', transform: 'rotate(-5deg)' }}>
+                   boxShadow: contorno ? '0 0 0 2px hsl(var(--especial)), 0 1px 4px rgba(0,0,0,0.25)' : '0 1px 4px rgba(0,0,0,0.25)',
+                   transform: 'rotate(-5deg)', transition: 'box-shadow 200ms ease-out' }}>
       <span className="absolute left-1/2 bg-white/60"
             style={{ top: -tam * 0.11, height: tam * 0.22, width: tam * 0.52, marginLeft: -tam * 0.26, transform: 'rotate(3deg)' }} />
       {(mas || enviar) && (
@@ -720,9 +730,9 @@ export function BotonEnviados({ activo, onClick }: { activo: boolean; onClick: (
   return (
     <button type="button" {...toque} onTouchStart={e => e.stopPropagation()} style={{ touchAction: 'none' }}
             aria-label={t.rec_sent_title} aria-pressed={activo}
-            className={`tap-btn-overlay relative w-[37px] h-[37px] flex items-center justify-center rounded-full transition-shadow duration-200 ${
-              activo ? 'ring-2 ring-[hsl(var(--especial))]' : ''}`}>
-      <MiniPostit enviar mas={false} />
+            className="tap-btn-overlay relative w-[37px] h-[37px] flex items-center justify-center">
+      {/* (1.17.7, Josué) Activo: el contorno celeste sigue la forma del papelito (no un círculo). */}
+      <MiniPostit enviar mas={false} contorno={activo} />
     </button>
   );
 }
@@ -766,7 +776,9 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   const [vista, setVista] = useState<'escribir' | 'enviados'>('escribir');
   const [porBorrar, setPorBorrar] = useState<string | null>(null);
   const [texto, setTexto] = useState('');
-  const [paraId, setParaId] = useState<string | null>(null);
+  // (1.17.7, Josué) Se puede enviar a VARIAS personas a la vez; al crear, además "También para mí".
+  const [elegidos, setElegidos] = useState<string[]>([]);
+  const [tambienMio, setTambienMio] = useState(false);
   // "Enviar" (1.13.1): con el interruptor en Enviar aparecen las personas; volver a "Para mí" las oculta.
   const [enviar, setEnviar] = useState(false);
   const [soloMinuta, setSoloMinuta] = useState(false);
@@ -779,7 +791,8 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   const cargar = (r: Recordatorio | null) => {
     setAnt(r);
     setTexto(r?.texto ?? '');
-    setParaId(r?.para?.id ?? null);
+    setElegidos(r?.para?.id ? [r.para.id] : []);
+    setTambienMio(false);
     setEnviar(!!r?.para);
     setSoloMinuta(r ? !!r.minuta : !!minutaId);
     setGuardando(false);
@@ -804,13 +817,20 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   const recibido = !!ant?.autor;
   const conPersonas = puedeDejarAOtros && !ant?.local && personas.length > 0 && !recibido;
   const bloqueoPrivada = soloMinuta && !!minutaId && !minutaPublicada;
-  useEffect(() => { if (bloqueoPrivada) { setParaId(null); setEnviar(false); } }, [bloqueoPrivada]);
+  useEffect(() => { if (bloqueoPrivada) { setElegidos([]); setEnviar(false); } }, [bloqueoPrivada]);
 
-  const paraFinal = enviar ? paraId : null;
-  const cambio = texto.trim() !== (ant?.texto ?? '') || paraFinal !== (ant?.para?.id ?? null)
-    || soloMinuta !== (ant ? !!ant.minuta : !!minutaId);
+  // Modos (1.17.7): nuevo (Para mí / Enviar), uno MÍO para mí (ya es mío: solo "Enviar" a otros, sin quitármelo),
+  // uno que ENVIÉ (se cambia a quién, uno solo) y uno que me enviaron (solo el texto).
+  const modo: 'nuevo' | 'mio' | 'enviado' | 'recibido' = !ant ? 'nuevo' : ant.autor ? 'recibido' : ant.para ? 'enviado' : 'mio';
+  const alternar = (id: string) => {
+    if (modo === 'enviado') { setElegidos([id]); return; }
+    setElegidos(v => (v.includes(id) ? v.filter(x => x !== id) : [...v, id]));
+  };
+  const enviaA = enviar ? elegidos : [];
+  const cambio = texto.trim() !== (ant?.texto ?? '') || soloMinuta !== (ant ? !!ant.minuta : !!minutaId)
+    || (modo === 'enviado' ? elegidos[0] !== ant?.para?.id : enviaA.length > 0);
   // Con "Enviar" hay que elegir a quién.
-  const listo = cambio && texto.trim().length > 0 && !guardando && !(enviar && !paraId);
+  const listo = (cambio || modo === 'nuevo') && texto.trim().length > 0 && !guardando && !(enviar && elegidos.length === 0);
 
   // Guardar y borrar se ven AL INSTANTE (1.8.1, Josué: "todo fluido"): el panel se cierra ya y el servidor se
   // actualiza por detrás; si falla, el cambio se deshace solo y aparece el aviso.
@@ -819,12 +839,26 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
     if (!listo || !himno) return;
     setGuardando(true);
     onCerrar();
-    const para = personas.find(p => p.id === paraFinal) ?? null;
-    guardarRecordatorio({
-      anterior: ant, himno, texto: texto.trim(), paraId: paraFinal, para, minuta: soloMinuta && minutaId ? minutaId : null,
-    }, registrado).catch(avisarError);
+    const minuta = soloMinuta && minutaId ? minutaId : null;
+    const base = { himno, texto: texto.trim(), minuta };
+    const trabajos: Promise<unknown>[] = [];
+    if (modo === 'enviado') {
+      const id = elegidos[0];
+      trabajos.push(guardarRecordatorio({ ...base, anterior: ant, paraId: id, para: personas.find(p => p.id === id) ?? null }, registrado));
+    } else {
+      // El mío: se crea (nuevo "para mí" o con "También para mí") o se actualiza (editar uno mío).
+      if (modo === 'mio' || modo === 'recibido' || !enviar || tambienMio) {
+        trabajos.push(guardarRecordatorio({ ...base, anterior: modo === 'nuevo' ? null : ant, paraId: null }, registrado));
+      }
+      // Y una copia para cada persona elegida.
+      for (const id of enviaA) {
+        trabajos.push(guardarRecordatorio({ ...base, anterior: null, paraId: id, para: personas.find(p => p.id === id) ?? null }, registrado));
+      }
+    }
+    Promise.all(trabajos).catch(avisarError);
     // Lo enviado a otra persona no queda sobre la letra (1.8.3): un aviso confirma que salió.
-    if (para && !ant) toast.success(t.rec_sent_to(para.nombre));
+    const nombres = enviaA.map(id => personas.find(p => p.id === id)?.nombre).filter(Boolean);
+    if (modo !== 'enviado' && nombres.length) toast.success(t.rec_sent_to(nombres.join(', ')));
   };
 
   const borrar = () => {
@@ -846,8 +880,9 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   // Opciones del panel: alto de 36 px (antes ~28 y costaba acertarles, Josué 1.7.1) y touch-action none (un toque
   // con un poco de movimiento no se cancela).
   const pastilla = (activa: boolean) =>
-    `h-9 px-3.5 rounded-full text-[13px] font-medium border select-none [touch-action:none] transition-colors duration-150 ${
-      activa ? 'bg-yellow-300/30 border-yellow-500/70 text-foreground' : 'border-border text-muted-foreground'
+    // pan-x: la fila de personas se DESLIZA hacia el lado (con touch-action none no se podía ver a los de la derecha).
+    `h-9 px-3.5 rounded-full text-[13px] font-medium border select-none [touch-action:pan-x] transition-colors duration-150 ${
+      activa ? 'bg-[#FFF4CC] border-[#FFF4CC] text-[#4A3800]' : 'border-border text-muted-foreground'
     }`;
   const textoEstado = (r: Recordatorio) =>
     r.estado === 'visto' ? t.rec_seen : r.estado === 'eliminado' ? t.rec_deleted_by(r.para?.nombre ?? '') : t.rec_sent;
@@ -942,7 +977,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
                       onClick={() => setTexto(sim ? textoSimbolo(sim) : (simboloDe(texto) ? '' : texto))}
                       aria-label={sim ? t.rec_simbolo[sim] : t.rec_simbolo_texto}
                       className={`h-9 w-9 rounded-full flex items-center justify-center border transition-colors duration-150 ${
-                        activo ? 'bg-yellow-300/30 border-yellow-500/70 text-foreground' : 'border-border text-muted-foreground'}`}>
+                        activo ? 'bg-[#FFF4CC] border-[#FFF4CC] text-[#4A3800]' : 'border-border text-muted-foreground'}`}>
                 {sim ? <IconoSimbolo simbolo={sim} tam={18} /> : <Type size={17} />}
               </button>
             );
@@ -981,16 +1016,32 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
             se desliza hacia el lado). Su espacio está siempre reservado: no empuja ni mueve nada. */}
         {conPersonas && (
           <div className="space-y-2">
-            <Conmutador izquierda={t.rec_for_me} derecha={t.rec_send} derechaActiva={enviar} deshabilitado={bloqueoPrivada}
-                        onCambiar={setEnviar} />
+            {modo === 'nuevo' ? (
+              <Conmutador izquierda={t.rec_for_me} derecha={t.rec_send} derechaActiva={enviar} deshabilitado={bloqueoPrivada}
+                          onCambiar={setEnviar} />
+            ) : modo === 'mio' ? (
+              // Ya es mío: solo la opción de enviarlo también a otras personas (no se quita "para mí").
+              <button type="button" disabled={bloqueoPrivada} onClick={() => setEnviar(v => !v)} aria-pressed={enviar}
+                      className={`w-full h-10 rounded-full border flex items-center justify-center gap-2 text-[13px] font-medium transition-colors duration-150 disabled:opacity-50 ${
+                        enviar ? 'bg-[#FFF4CC] border-[#FFF4CC] text-[#4A3800]' : 'border-border text-foreground'}`}>
+                <Send size={14} />{t.rec_enviar_otros}
+              </button>
+            ) : null}
             {bloqueoPrivada ? (
               <p className="text-[11px] text-muted-foreground h-9 flex items-center">{t.rec_private_hint}</p>
             ) : (
-              <div className="flex gap-2 overflow-x-auto h-9 -mx-1 px-1 transition-opacity duration-200 [scrollbar-width:none]"
+              // Fila que se DESLIZA hacia el lado; se puede elegir a VARIAS personas (1.17.7, Josué).
+              <div className="flex gap-2 overflow-x-auto h-9 -mx-1 px-1 transition-opacity duration-200 [scrollbar-width:none] [touch-action:pan-x]"
                    style={{ opacity: enviar ? 1 : 0, pointerEvents: enviar ? 'auto' : 'none' }} aria-hidden={!enviar}>
+                {modo === 'nuevo' && (
+                  <button type="button" tabIndex={enviar ? 0 : -1} aria-pressed={tambienMio}
+                          className={`${pastilla(tambienMio)} shrink-0 flex items-center gap-1.5`} onClick={() => setTambienMio(v => !v)}>
+                    {tambienMio ? <Check size={13} /> : <MiniPostit tam={13} mas={false} />}{t.rec_tambien_mio}
+                  </button>
+                )}
                 {personas.map(p => (
-                  <button key={p.id} type="button" tabIndex={enviar ? 0 : -1}
-                          className={`${pastilla(paraId === p.id)} shrink-0 flex items-center gap-1.5`} onClick={() => setParaId(p.id)}>
+                  <button key={p.id} type="button" tabIndex={enviar ? 0 : -1} aria-pressed={elegidos.includes(p.id)}
+                          className={`${pastilla(elegidos.includes(p.id))} shrink-0 flex items-center gap-1.5`} onClick={() => alternar(p.id)}>
                     <Punto color={p.color} />{p.nombre}
                   </button>
                 ))}
@@ -1017,5 +1068,17 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
         </>)}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** (1.17.7, Josué) Tic(s) de enviado / visto: dos IGUALES, trazo curvo "en cursiva" (no rectas). */
+function Ticks({ dos = false, className = '', etiqueta }: { dos?: boolean; className?: string; etiqueta: string }) {
+  const tic = 'M1.5 8.2c1.3.8 2.4 1.9 3.2 3.4C6.7 7.4 9.2 4.2 12.6 1.8';
+  return (
+    <svg viewBox={dos ? '0 0 19 13' : '0 0 14 13'} width={dos ? 17 : 12.5} height={12} className={className} role="img" aria-label={etiqueta}
+         fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+      <path d={tic} />
+      {dos && <path d={tic} transform="translate(5.2 0)" />}
+    </svg>
   );
 }

@@ -38,8 +38,8 @@ export interface Recordatorio {
   tam?: number | null;
 }
 
-export const TAM_MIN = 0.55; // 1.11.5 (Josué): más chico, para meterlo entre acordes
-export const TAM_MAX = 2;
+export const TAM_MIN = 0.35; // 1.11.5 / 1.17.7 (Josué): más chico, para meterlo junto a un acorde
+export const TAM_MAX = 4;    // 1.17.7: el doble; además nunca más ancho que la pantalla (ver Nota → tamAl)
 /** Letras por post-it (1.9.10, Josué): lo justo para un recordatorio; más no cabe bien en un papelito. */
 export const MAX_TEXTO = 120;
 

@@ -133,6 +133,11 @@ export interface Translations {
   admin_espacio_nuevo: string;
   admin_espacio_agregar: string;
   admin_espacio_texto: string;
+  admin_espacio_nuevo_titulo: string;
+  admin_espacio_editar_titulo: string;
+  admin_espacio_eliminado: string;
+  admin_espacio_eliminar_titulo: (n: string) => string;
+  admin_espacio_eliminar_texto: (otro: string) => string;
   minutas_unpin: string;
   minutas_opciones: string;
   minuta_bajar_imagen: string;
@@ -173,6 +178,7 @@ export interface Translations {
   especial_nombre: string;
   editor_add: string;
   fuera_boton: string;
+  fuera_agregar: string;
   fuera_titulo: string;
   fuera_texto: string;
   fuera_nombre: string;
@@ -343,6 +349,8 @@ export interface Translations {
   rec_placeholder: string;
   rec_for: string;
   rec_for_me: string;
+  rec_tambien_mio: string;
+  rec_enviar_otros: string;
   rec_send: string;
   rec_deleted_short: string;
   rec_simbolo: Record<'ojo' | 'arriba' | 'abajo' | 'corchea', string>;
@@ -497,6 +505,11 @@ export const es: Translations = {
   admin_espacio_nuevo: 'Nombre del espacio nuevo',
   admin_espacio_agregar: 'Agregar',
   admin_espacio_texto: 'Arriba en Minutas se cambia de espacio; cada minuta nueva queda en el que se está viendo.',
+  admin_espacio_nuevo_titulo: 'Nuevo espacio',
+  admin_espacio_editar_titulo: 'Espacio',
+  admin_espacio_eliminado: 'Espacio eliminado',
+  admin_espacio_eliminar_titulo: n => `¿Eliminar el espacio ${n}?`,
+  admin_espacio_eliminar_texto: otro => `Sus minutas no se borran: pasan a ${otro}.`,
   minutas_unpin: 'Desfijar',
   minutas_opciones: 'Opciones',
   minuta_bajar_imagen: 'Descargar imagen',
@@ -539,7 +552,8 @@ export const es: Translations = {
   especial: 'Especial',
   especial_nombre: 'Nombre',
   editor_add: 'Agregar',
-  fuera_boton: 'Una que no está en el himnario',
+  fuera_boton: 'Agregar alabanza que no está en el himnario',
+  fuera_agregar: 'Agregar',
   fuera_titulo: 'Alabanza fuera del himnario',
   fuera_texto: 'Queda guardada para volver a usarla.',
   fuera_nombre: 'Título',
@@ -553,7 +567,7 @@ export const es: Translations = {
   fuera_etiqueta: 'fuera del himnario',
   fuera_no_esta: 'No está en el himnario',
   fuera_imagen_subida: 'Imagen subida',
-  fuera_seccion: 'Canciones que no están en el himnario',
+  fuera_seccion: 'Alabanzas que no están en el himnario',
   fuera_vacio: 'Todavía no hay canciones guardadas. Se agregan al crear una minuta.',
   editor_empty: 'Agrega al menos un canto.',
   editor_empty_hint: 'Pulsa "+ Alabanza" para buscar y añadir alabanzas.',
@@ -707,6 +721,8 @@ export const es: Translations = {
   rec_placeholder: 'Escribe lo que quieres recordar…',
   rec_for: 'Para',
   rec_for_me: 'Para mí',
+  rec_tambien_mio: 'También para mí',
+  rec_enviar_otros: 'Enviar a otras personas',
   rec_send: 'Enviar',
   rec_deleted_short: 'Lo eliminó',
   rec_simbolo: { ojo: 'Ojo', arriba: 'Flecha arriba', abajo: 'Flecha abajo', corchea: 'Corchea' },
@@ -861,6 +877,11 @@ export const en: Translations = {
   admin_espacio_nuevo: 'New space name',
   admin_espacio_agregar: 'Add',
   admin_espacio_texto: 'Switch spaces at the top of Services; each new service goes to the space being viewed.',
+  admin_espacio_nuevo_titulo: 'New space',
+  admin_espacio_editar_titulo: 'Space',
+  admin_espacio_eliminado: 'Space deleted',
+  admin_espacio_eliminar_titulo: n => `Delete the space ${n}?`,
+  admin_espacio_eliminar_texto: otro => `Its services are not deleted: they move to ${otro}.`,
   minutas_unpin: 'Unpin',
   minutas_opciones: 'Options',
   minuta_bajar_imagen: 'Download image',
@@ -903,7 +924,8 @@ export const en: Translations = {
   especial: 'Special',
   especial_nombre: 'Name',
   editor_add: 'Add',
-  fuera_boton: 'One that is not in the hymnal',
+  fuera_boton: 'Add a song that is not in the hymnal',
+  fuera_agregar: 'Add',
   fuera_titulo: 'Song not in the hymnal',
   fuera_texto: 'It is saved to use again.',
   fuera_nombre: 'Title',
@@ -1071,6 +1093,8 @@ export const en: Translations = {
   rec_placeholder: 'Write what you want to remember…',
   rec_for: 'For',
   rec_for_me: 'For me',
+  rec_tambien_mio: 'Also for me',
+  rec_enviar_otros: 'Send to other people',
   rec_send: 'Send',
   rec_deleted_short: 'Deleted it',
   rec_simbolo: { ojo: 'Eye', arriba: 'Up arrow', abajo: 'Down arrow', corchea: 'Eighth note' },
@@ -1225,6 +1249,11 @@ export const pt: Translations = {
   admin_espacio_nuevo: 'Nome do novo espaço',
   admin_espacio_agregar: 'Adicionar',
   admin_espacio_texto: 'No topo de Minutas se muda de espaço; cada minuta nova fica no espaço que está sendo visto.',
+  admin_espacio_nuevo_titulo: 'Novo espaço',
+  admin_espacio_editar_titulo: 'Espaço',
+  admin_espacio_eliminado: 'Espaço excluído',
+  admin_espacio_eliminar_titulo: n => `Excluir o espaço ${n}?`,
+  admin_espacio_eliminar_texto: otro => `As minutas não são apagadas: passam para ${otro}.`,
   minutas_unpin: 'Desafixar',
   minutas_opciones: 'Opções',
   minuta_bajar_imagen: 'Baixar imagem',
@@ -1267,7 +1296,8 @@ export const pt: Translations = {
   especial: 'Especial',
   especial_nombre: 'Nome',
   editor_add: 'Adicionar',
-  fuera_boton: 'Uma que não está no hinário',
+  fuera_boton: 'Adicionar louvor que não está no hinário',
+  fuera_agregar: 'Adicionar',
   fuera_titulo: 'Louvor fora do hinário',
   fuera_texto: 'Fica salvo para usar de novo.',
   fuera_nombre: 'Título',
@@ -1281,7 +1311,7 @@ export const pt: Translations = {
   fuera_etiqueta: 'fora do hinário',
   fuera_no_esta: 'Não está no hinário',
   fuera_imagen_subida: 'Imagem enviada',
-  fuera_seccion: 'Canções que não estão no hinário',
+  fuera_seccion: 'Louvores que não estão no hinário',
   fuera_vacio: 'Ainda não há canções salvas. São adicionadas ao criar uma minuta.',
   editor_empty: 'Adicione pelo menos um louvor.',
   editor_empty_hint: 'Toque em "+ Louvor" para buscar e adicionar louvores.',
@@ -1435,6 +1465,8 @@ export const pt: Translations = {
   rec_placeholder: 'Escreva o que você quer lembrar…',
   rec_for: 'Para',
   rec_for_me: 'Para mim',
+  rec_tambien_mio: 'Também para mim',
+  rec_enviar_otros: 'Enviar a outras pessoas',
   rec_send: 'Enviar',
   rec_deleted_short: 'Excluiu',
   rec_simbolo: { ojo: 'Olho', arriba: 'Seta para cima', abajo: 'Seta para baixo', corchea: 'Colcheia' },

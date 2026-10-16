@@ -43,6 +43,16 @@ export async function agregarEspacio(nombre: string) {
   fijarLista(await api<Espacio[]>('espacios', { metodo: 'POST', datos: { nombre } }));
 }
 
+/** (1.17.7) Cambiar el nombre de un espacio (solo el admin). */
+export async function renombrarEspacio(id: string, nombre: string) {
+  fijarLista(await api<Espacio[]>(`espacios/${id}`, { metodo: 'PATCH', datos: { nombre } }));
+}
+
+/** (1.17.7) Eliminar un espacio: sus minutas pasan al primero de los que quedan (lo hace el servidor). */
+export async function eliminarEspacio(id: string) {
+  fijarLista(await api<Espacio[]>(`espacios/${id}`, { metodo: 'DELETE' }));
+}
+
 export function useEspacios(): { espacios: Espacio[]; actual: Espacio; siguiente: () => void } {
   const [, setN] = useState(0);
   useEffect(() => {

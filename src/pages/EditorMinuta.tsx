@@ -163,7 +163,7 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
           </button>
           <button type="button" onClick={onFuera}
                   className="w-full flex items-center gap-2 py-2.5 px-3 mb-1 rounded-lg border border-dashed border-border text-sm text-muted-foreground text-left">
-            <Plus size={15} className="shrink-0" />{t.fuera_boton}
+            <Plus size={15} className="shrink-0" />{t.fuera_agregar}
           </button>
           {extrasCarpeta.map(filaExtra)}
         </>) : (<>

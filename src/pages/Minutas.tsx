@@ -41,7 +41,11 @@ export default function Minutas() {
   // (1.16.0, Josué) Espacios: arriba se ve solo el nombre del espacio actual; tocarlo pasa al otro. Se ven las minutas
   // de ese espacio (las de antes son de Batuco) y las nuevas se crean en él.
   const { espacios, actual: espacio, siguiente: otroEspacio } = useEspacios();
-  const minutas = useMemo(() => todas.filter(m => (m.espacio ?? 'batuco') === espacio.id), [todas, espacio.id]);
+  // Si su espacio ya no existe (se eliminó), se ve en el primero (el servidor ya la pasó ahí).
+  const minutas = useMemo(() => todas.filter(m => {
+    const suyo = espacios.some(e => e.id === (m.espacio ?? 'batuco')) ? (m.espacio ?? 'batuco') : espacios[0]?.id;
+    return suyo === espacio.id;
+  }), [todas, espacio.id, espacios]);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -285,8 +289,8 @@ export default function Minutas() {
             return (
               <BotonSeguro key={lado} aria-label={lado === 'izq' ? t.minutas_ir_primera : t.minutas_ir_ultima}
                 onClick={() => { const el = scrollRef.current; if (el && !apagada) el.scrollTo({ left: lado === 'izq' ? 0 : el.scrollWidth, behavior: 'smooth' }); }}
-                className={`absolute top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200 ${
-                  lado === 'izq' ? 'left-1.5' : 'right-1.5'}`}
+                className={`absolute bottom-3 md:bottom-auto md:top-1/2 md:-translate-y-1/2 z-10 w-9 h-9 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200 ${
+                  lado === 'izq' ? 'left-4 md:left-1.5' : 'right-4 md:right-1.5'}`}
                 style={{ opacity: apagada ? 0.25 : 1, pointerEvents: apagada ? 'none' : 'auto' }}>
                 {lado === 'izq' ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}
               </BotonSeguro>

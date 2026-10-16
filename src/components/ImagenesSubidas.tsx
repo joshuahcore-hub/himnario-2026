@@ -20,7 +20,8 @@ export function CabeceraFuera({ titulo, tono, etiqueta = true }: { titulo: strin
   return (
     <div className="text-center shrink-0 pt-4 px-4">
       <h2 className="text-lg font-bold text-foreground">{titulo}</h2>
-      <div className="flex items-center justify-center gap-2">
+      {/* (1.17.7, Josué) Uno debajo del otro: tonalidad y, debajo, la etiqueta. */}
+      <div className="flex flex-col items-center gap-1">
         {tono && <span translate="no" className="font-semibold text-hymn-key">{tono}</span>}
         {etiqueta && <span className="rounded-md border border-border px-1.5 py-px text-[10px] text-muted-foreground">{t.fuera_etiqueta}</span>}
       </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowLeft, EyeOff, Loader2, Plus, RefreshCw } from 'lucide-react';
+import { ArrowLeft, EyeOff, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ChipAutor } from '@/components/Portada';
@@ -10,7 +10,7 @@ import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { revisarPendientes } from '@/hooks/usePendientes';
 import { Input } from '@/components/ui/input';
-import { agregarEspacio, useEspacios } from '@/lib/espacios';
+import { agregarEspacio, eliminarEspacio, renombrarEspacio, useEspacios } from '@/lib/espacios';
 
 interface DispositivoAdmin {
   id: string;
@@ -265,36 +265,93 @@ export default function Admin() {
   );
 }
 
-/** (1.16.0, Josué) Espacios de minutas (Batuco, Talca…): la lista y agregar uno nuevo. */
+/** (1.16.0 / 1.17.7, Josué) Espacios de minutas: se ven los espacios y un "+". Tocar un espacio abre un panel para
+ *  cambiarle el nombre o eliminarlo (el basurero pide confirmación: sus minutas pasan al primero de los que quedan).
+ *  El "+" abre el panel para crear uno con su nombre. */
 function SeccionEspacios() {
   const { t } = useI18n();
   const { espacios } = useEspacios();
+  // Panel: null cerrado; 'nuevo' = crear; un id = editar ese.
+  const [panel, setPanel] = useState<string | null>(null);
+  const [vista, setVista] = useState<'editar' | 'confirmar'>('editar');
   const [nombre, setNombre] = useState('');
   const [guardando, setGuardando] = useState(false);
-  const agregar = async () => {
+  const elegido = espacios.find(e => e.id === panel) ?? null;
+  // El panel se fija al ABRIR (no cambia mientras se cierra).
+  const abrir = (id: string) => { setPanel(id); setVista('editar'); setGuardando(false); setNombre(id === 'nuevo' ? '' : espacios.find(e => e.id === id)?.nombre ?? ''); };
+  const fallo = (e: any) => toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
+  const guardar = async () => {
     const n = nombre.trim();
-    if (!n || guardando) return;
+    if (!n || guardando || !panel) return;
     setGuardando(true);
-    try { await agregarEspacio(n); setNombre(''); }
-    catch (e: any) { toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message); }
-    finally { setGuardando(false); }
+    try { if (panel === 'nuevo') await agregarEspacio(n); else await renombrarEspacio(panel, n); setPanel(null); }
+    catch (e) { fallo(e); } finally { setGuardando(false); }
   };
+  const eliminar = async () => {
+    if (!elegido || guardando) return;
+    setGuardando(true);
+    try { await eliminarEspacio(elegido.id); setPanel(null); toast.success(t.admin_espacio_eliminado); }
+    catch (e) { fallo(e); } finally { setGuardando(false); }
+  };
+  const cambio = panel === 'nuevo' ? !!nombre.trim() : !!nombre.trim() && nombre.trim() !== elegido?.nombre;
   return (
     <div className="bg-card rounded-xl border border-border p-3 space-y-2 mb-2">
       <p className="text-[11px] font-semibold text-muted-foreground">{t.admin_espacios}</p>
       <div className="flex flex-wrap gap-1.5">
         {espacios.map(e => (
-          <span key={e.id} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-foreground">{e.nombre}</span>
+          <button key={e.id} type="button" onClick={() => abrir(e.id)}
+                  className="tap-btn rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-foreground">{e.nombre}</button>
         ))}
+        <button type="button" onClick={() => abrir('nuevo')} aria-label={t.admin_espacio_agregar}
+                className="tap-btn w-8 h-8 rounded-full border border-dashed border-border flex items-center justify-center text-muted-foreground">
+          <Plus size={15} />
+        </button>
       </div>
       <p className="text-[10px] text-muted-foreground">{t.admin_espacio_texto}</p>
-      <div className="flex gap-2">
-        <Input value={nombre} onChange={e => setNombre(e.target.value.slice(0, 30))} placeholder={t.admin_espacio_nuevo}
-               onKeyDown={e => { if (e.key === 'Enter') agregar(); }} className="h-9 text-sm" />
-        <Button className="h-9 px-3 text-sm gap-1 shrink-0" onClick={agregar} disabled={!nombre.trim()} style={{ opacity: guardando ? 0.6 : undefined }}>
-          {guardando ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}{t.admin_espacio_agregar}
-        </Button>
-      </div>
+
+      <Dialog open={panel !== null} onOpenChange={o => { if (!o && !guardando) setPanel(null); }}>
+        <DialogContent className="max-w-[320px] rounded-2xl gap-3" onOpenAutoFocus={e => e.preventDefault()}>
+          {vista === 'confirmar' && elegido ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-base">{t.admin_espacio_eliminar_titulo(elegido.nombre)}</DialogTitle>
+                <DialogDescription className="text-xs text-center">
+                  {t.admin_espacio_eliminar_texto(espacios.find(e => e.id !== elegido.id)?.nombre ?? '')}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-center gap-2">
+                <Button variant="outline" className="h-9 px-4 text-sm" onClick={() => setVista('editar')}>{t.rec_cancel}</Button>
+                <Button variant="destructive" className="h-9 px-4 text-sm gap-1.5" onClick={eliminar} style={{ opacity: guardando ? 0.6 : 1 }}>
+                  <Trash2 size={14} />{t.minutas_delete}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-base">{panel === 'nuevo' ? t.admin_espacio_nuevo_titulo : t.admin_espacio_editar_titulo}</DialogTitle>
+                <DialogDescription className="sr-only">{t.admin_espacios}</DialogDescription>
+              </DialogHeader>
+              <Input value={nombre} onChange={e => setNombre(e.target.value.slice(0, 30))} placeholder={t.admin_espacio_nuevo}
+                     onKeyDown={e => { if (e.key === 'Enter') guardar(); }} className="h-10 text-sm" />
+              <div className="flex items-center gap-2">
+                {/* Basurero dentro del panel: pide confirmación (no se puede eliminar el único espacio). */}
+                {panel !== 'nuevo' && espacios.length > 1 && (
+                  <button type="button" onClick={() => setVista('confirmar')} aria-label={t.minutas_delete}
+                          className="tap-btn w-9 h-9 rounded-full flex items-center justify-center text-destructive hover:bg-destructive/10">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+                <div className="flex-1" />
+                <Button variant="ghost" className="h-9 px-4 text-sm text-muted-foreground" onClick={() => setPanel(null)}>{t.rec_cancel}</Button>
+                <Button className="h-9 px-4 text-sm gap-1" onClick={guardar} disabled={!cambio} style={{ opacity: guardando ? 0.6 : undefined }}>
+                  {guardando && <Loader2 size={14} className="animate-spin" />}{panel === 'nuevo' ? t.admin_espacio_agregar : t.minutas_save}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

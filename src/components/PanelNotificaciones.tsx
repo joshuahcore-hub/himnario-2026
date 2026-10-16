@@ -147,7 +147,8 @@ export default function PanelNotificaciones({ onRegistrarme, onIr, pestanaInicia
           </button>
         ))}
       </div>
-      <div className="h-[min(56dvh,420px)] overflow-y-auto overscroll-contain -mx-1 px-1">
+      {/* (1.17.7, Josué) La barra de desplazamiento va bien a la derecha, separada de los interruptores. */}
+      <div className="h-[min(56dvh,420px)] overflow-y-auto overscroll-contain -mr-4 pr-5 [scrollbar-width:thin]">
         {pestana === 'avisos' ? <Avisos onIr={onIr} /> : <AjustesNotificaciones onRegistrarme={onRegistrarme} />}
       </div>
     </div>

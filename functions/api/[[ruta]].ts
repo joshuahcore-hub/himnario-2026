@@ -201,15 +201,39 @@ async function validarEspacio(env: Env, v: unknown): Promise<Espacio> {
   const lista = await listaEspacios(env);
   return lista.find(e => e.id === v) ?? lista[0] ?? { id: 'batuco', nombre: 'Batuco' };
 }
-async function rutasEspacios(request: Request, env: Env): Promise<Response> {
+async function rutasEspacios(request: Request, env: Env, partes: string[]): Promise<Response> {
   if (request.method === 'GET') return json(await listaEspacios(env));
-  if (request.method === 'POST') {
-    const yo = await dispositivoActual(request, env);
-    if (!esAdmin(yo)) throw new ErrorApi(403, 'Solo el administrador agrega espacios.');
+  const yo = await dispositivoActual(request, env);
+  if (!esAdmin(yo)) throw new ErrorApi(403, 'Solo el administrador cambia los espacios.');
+  const lista = await listaEspacios(env);
+  const leerNombre = async () => {
     const body = await leerJson(request);
     const nombre = typeof body.nombre === 'string' ? body.nombre.trim().replace(/\s+/g, ' ').slice(0, 30) : '';
     if (!nombre) throw new ErrorApi(400, 'Escribe el nombre del espacio.');
-    const lista = await listaEspacios(env);
+    return nombre;
+  };
+  const id = partes[1];
+  // (1.17.7) Cambiar el nombre.
+  if (id && request.method === 'PATCH') {
+    if (!lista.some(e => e.id === id)) throw new ErrorApi(404, 'Ese espacio ya no existe.');
+    const nombre = await leerNombre();
+    if (lista.some(e => e.id !== id && e.nombre.toLowerCase() === nombre.toLowerCase())) throw new ErrorApi(409, 'Ya hay un espacio con ese nombre.');
+    await env.DB.prepare('UPDATE espacios SET nombre = ? WHERE id = ?').bind(nombre, id).run();
+    return json(await listaEspacios(env));
+  }
+  // (1.17.7) Eliminar: sus minutas pasan al primero de los que quedan (no se pierde ninguna). No se puede dejar sin espacios.
+  if (id && request.method === 'DELETE') {
+    const otros = lista.filter(e => e.id !== id);
+    if (otros.length === lista.length) throw new ErrorApi(404, 'Ese espacio ya no existe.');
+    if (!otros.length) throw new ErrorApi(400, 'Tiene que quedar al menos un espacio.');
+    await env.DB.batch([
+      env.DB.prepare('UPDATE minutas SET espacio = ? WHERE espacio = ?').bind(otros[0].id, id),
+      env.DB.prepare('DELETE FROM espacios WHERE id = ?').bind(id),
+    ]);
+    return json(await listaEspacios(env));
+  }
+  if (!id && request.method === 'POST') {
+    const nombre = await leerNombre();
     if (lista.some(e => e.nombre.toLowerCase() === nombre.toLowerCase())) throw new ErrorApi(409, 'Ese espacio ya existe.');
     const id = crypto.randomUUID();
     await env.DB.prepare('INSERT INTO espacios (id, nombre, orden, creado) VALUES (?, ?, ?, ?)').bind(id, nombre, lista.length + 1, ahora()).run();
@@ -790,7 +814,7 @@ async function rutasRecordatorios(request: Request, env: Env, partes: string[]):
       await env.DB.prepare(`UPDATE recordatorios SET ${colX} = ?, ${colY} = ? WHERE id = ?`).bind(pos?.x ?? null, pos?.y ?? null, id).run();
     }
     if (body.tam !== undefined) {
-      const tam = body.tam == null ? null : typeof body.tam === 'number' && body.tam >= 0.5 && body.tam <= 2 ? body.tam : undefined;
+      const tam = body.tam == null ? null : typeof body.tam === 'number' && body.tam >= 0.3 && body.tam <= 4 ? body.tam : undefined; // 1.17.7
       if (tam === undefined) throw new ErrorApi(400, 'Tamaño no válido.');
       await env.DB.prepare(`UPDATE recordatorios SET ${colT} = ? WHERE id = ?`).bind(tam, id).run();
     }
@@ -1249,7 +1273,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env: envBase, par
   try {
     switch (partes[0]) {
       case 'minutas': return await rutasMinutas(request, env, partes);
-      case 'espacios': return await rutasEspacios(request, env);
+      case 'espacios': return await rutasEspacios(request, env, partes);
       case 'acceso': return await rutasAcceso(request, env, partes, ip);
       case 'admin': return await rutasAdmin(request, env, partes, ip);
       case 'ia': return await rutasIa(request, env, partes);
