@@ -77,7 +77,9 @@ export default function Minutas() {
   const ubicada = useRef('');
   useLayoutEffect(() => {
     const el = scrollRef.current;
-    if (!el || ordenadas.length === 0) return;
+    // (1.18.1, Josué) Sin lista (espacio vacío) hay que volver a ubicarla al regresar: si no, la lista nueva quedaba al
+    // inicio (la minuta más antigua) en vez de donde estaba.
+    if (!el || ordenadas.length === 0) { ubicada.current = ''; return; }
     const tarjeta = enfocar.current && el.querySelector<HTMLElement>(`[data-minuta="${enfocar.current}"]`);
     if (tarjeta) { el.scrollLeft = tarjeta.offsetLeft - (el.clientWidth - tarjeta.offsetWidth) / 2; enfocar.current = ''; }
     else if (ubicada.current !== espacio.id) el.scrollLeft = posicionMinutas[espacio.id] ?? el.scrollWidth;
