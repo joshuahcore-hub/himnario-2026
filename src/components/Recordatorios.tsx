@@ -776,6 +776,8 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   const [vista, setVista] = useState<'escribir' | 'enviados'>('escribir');
   const [porBorrar, setPorBorrar] = useState<string | null>(null);
   const [texto, setTexto] = useState('');
+  // (1.17.9, Josué) Lo ESCRITO se recuerda aunque se elija un símbolo: al volver a "Aa" vuelve el texto que estaba.
+  const [escrito, setEscrito] = useState('');
   // (1.17.7, Josué) Se puede enviar a VARIAS personas a la vez; al crear, además "También para mí".
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [tambienMio, setTambienMio] = useState(false);
@@ -791,6 +793,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   const cargar = (r: Recordatorio | null) => {
     setAnt(r);
     setTexto(r?.texto ?? '');
+    setEscrito(r && !simboloDe(r.texto) ? r.texto : '');
     setElegidos(r?.para?.id ? [r.para.id] : []);
     setTambienMio(false);
     setEnviar(!!r?.para);
@@ -974,7 +977,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
             const activo = (simboloDe(texto) ?? null) === sim;
             return (
               <button key={sim ?? 'texto'} type="button" aria-pressed={activo}
-                      onClick={() => setTexto(sim ? textoSimbolo(sim) : (simboloDe(texto) ? '' : texto))}
+                      onClick={() => setTexto(sim ? textoSimbolo(sim) : (simboloDe(texto) ? escrito : texto))}
                       aria-label={sim ? t.rec_simbolo[sim] : t.rec_simbolo_texto}
                       className={`h-9 w-9 rounded-full flex items-center justify-center border transition-colors duration-150 ${
                         activo ? 'bg-[#FFF4CC] border-[#FFF4CC] text-[#4A3800]' : 'border-border text-muted-foreground'}`}>
@@ -993,7 +996,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
         <div className="relative">
           <Textarea
             value={texto}
-            onChange={e => setTexto(e.target.value.slice(0, MAX_TEXTO))}
+            onChange={e => { const v = e.target.value.slice(0, MAX_TEXTO); setTexto(v); setEscrito(v); }}
             maxLength={MAX_TEXTO}
             placeholder={t.rec_placeholder}
             rows={3}
@@ -1059,7 +1062,9 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
                style={{ opacity: listo || vacio ? 1 : 0, pointerEvents: listo || vacio ? 'auto' : 'none' }}>
             <Button variant="outline" className="h-9 px-4 text-sm" tabIndex={listo || vacio ? 0 : -1} onClick={onCerrar}>{t.rec_cancel}</Button>
             {vacio ? (
-              <Button variant="destructive" className="h-9 px-4 text-sm" onClick={() => setConfirmando(true)}>{t.rec_delete}</Button>
+              // (1.17.9, Josué) Dejarlo sin texto ES un cambio: dice "Guardar" (no "Eliminar"); al tocarlo pregunta si
+              // se quiere eliminar.
+              <Button className="h-9 px-4 text-sm" onClick={() => setConfirmando(true)}>{t.rec_save}</Button>
             ) : (
               <Button className="h-9 px-4 text-sm" tabIndex={listo ? 0 : -1} onClick={guardar}>{t.rec_save}</Button>
             )}
