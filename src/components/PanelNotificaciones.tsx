@@ -28,15 +28,27 @@ export function Interruptor({ activo, onCambiar, texto, fuerte = false }: { acti
   );
 }
 
+// (1.17.8) Las preferencias quedan en memoria: la pestaña Ajustes se ve al instante (se actualizan por detrás).
+let prefsGuardadas: Preferencias | null = null;
+/** Se llama al abrir el menú ⋮: la pestaña Ajustes ya tiene sus datos al entrar. */
+export const precargarPreferencias = () => leerPreferencias().then(p => { prefsGuardadas = p; }).catch(() => {});
+
 function AjustesNotificaciones({ onRegistrarme }: { onRegistrarme: () => void }) {
   const { t } = useI18n();
   const { registrado } = useAcceso();
-  const [prefs, setPrefs] = useState<Preferencias | null>(null);
+  const [prefs, setPrefsEstado] = useState<Preferencias | null>(prefsGuardadas);
+  const setPrefs: typeof setPrefsEstado = v => setPrefsEstado(p => {
+    const n = typeof v === 'function' ? (v as (x: Preferencias | null) => Preferencias | null)(p) : v;
+    prefsGuardadas = n;
+    return n;
+  });
   const [permiso, setPermiso] = useState<EstadoPermiso>(permisoActual);
 
   useEffect(() => {
     if (!registrado) return;
-    leerPreferencias().then(setPrefs).catch(e => toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message));
+    // Si ya se veían (guardadas), la respuesta solo las pone al día si no se tocó ningún interruptor mientras tanto.
+    leerPreferencias().then(p => { if (!tocado.current) setPrefs(p); })
+      .catch(e => { if (!prefsGuardadas) toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message); });
   }, [registrado, t]);
 
   const fallo = (e: any) => toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
@@ -46,12 +58,14 @@ function AjustesNotificaciones({ onRegistrarme }: { onRegistrarme: () => void })
   // servidor reemplazaba todo y, tocando varios seguidos, una respuesta vieja devolvía a otro interruptor ("amague").
   // Ahora la respuesta no se usa; los cambios se envían en orden y solo si uno falla se deshace ESE cambio.
   const cola = useRef<Promise<unknown>>(Promise.resolve());
+  const tocado = useRef(false);
   const aplicar = (p: Preferencias, c: { activas?: boolean; tipo?: string; activo?: boolean }): Preferencias => ({
     activas: c.activas ?? p.activas,
     tipos: p.tipos.map(x => (c.tipo !== undefined && x.tipo === c.tipo ? { ...x, activo: !!c.activo } : x)),
   });
   const cambiar = (cambios: { activas?: boolean; tipo?: string; activo?: boolean }) => {
     if (!prefs) return;
+    tocado.current = true;
     const deshacer = cambios.tipo !== undefined
       ? { tipo: cambios.tipo, activo: !cambios.activo }
       : { activas: !cambios.activas };

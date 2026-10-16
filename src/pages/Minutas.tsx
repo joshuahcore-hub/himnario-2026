@@ -289,7 +289,7 @@ export default function Minutas() {
             return (
               <BotonSeguro key={lado} aria-label={lado === 'izq' ? t.minutas_ir_primera : t.minutas_ir_ultima}
                 onClick={() => { const el = scrollRef.current; if (el && !apagada) el.scrollTo({ left: lado === 'izq' ? 0 : el.scrollWidth, behavior: 'smooth' }); }}
-                className={`absolute bottom-3 md:bottom-auto md:top-1/2 md:-translate-y-1/2 z-10 w-9 h-9 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200 ${
+                className={`absolute bottom-[16%] md:bottom-auto md:top-1/2 md:-translate-y-1/2 z-10 w-9 h-9 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200 ${
                   lado === 'izq' ? 'left-4 md:left-1.5' : 'right-4 md:right-1.5'}`}
                 style={{ opacity: apagada ? 0.25 : 1, pointerEvents: apagada ? 'none' : 'auto' }}>
                 {lado === 'izq' ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}

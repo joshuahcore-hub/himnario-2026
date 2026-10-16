@@ -37,32 +37,44 @@ type Fila =
   | { clase: 'historial'; fecha: string; h: EntradaHistorial }
   | { clase: 'aviso'; fecha: string; a: AvisoRecibido };
 
+// (1.17.8, Josué: "tiene que ser fluido") La última lista queda en memoria: al abrir Avisos se ve AL INSTANTE y se
+// actualiza por detrás (sin el circulito de espera cada vez).
+let guardadas: { clave: string; filas: Fila[] } | null = null;
+
+/** Trae la lista (y la deja guardada). También se llama al abrir el menú ⋮, para que Avisos ya esté lista. */
+export async function precargarAvisos(esAdmin: boolean, locale: string): Promise<Fila[]> {
+  const [recibidos, historial] = await Promise.all([
+    api<AvisoRecibido[]>(`notificaciones/lista?idioma=${locale}`),
+    esAdmin ? api<EntradaHistorial[]>('admin/historial') : Promise.resolve([] as EntradaHistorial[]),
+  ]);
+  const lista: Fila[] = [
+    ...historial.map(h => ({ clase: 'historial' as const, fecha: h.fecha, h })),
+    ...recibidos.filter(a => !esAdmin || !TIPOS_MINUTA.includes(a.tipo)).map(a => ({ clase: 'aviso' as const, fecha: a.creada, a })),
+  ];
+  lista.sort((x, y) => (x.fecha < y.fecha ? 1 : x.fecha > y.fecha ? -1 : 0));
+  guardadas = { clave: `${esAdmin ? 'a' : 'p'}-${locale}`, filas: lista };
+  return lista;
+}
+
 export default function Avisos({ onIr }: { onIr: () => void }) {
   const { t, locale } = useI18n();
   const { esAdmin } = useAcceso();
   const navigate = useNavigate();
-  const [filas, setFilas] = useState<Fila[] | null>(null);
+  const claveCache = `${esAdmin ? 'a' : 'p'}-${locale}`;
+  const [filas, setFilas] = useState<Fila[] | null>(() => (guardadas?.clave === claveCache ? guardadas.filas : null));
 
   const fechaHora = (iso: string) =>
     new Date(iso).toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const cargar = useCallback(async () => {
     try {
-      const [recibidos, historial] = await Promise.all([
-        api<AvisoRecibido[]>(`notificaciones/lista?idioma=${locale}`),
-        esAdmin ? api<EntradaHistorial[]>('admin/historial') : Promise.resolve([] as EntradaHistorial[]),
-      ]);
-      const lista: Fila[] = [
-        ...historial.map(h => ({ clase: 'historial' as const, fecha: h.fecha, h })),
-        ...recibidos.filter(a => !esAdmin || !TIPOS_MINUTA.includes(a.tipo)).map(a => ({ clase: 'aviso' as const, fecha: a.creada, a })),
-      ];
-      lista.sort((x, y) => (x.fecha < y.fecha ? 1 : x.fecha > y.fecha ? -1 : 0));
-      setFilas(lista);
+      setFilas(await precargarAvisos(esAdmin, locale));
     } catch (e: any) {
-      setFilas([]);
-      toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
+      setFilas(f => f ?? []);
+      // Si ya se veía una lista, sin internet se queda esa sin avisar nada.
+      if (guardadas?.clave !== claveCache) toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message);
     }
-  }, [esAdmin, locale, t]);
+  }, [esAdmin, locale, t, claveCache]);
 
   useEffect(() => {
     cargar();

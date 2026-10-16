@@ -21,7 +21,8 @@ import { ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { ChipAutor } from '@/components/Portada';
 import { usePendientes, usePendientesDetalle } from '@/hooks/usePendientes';
-import PanelNotificaciones from '@/components/PanelNotificaciones';
+import PanelNotificaciones, { precargarPreferencias } from '@/components/PanelNotificaciones';
+import { precargarAvisos } from '@/components/Avisos';
 import { permisoActual, suscribir } from '@/lib/notificaciones';
 
 /** Evento para abrir "Activar como administrador" (Ajustes lo lanza al tocar 5 veces la versión). */
@@ -116,7 +117,7 @@ function OpcionMenu({ icono, texto, onClick, aviso = 0 }: { icono: React.ReactNo
 }
 
 export default function MenuAcceso() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const navigate = useNavigate();
   const acceso = useAcceso();
   const pendientes = usePendientes();
@@ -263,7 +264,11 @@ export default function MenuAcceso() {
         document.body,
       )}
       <div ref={menuRef} className="relative" data-menu-abierto={menuAbierto ? '' : undefined}>
-        <button onClick={() => setMenuAbierto(a => !a)} className="tap-btn relative p-2 -mr-2 text-muted-foreground" aria-label={t.settings_more}>
+        <button onClick={() => {
+                  // (1.17.8) Al abrir el menú ya se traen los avisos y ajustes: Notificaciones se ve al instante.
+                  if (!menuAbierto && acceso.registrado) { precargarAvisos(acceso.esAdmin, locale).catch(() => {}); precargarPreferencias(); }
+                  setMenuAbierto(a => !a);
+                }} className="tap-btn relative p-2 -mr-2 text-muted-foreground" aria-label={t.settings_more}>
           <EllipsisVertical size={20} />
           {pendientes > 0 && <span className="absolute top-1.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-background" />}
         </button>
