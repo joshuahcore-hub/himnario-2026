@@ -33,10 +33,12 @@ function Ojitos({ size = 24, strokeWidth = 1.6, className = '' }: { size?: numbe
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth}
          strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <ellipse cx="7.6" cy="12" rx="4.3" ry="6.2" />
-      <ellipse cx="16.4" cy="12" rx="4.3" ry="6.2" />
-      <circle cx="9.3" cy="12.6" r="2" fill="currentColor" stroke="none" />
-      <circle cx="18.1" cy="12.6" r="2" fill="currentColor" stroke="none" />
+      {/* (1.17.13, Josué) Fijo en todos los modos: ojo BLANCO por dentro y pupila NEGRA; solo el contorno sigue el
+          color del texto (en oscuro, blanco). */}
+      <ellipse cx="7.6" cy="12" rx="4.3" ry="6.2" fill="#ffffff" />
+      <ellipse cx="16.4" cy="12" rx="4.3" ry="6.2" fill="#ffffff" />
+      <circle cx="9.3" cy="12.6" r="2" fill="#1f1d1a" stroke="none" />
+      <circle cx="18.1" cy="12.6" r="2" fill="#1f1d1a" stroke="none" />
     </svg>
   );
 }
