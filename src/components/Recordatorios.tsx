@@ -188,6 +188,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
   const [levantado, setLevantado] = useState(false);
   // (1.17.7) Despegado con el mouse: no se agranda.
   const conMouse = useRef(false);
+  const cuadro = useRef(0);
 
   // Opciones (Editar/Eliminar) hacia donde HAYA ESPACIO (1.9.1, Josué: pegado al borde izquierdo se salían de la
   // pantalla). Se calcula antes de dibujar al abrir: corrida para caber de lado y, si abajo no cabe, arriba.
@@ -414,15 +415,24 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         despegar();
         if (!g.arrastrando) { gesto.current = null; return; }
       }
-      if (caja.current) caja.current.style.transform = `translate3d(${dx / g.escala}px, ${dy / g.escala}px, 0)`;
       g.dx = dx; g.dy = dy;
-      const a = g.inicio;
-      const fuera = !!(a && g.texto && g.zona && evaluar(mover(a, dx, dy), mover(g.texto, dx, dy), g.zona).fuera);
-      if (fuera !== !!g.fuera) {
-        g.fuera = fuera;
-        marcarFuera(fuera, g.escala);
-        if (fuera) navigator.vibrate?.([30, 40, 30]);
-      }
+      // (1.17.17, Josué: "tac, tac" al moverlo lento) Se dibuja UNA vez por cuadro de pantalla con la última posición
+      // del dedo (los eventos pueden llegar más seguido o a destiempo; aplicarlos cada uno hacía saltitos).
+      if (cuadro.current) return;
+      cuadro.current = requestAnimationFrame(() => {
+        cuadro.current = 0;
+        const gg = gesto.current;
+        if (!gg || !gg.arrastrando || !caja.current) return;
+        const ddx = gg.dx ?? 0, ddy = gg.dy ?? 0;
+        caja.current.style.transform = `translate3d(${ddx / gg.escala}px, ${ddy / gg.escala}px, 0)`;
+        const a = gg.inicio;
+        const fuera = !!(a && gg.texto && gg.zona && evaluar(mover(a, ddx, ddy), mover(gg.texto, ddx, ddy), gg.zona).fuera);
+        if (fuera !== !!gg.fuera) {
+          gg.fuera = fuera;
+          marcarFuera(fuera, gg.escala);
+          if (fuera) navigator.vibrate?.([30, 40, 30]);
+        }
+      });
     },
     onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
@@ -430,6 +440,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       gesto.current = null;
       if (!g) return;
       window.clearTimeout(g.timer);
+      if (cuadro.current) { cancelAnimationFrame(cuadro.current); cuadro.current = 0; }
       if (g.arrastrando) { soltar(g); return; }
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) < 12 && !r.id.startsWith('tmp-')) {
         // Primer toque a uno recién recibido: solo quita el aviso (cuenta como visto); el siguiente abre las opciones.
@@ -444,6 +455,7 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
       gesto.current = null;
       if (!g) return;
       window.clearTimeout(g.timer);
+      if (cuadro.current) { cancelAnimationFrame(cuadro.current); cuadro.current = 0; }
       if (g.arrastrando) soltar(g);
     },
     // Mientras se arrastra, el gesto es del post-it: la página no se desliza ni se cierra.
@@ -472,9 +484,12 @@ function Nota({ r, compacto, indice, abierta, sobreLetra, alDerecha = false, sol
         className={`relative text-left ${compacto ? 'px-2.5 pt-1.5 pb-1.5' : 'px-3.5 pt-2.5 pb-2.5'}`}
         style={{
           zoom: tam * f,
-          opacity: enviado ? 0.62 : 1,
+          // En "Enviados" más tenue, pero con el COLOR transparente (no opacidad de todo el papel: al moverlo, el
+          // teléfono tenía que recomponerlo en cada cuadro). Los símbolos (sin papel) sí con opacidad.
+          opacity: enviado && simbolo ? 0.62 : 1,
           // Símbolo: sin papel (el ícono solo, del color del texto de la app; se ve en claro y en oscuro).
-          background: simbolo ? 'transparent' : '#FFF3B0', color: '#4A3800', borderRadius: '2px 2px 12px 2px',
+          background: simbolo ? 'transparent' : enviado ? 'rgba(255, 243, 176, 0.62)' : '#FFF3B0',
+          color: enviado ? 'rgba(74, 56, 0, 0.7)' : '#4A3800', borderRadius: '2px 2px 12px 2px',
           ...(simbolo ? { padding: 2 } : {}),
           boxShadow: simbolo ? (nuevoRecibido && !soloVer ? '0 0 0 2px hsl(var(--especial) / 0.75)' : 'none')
             : levantado ? '0 10px 24px rgba(0,0,0,0.28)'
