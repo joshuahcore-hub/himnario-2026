@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { espacioActual, useEspacios } from '@/lib/espacios';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Hand, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -569,11 +569,11 @@ export default function EditorMinuta() {
                 {!esMarcador(c) && (
                   <button onClick={() => alternarOfrenda(c._k!)} aria-pressed={!!c.ofrenda} aria-label={t.editor_ofrenda} title={t.editor_ofrenda}
                           className="tap-btn p-0.5 shrink-0">
-                    {/* (1.19.2, Josué) Solo la mano (sin monedas). Marcado: amarillo suave con la mano en café oscuro. */}
+                    {/* (1.19.20, Josué) Ofrendero (bolsa con aro y mango) en vez de la mano. Marcado: amarillo suave, dibujo en café oscuro. */}
                     <span className={`w-7 h-7 rounded-md border flex items-center justify-center ${
                       c.ofrenda ? 'bg-ofrenda border-ofrenda text-[#4A3800]' : 'border-border text-muted-foreground'}`}
                           style={{ transition: 'background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out' }}>
-                      <Hand size={15} />
+                      <IconoOfrendero />
                     </span>
                   </button>
                 )}
@@ -701,5 +701,17 @@ export default function EditorMinuta() {
         />
       )}
     </div>
+  );
+}
+
+// (1.19.20, Josué) Ofrendero: mango, aro y bolsa, estilo de línea igual a lucide. viewBox corrido 1 a la derecha
+// para que el dibujo quede un poco a la izquierda (el peso visual de la bolsa lo hacía ver descentrado).
+function IconoOfrendero() {
+  return (
+    <svg width={15} height={15} viewBox="1 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 4.5 10 7.6" />
+      <ellipse cx="16" cy="8" rx="6" ry="2.2" />
+      <path d="M10 8c0 6 2.6 11.5 6 11.5S22 14 22 8" />
+    </svg>
   );
 }
