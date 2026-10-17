@@ -16,6 +16,7 @@ import { useI18n } from '@/lib/i18n/index';
 import TonalityPicker from '@/components/TonalityPicker';
 import TempoPicker from '@/components/TempoPicker';
 import BotonSeguro from '@/components/BotonSeguro';
+import BarraDesplazamiento from '@/components/BarraDesplazamiento';
 
 function keyMatchesFilter(hymnKey: string, filterKey: string): boolean {
   return hymnKey.toUpperCase() === filterKey.toUpperCase();
@@ -149,11 +150,14 @@ export default function HymnalPage() {
   }
 
   return (
+    // (1.19.10, Josué) Contenedor con la barra propia para recorrer la lista (se toma y se arrastra); la barra del
+    // sistema se oculta para no ver dos.
+    <div className="relative" style={{ height: 'calc(100dvh - var(--barra))' }}>
+    <BarraDesplazamiento lista={scrollRef} />
     <div
       ref={scrollRef}
       onScroll={e => saveScrollTop(e.currentTarget.scrollTop)}
-      className="px-5 pt-4 pb-4 overflow-y-auto"
-      style={{ height: 'calc(100dvh - var(--barra))' }}
+      className="px-5 pt-4 pb-4 overflow-y-auto scrollbar-hide h-full"
     >
       {/* Computador: más abierto que el celular pero sin llegar a los bordes (max-w-3xl) y la lista en 2 columnas. */}
       <div className="max-w-3xl mx-auto">
@@ -312,6 +316,7 @@ export default function HymnalPage() {
         )}
       </div>
       </div>
+    </div>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import pymupdf
 # (1.17.1) "--escala 2" = versión nítida para el zoom (2800x1980*2): mismas proporciones, el doble de píxeles.
 ESCALA = float(sys.argv[sys.argv.index("--escala") + 1]) if "--escala" in sys.argv else 1.0
 ANCHO, ALTO = int(1400 * ESCALA), int(1980 * ESCALA)   # lienzo A4 vertical
+ESPACIO_TITULO = 14.3                                  # pt entre el título y los acordes (como las canciones nuevas)
 MARGEN = int(56 * ESCALA)                              # margen mínimo alrededor del himno, en px del lienzo
 FONDO_OSCURO = (14, 13, 12)       # #0E0D0C (las imágenes oscuras anteriores usaban este fondo)
 TITULO = re.compile(r"^\s*(\d{1,3})\s*\.\s*-\s*(.+?)\s*$")
@@ -153,24 +154,46 @@ def main():
                       "page_number": h["pagina"], "author": h["autor"], "notes": h["notas"]})
 
     # 3) Imágenes: recortar cada trozo (puede seguir en la página siguiente), apilarlos y centrar en el lienzo.
+    # (1.19.10, Josué) Entre el título y lo que sigue, el MISMO espacio en todos (ESPACIO_TITULO pt, como las canciones
+    # nuevas): en las antiguas los acordes empezaban pegados al título. Solo cambia la imagen de la app, no el PDF.
     for n in sorted(himnos):
         h = himnos[n]
         trozos = []
+        caja_titulo = h["lineas"][0]["caja"] if h["lineas"] else None
         for indice, cajas in sorted(h["trozos"].items()):
             caja = pymupdf.Rect(cajas[0])
             for c in cajas[1:]:
                 caja |= c
+            if caja_titulo is not None and any(pymupdf.Rect(c) == caja_titulo for c in cajas):
+                arriba = [pymupdf.Rect(c) for c in cajas if c[3] <= caja_titulo.y1 + 1]
+                abajo = [pymupdf.Rect(c) for c in cajas if c[3] > caja_titulo.y1 + 1]
+                a = arriba[0]
+                for c in arriba[1:]:
+                    a |= c
+                trozos.append((indice, a + (-4, -3, 4, 0)))
+                if abajo:
+                    b = abajo[0]
+                    for c in abajo[1:]:
+                        b |= c
+                    trozos.append((None, ESPACIO_TITULO))
+                    trozos.append((indice, b + (-4, 0, 4, 3)))
+                caja_titulo = None
+                continue
             trozos.append((indice, caja + (-4, -3, 4, 3)))
-        ancho_pt = max(c.width for _, c in trozos)
-        alto_pt = sum(c.height for _, c in trozos)
+        cajas_ = [c for i, c in trozos if i is not None]
+        ancho_pt = max(c.width for c in cajas_)
+        alto_pt = sum(c.height for c in cajas_) + sum(c for i, c in trozos if i is None)
         zoom = min((ANCHO - 2 * MARGEN) / ancho_pt, (ALTO - 2 * MARGEN) / alto_pt)
         lienzo = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, ANCHO, ALTO), False)
         lienzo.set_rect(lienzo.irect, (255, 255, 255))
         x0 = MARGEN
         y = int((ALTO - alto_pt * zoom) / 2)
+        izquierda = min(c.x0 for c in cajas_)
         for indice, caja in trozos:
+            if indice is None:  # espacio fijo después del título
+                y += int(round(caja * zoom))
+                continue
             # Todos los trozos alineados a la izquierda del margen común de la página.
-            izquierda = min(c.x0 for _, c in trozos)
             clip = pymupdf.Rect(izquierda, caja.y0, izquierda + ancho_pt, caja.y1)
             pix = doc[indice].get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip, alpha=False)
             pix.set_origin(x0, y)
