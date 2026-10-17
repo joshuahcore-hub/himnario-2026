@@ -17,6 +17,8 @@ import pymupdf
 
 # (1.17.1) "--escala 2" = versión nítida para el zoom (2800x1980*2): mismas proporciones, el doble de píxeles.
 ESCALA = float(sys.argv[sys.argv.index("--escala") + 1]) if "--escala" in sys.argv else 1.0
+# "--solo 162,99" = solo esas imágenes (los datos igual se leen de todo el PDF).
+SOLO = {int(x) for x in sys.argv[sys.argv.index("--solo") + 1].split(",")} if "--solo" in sys.argv else None
 ANCHO, ALTO = int(1400 * ESCALA), int(1980 * ESCALA)   # lienzo A4 vertical
 ESPACIO_TITULO = 14.3                                  # pt entre el título y los acordes (como las canciones nuevas)
 MARGEN = int(56 * ESCALA)                              # margen mínimo alrededor del himno, en px del lienzo
@@ -157,6 +159,8 @@ def main():
     # (1.19.10, Josué) Entre el título y lo que sigue, el MISMO espacio en todos (ESPACIO_TITULO pt, como las canciones
     # nuevas): en las antiguas los acordes empezaban pegados al título. Solo cambia la imagen de la app, no el PDF.
     for n in sorted(himnos):
+        if SOLO and n not in SOLO:
+            continue
         h = himnos[n]
         trozos = []
         caja_titulo = h["lineas"][0]["caja"] if h["lineas"] else None
