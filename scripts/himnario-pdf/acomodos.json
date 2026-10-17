@@ -1,0 +1,123 @@
+{
+  "_ayuda": "(1.19.12, Josué) Acomodos SOLO para las imágenes de la app. 'cortes': la línea de letra que empieza con 'linea' se parte antes de 'antes_de' (los acordes y números de arriba se cortan junto con la letra, así cada acorde sigue sobre su sílaba; el acorde que suena solo en el hueco queda arriba). 'verdes_abajo': los acordes verdes (cambio de tono) salen de las líneas y van al final del himno.",
+  "68": {
+    "cortes": [
+      {
+        "linea": "Y adora",
+        "antes_de": "pronunciar"
+      }
+    ]
+  },
+  "71": {
+    "cortes": [
+      {
+        "linea": "Enamorado",
+        "antes_de": "al compartir"
+      },
+      {
+        "linea": "Quiero expresar",
+        "antes_de": "con mis hermanos"
+      },
+      {
+        "linea": "En el reposo",
+        "antes_de": "en la apertura"
+      },
+      {
+        "linea": "Cristo vino",
+        "antes_de": "para decirnos"
+      }
+    ]
+  },
+  "124": {
+    "cortes": [
+      {
+        "linea": "Gracias Señor",
+        "antes_de": "gracias mi Rey"
+      },
+      {
+        "linea": "Hoy quiero entregarte",
+        "antes_de": "hoy quiero darte"
+      }
+    ]
+  },
+  "32": {
+    "verdes_abajo": true
+  },
+  "61": {
+    "verdes_abajo": true
+  },
+  "65": {
+    "verdes_abajo": true
+  },
+  "72": {
+    "verdes_abajo": true
+  },
+  "87": {
+    "verdes_abajo": true
+  },
+  "138": {
+    "cortes": [
+      {
+        "linea": "Esa gran voz",
+        "antes_de": "y esa gran voz"
+      },
+      {
+        "linea": "Te ala",
+        "antes_de": "te ala",
+        "vez": 3
+      }
+    ]
+  },
+  "143": {
+    "cortes": [
+      {
+        "linea": "Que tu sabidur",
+        "antes_de": "alumbre mi interior"
+      }
+    ]
+  },
+  "53": {
+    "cortes": [
+      {
+        "linea": "Cantamos un c",
+        "antes_de": "que todos"
+      }
+    ]
+  },
+  "139": {
+    "cortes": [
+      {
+        "linea": "Tú eres el Dios que antes",
+        "antes_de": "me conoci"
+      }
+    ]
+  },
+  "37": {
+    "cortes": [
+      {
+        "linea": "Hoy me entrego",
+        "antes_de": "haz lo que"
+      },
+      {
+        "linea": "Servirte solo",
+        "antes_de": "rendir todo"
+      },
+      {
+        "linea": "No me entregues",
+        "antes_de": "solo que tu voz"
+      },
+      {
+        "linea": "Guarda mi coraz",
+        "antes_de": "mi alma sella"
+      }
+    ]
+  },
+  "91": {
+    "cortes": [
+      {
+        "linea": "// Lo veo d",
+        "antes_de": "en esta saz"
+      }
+    ]
+  }
+}

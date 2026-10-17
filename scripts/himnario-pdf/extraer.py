@@ -90,6 +90,37 @@ def limpiar_titulo(resto: str):
     return titulo, autor, notas
 
 
+def imagen_acomodada(doc, n, h, cfg, salida):
+    """(1.19.12) Himno con cortes / verdes abajo (acomodos.json): se arma renglón por renglón (ver acomodar.py)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import acomodar
+    (indice, cajas), = h["trozos"].items()
+    caja = pymupdf.Rect(cajas[0])
+    for c in cajas[1:]:
+        caja |= c
+    renglones, izq, sin_usar = acomodar.componer(doc, indice, caja, h["lineas"][0]["caja"], cfg, es_verde, ESPACIO_TITULO)
+    if sin_usar:
+        print(f"  {n}: cortes no encontrados: {list(sin_usar)}")
+    ancho_pt = max(x1 + dx for r in renglones for x0, x1, dx in r["piezas"]) - (izq - 4)
+    alto_pt = sum(r["espacio"] + (r["y1"] - r["y0"]) for r in renglones) + 6
+    zoom = min((ANCHO - 2 * MARGEN) / ancho_pt, (ALTO - 2 * MARGEN) / alto_pt)
+    lienzo = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, ANCHO, ALTO), False)
+    lienzo.set_rect(lienzo.irect, (255, 255, 255))
+    y = (ALTO - alto_pt * zoom) / 2 + 3 * zoom
+    for r in renglones:
+        y += r["espacio"] * zoom
+        for x0, x1, dx in r["piezas"]:
+            if x1 - x0 < 0.5:
+                continue
+            clip = pymupdf.Rect(x0, r["y0"], x1, r["y1"])
+            pix = doc[indice].get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip, alpha=False)
+            pix.set_origin(int(round(MARGEN + (x0 + dx - (izq - 4)) * zoom)), int(round(y)))
+            lienzo.copy(pix, pix.irect)
+        y += (r["y1"] - r["y0"]) * zoom
+    lienzo.save(os.path.join(salida, "claro", f"{n}.png"))
+    print(f"  {n}: acomodado ({len(renglones)} renglones, zoom {zoom:.2f})")
+
+
 def main():
     pdf, salida = sys.argv[1], sys.argv[2]
     for sub in ("claro", "oscuro"):
@@ -158,10 +189,17 @@ def main():
     # 3) Imágenes: recortar cada trozo (puede seguir en la página siguiente), apilarlos y centrar en el lienzo.
     # (1.19.10, Josué) Entre el título y lo que sigue, el MISMO espacio en todos (ESPACIO_TITULO pt, como las canciones
     # nuevas): en las antiguas los acordes empezaban pegados al título. Solo cambia la imagen de la app, no el PDF.
+    acomodos = {}
+    ruta_acomodos = os.path.join(os.path.dirname(os.path.abspath(__file__)), "acomodos.json")
+    if "--sin-acomodos" not in sys.argv and os.path.exists(ruta_acomodos):
+        acomodos = {k: v for k, v in json.load(open(ruta_acomodos, encoding="utf-8")).items() if not k.startswith("_")}
     for n in sorted(himnos):
         if SOLO and n not in SOLO:
             continue
         h = himnos[n]
+        if str(n) in acomodos and len(h["trozos"]) == 1 and h["lineas"]:
+            imagen_acomodada(doc, n, h, acomodos[str(n)], salida)
+            continue
         trozos = []
         caja_titulo = h["lineas"][0]["caja"] if h["lineas"] else None
         for indice, cajas in sorted(h["trozos"].items()):
