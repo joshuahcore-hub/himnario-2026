@@ -516,7 +516,7 @@ export default function EditorMinuta() {
           <Button variant="outline" onClick={() => agregar({ ...PALABRA })} className="text-xs h-10 px-1 text-palabra">{t.portada_palabra}</Button>
           <Button variant="outline" onClick={() => agregar({ ...ORACION })} className="text-xs h-10 px-1 text-oracion">{t.portada_oracion}</Button>
           {/* (1.13.0) Especial: se abre al instante el cuadro para el nombre. */}
-          <Button variant="outline" onClick={() => setDlgEspecial({ abierto: true, k: null, nombre: '' })} className="text-xs h-10 px-1 text-especial">{t.especial}</Button>
+          <Button variant="outline" onClick={() => setDlgEspecial({ abierto: true, k: null, nombre: '' })} className="text-xs h-10 px-1 text-especial uppercase">{t.especial}</Button>
           <Button variant="outline" onClick={() => setDlgTexto({ abierto: true, k: null, texto: '' })} aria-label={t.texto_boton} title={t.texto_boton}
                   className="h-10 w-10 px-0 text-nota gap-0"><Plus size={11} strokeWidth={2.5} /><span className="text-[15px] font-bold leading-none">E</span></Button>
         </div>
