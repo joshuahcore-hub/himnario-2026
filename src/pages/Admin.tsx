@@ -47,6 +47,15 @@ function Interruptor({ activo, onCambiar, texto }: { activo: boolean; onCambiar:
 const fechaHora = (iso: string) =>
   new Date(iso).toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+const GUARDADO_PERSONAS = 'himnario_admin_personas';
+const GUARDADO_IA = 'himnario_admin_ia';
+function leerGuardado<T>(clave: string, porDefecto: T): T {
+  try { const v = localStorage.getItem(clave); return v ? JSON.parse(v) as T : porDefecto; } catch { return porDefecto; }
+}
+function guardar(clave: string, valor: unknown) {
+  try { localStorage.setItem(clave, JSON.stringify(valor)); } catch { /* sin espacio: no importa */ }
+}
+
 export default function Admin() {
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -54,9 +63,13 @@ export default function Admin() {
   // (1.15.0, Josué) Administración queda solo con Personas: el historial pasó a ⋮ → Notificaciones → Avisos.
   // Las notificaciones viejas que apuntan a ?ver=historial llevan ahí.
   const [parametros] = useSearchParams();
-  const [dispositivos, setDispositivos] = useState<DispositivoAdmin[]>([]);
+  // (1.19.18, Josué) Al recargar se ve AL INSTANTE la última lista guardada en el celular (antes la pantalla quedaba
+  // vacía un momento hasta que respondía el servidor); se actualiza por detrás.
+  const [dispositivos, setDispositivos] = useState<DispositivoAdmin[]>(() => leerGuardado(GUARDADO_PERSONAS, []));
   const [cargando, setCargando] = useState(false);
-  const [iaCreadores, setIaCreadores] = useState<boolean | null>(null);
+  const [iaCreadores, setIaCreadores] = useState<boolean | null>(() => leerGuardado(GUARDADO_IA, null));
+  useEffect(() => { guardar(GUARDADO_PERSONAS, dispositivos); }, [dispositivos]);
+  useEffect(() => { if (iaCreadores !== null) guardar(GUARDADO_IA, iaCreadores); }, [iaCreadores]);
 
   const cargar = useCallback(async () => {
     setCargando(true);

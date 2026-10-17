@@ -62,6 +62,12 @@ export default defineConfig({
   plugins: [
     react(),
     manifiestoOscuro(),
+    // (1.19.18, Josué) El script de la app "bloquea el dibujo": el navegador no pinta la página vacía mientras carga
+    // (al recargar se seguía viendo un instante solo el fondo). Ver src/main.tsx.
+    {
+      name: "script-bloquea-dibujo",
+      transformIndexHtml: (html: string) => html.replace(/<script type="module"( crossorigin)? src=/g, '<script type="module" blocking="render"$1 src='),
+    },
     VitePWA({
       // Cuando se publica una versión nueva, el celular la descarga en silencio y la deja en espera:
       // nunca recarga ni cambia la pantalla mientras se usa (ver src/main.tsx).

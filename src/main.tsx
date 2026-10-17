@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { registerSW } from "virtual:pwa-register";
 // Primero: la escucha de "atrás" de los paneles debe registrarse antes que las de React Router y del editor.
 import "@/lib/atras";
@@ -52,4 +53,8 @@ if (import.meta.env.PROD) {
   }, 300));
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// (1.19.18, Josué) Primer dibujo SIN esperas: la app se arma completa mientras corre este archivo (flushSync) y el
+// navegador no muestra nada antes (el script lleva blocking="render", ver vite.config.ts). Al recargar se sigue viendo la
+// pantalla anterior hasta que aparece la nueva ya armada: sin el destello vacío de antes.
+const raiz = createRoot(document.getElementById("root")!);
+flushSync(() => raiz.render(<App />));
