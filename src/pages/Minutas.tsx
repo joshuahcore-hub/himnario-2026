@@ -162,6 +162,11 @@ export default function Minutas() {
     }
   };
 
+  // (1.20.1, Josué) Con muchos círculos abajo (minuta propia: hasta 6) los de los extremos topaban el borde: la
+  // separación baja de 24 a 8 px y, si aún no caben, los círculos se achican un poco (máx. 56 px). Con pocos, igual que antes.
+  const cantidadBotones = (puedeEditar1 ? 1 : 0) + 1 + (puedeEditar ? 1 : 0) + (puedeCambiarVisibilidad ? 1 : 0)
+    + (todasPropias && espacios.length > 1 ? 1 : 0) + (todasPropias ? 1 : 0);
+
   // Duplicar: crea una copia privada de quien duplica (la puede editar y dejar solo para sí).
   const [duplicando, setDuplicando] = useState(false);
   const duplicar = async (m: MinutaData | undefined = unaSeleccionada) => {
@@ -426,14 +431,14 @@ export default function Minutas() {
           SOLO si son propias: en las ajenas ni aparecen, tampoco para el administrador (1.5.4). */}
       {selectMode && (
         <div
-          className="fixed left-0 right-0 z-40 flex justify-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-200"
-          style={{ bottom: 'calc(var(--barra) + 1rem)' }}
+          className="fixed left-0 right-0 z-40 flex justify-center px-4 animate-in fade-in slide-in-from-bottom-4 duration-200"
+          style={{ bottom: 'calc(var(--barra) + 1rem)', ...tamBotones(cantidadBotones) } as React.CSSProperties}
           onClick={e => e.stopPropagation()}
         >
           {puedeEditar1 && (
             <BotonSeguro
               onClick={() => { const [id] = [...selected]; salirSeleccion(); navigate(`/editar/${id}`); }}
-              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
+              className="tap-btn w-[var(--tam)] h-[var(--tam)] rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
               aria-label={t.create_edit}
             >
               <Pencil size={22} />
@@ -442,7 +447,7 @@ export default function Minutas() {
           <BotonSeguro
             onClick={() => compartir()}
             disabled={selected.size !== 1 || compartiendo}
-            className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
+            className="tap-btn w-[var(--tam)] h-[var(--tam)] rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
             aria-label={t.minuta_share_image}
           >
             {compartiendo ? <Loader2 size={22} className="animate-spin" /> : <Share2 size={22} />}
@@ -451,7 +456,7 @@ export default function Minutas() {
             <BotonSeguro
               onClick={() => duplicar()}
               disabled={selected.size !== 1 || duplicando}
-              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
+              className="tap-btn w-[var(--tam)] h-[var(--tam)] rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
               aria-label={t.minuta_duplicate}
             >
               {duplicando ? <Loader2 size={22} className="animate-spin" /> : <Copy size={22} />}
@@ -460,7 +465,7 @@ export default function Minutas() {
           {puedeCambiarVisibilidad && (
             <BotonSeguro
               onClick={() => cambiarVisibilidad()}
-              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
+              className="tap-btn w-[var(--tam)] h-[var(--tam)] rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
               aria-label={unaSeleccionada?.publicada ? t.minuta_make_private : t.minuta_publish}
             >
               {unaSeleccionada?.publicada ? <Lock size={22} /> : <Globe size={22} className="text-green-600 dark:text-green-400" />}
@@ -469,7 +474,7 @@ export default function Minutas() {
           {todasPropias && espacios.length > 1 && (
             <BotonSeguro
               onClick={() => abrirMover([...selected])}
-              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
+              className="tap-btn w-[var(--tam)] h-[var(--tam)] rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
               aria-label={t.minutas_mover}
             >
               <FolderInput size={22} />
@@ -478,7 +483,7 @@ export default function Minutas() {
           {todasPropias && (
             <BotonSeguro
               onClick={() => { setCantidadABorrar(selected.size); setConfirmarBorrar(true); }}
-              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-destructive animate-in fade-in zoom-in-95 duration-200"
+              className="tap-btn w-[var(--tam)] h-[var(--tam)] rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-destructive animate-in fade-in zoom-in-95 duration-200"
               aria-label={t.minutas_delete}
             >
               <Trash2 size={22} />
@@ -581,4 +586,12 @@ function MenuMinuta({ x, y, acciones, onCerrar }: {
       </div>
     </div>
   );
+}
+
+/** (1.20.1) Separación y tamaño de los círculos de la selección según cuántos hay y el ancho de la pantalla
+ *  (16 px libres a cada lado). */
+function tamBotones(n: number) {
+  const libre = 'calc(100vw - 2rem)';
+  const sep = n > 1 ? `clamp(8px, calc((${libre} - ${n} * 56px) / ${n - 1}), 24px)` : '0px';
+  return { '--sep': sep, '--tam': `min(56px, calc((${libre} - ${n - 1} * var(--sep)) / ${n}))`, gap: 'var(--sep)' };
 }
