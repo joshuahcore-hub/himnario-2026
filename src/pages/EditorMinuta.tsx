@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { espacioActual, useEspacios } from '@/lib/espacios';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Hand, Link2, Loader2, Plus, Search, Type, Unlink, X, ImageIcon } from 'lucide-react';
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Hand, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -508,7 +508,7 @@ export default function EditorMinuta() {
         </div>
 
         {/* Botones fijos arriba; lo que se agrega va apareciendo debajo, así los botones no se mueven. */}
-        {/* (1.18.2) Al final, "+ texto" (solo el ícono): un texto libre, en naranjo. */}
+        {/* (1.18.2) Al final, el extra (texto libre, en naranjo). (1.19.13, Josué) Se llama "Extra": el botón dice "+E". */}
         <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-1.5">
           <Button onClick={() => { setInicioBusqueda(cantos.length); setBuscando(true); }} className="gap-1 text-xs h-10 px-2">
             <Plus size={14} className="shrink-0" />{t.editor_add_song}
@@ -518,7 +518,7 @@ export default function EditorMinuta() {
           {/* (1.13.0) Especial: se abre al instante el cuadro para el nombre. */}
           <Button variant="outline" onClick={() => setDlgEspecial({ abierto: true, k: null, nombre: '' })} className="text-xs h-10 px-1 text-especial">{t.especial}</Button>
           <Button variant="outline" onClick={() => setDlgTexto({ abierto: true, k: null, texto: '' })} aria-label={t.texto_boton} title={t.texto_boton}
-                  className="h-10 w-10 px-0 text-nota gap-0"><Plus size={11} strokeWidth={2.5} className="-mr-px" /><Type size={15} /></Button>
+                  className="h-10 w-10 px-0 text-nota gap-0"><Plus size={11} strokeWidth={2.5} /><span className="text-[15px] font-bold leading-none">E</span></Button>
         </div>
 
         <div ref={reordenar.contenedorRef}>
