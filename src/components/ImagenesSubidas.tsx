@@ -27,7 +27,7 @@ export function CabeceraFuera({ titulo, tono, etiqueta = true, ofrenda = false }
         {tono && <span translate="no" className="font-semibold text-hymn-key">{tono}</span>}
         {etiqueta && <span className="rounded-md border border-border px-1.5 py-px text-[10px] text-muted-foreground">{t.fuera_etiqueta}</span>}
         {/* (1.18.2, Josué) Ofrenda antes de esta alabanza. */}
-        {ofrenda && <span className="text-sm font-semibold text-ofrenda">{t.ofrenda}</span>}
+        {ofrenda && <span className="text-2xl font-bold text-ofrenda mt-3">{t.ofrenda}</span>}
       </div>
     </div>
   );
@@ -57,7 +57,7 @@ export function MarcoImagenes({ imagen, titulo, cabecera, horizontal = false, al
     return (
       <button type="button" {...cortar} disabled={!puede} aria-label={lado === 'izq' ? '‹' : '›'}
               onClick={e => { e.stopPropagation(); setI(v => v + (lado === 'izq' ? -1 : 1)); }}
-              className={`absolute top-1/2 -translate-y-1/2 ${lado === 'izq' ? 'left-2.5' : 'right-2.5'} w-9 h-9 rounded-full bg-card/85 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200 [touch-action:manipulation]`}
+              className={`absolute top-1/2 -translate-y-1/2 ${lado === 'izq' ? 'left-2.5' : 'right-2.5'} z-20 w-9 h-9 rounded-full bg-card/85 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200 [touch-action:manipulation]`}
               style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none' }}>
         {lado === 'izq' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
       </button>

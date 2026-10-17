@@ -84,8 +84,8 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
           <p className="text-sm font-semibold text-hymn-number">#{hymnNumber}</p>
           <h2 className="text-lg font-bold text-foreground">{song.title}</h2>
           {song.key && <p translate="no" className="font-semibold text-hymn-key">{song.key}</p>}
-          {/* (1.18.2, Josué) Ofrenda antes de esta alabanza: en amarillo, más cerca del título que de la letra. */}
-          {song.ofrenda && <p className="text-sm font-semibold text-ofrenda mt-0.5 -mb-1">{t.ofrenda}</p>}
+          {/* (1.19.19, Josué) Ofrenda antes de esta alabanza: en amarillo, GRANDE y un poco separada del tono (que se note). */}
+          {song.ofrenda && <p className="text-2xl font-bold text-ofrenda mt-4">{t.ofrenda}</p>}
         </div>
         {imgError ? (
           <div className="flex-1 flex items-center px-4 text-center">
@@ -121,7 +121,7 @@ function PaginaFuera({ canto, horizontal, postit }: { canto: ParsedSong; horizon
           <Music2 size={34} className="text-muted-foreground/60" />
           <span className="text-2xl font-semibold text-foreground">{canto.title}</span>
           {canto.key && <span translate="no" className="text-xl font-semibold text-hymn-key">{canto.key}</span>}
-          {canto.ofrenda && <span className="text-base font-semibold text-ofrenda">{t.ofrenda}</span>}
+          {canto.ofrenda && <span className="text-2xl font-bold text-ofrenda mt-3">{t.ofrenda}</span>}
           <span className="text-xs text-muted-foreground mt-2">{t.fuera_no_esta}</span>
         </div>
       </PaginaTexto>
