@@ -212,7 +212,9 @@ def main():
                 a = arriba[0]
                 for c in arriba[1:]:
                     a |= c
-                trozos.append((indice, a + (-4, -3, 4, 0)))
+                # sin margen arriba: el título ya trae su espacio y en el himno 1 el encabezado de la página termina
+                # justo donde empieza el título (se colaba un pedacito de "Himnario para músicos")
+                trozos.append((indice, a + (-4, 1, 4, 0)))
                 if abajo:
                     b = abajo[0]
                     for c in abajo[1:]:
