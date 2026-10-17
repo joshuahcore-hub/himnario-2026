@@ -97,7 +97,7 @@ function ListaCantos({ compact, children }: { compact: boolean; children: React.
     return () => ro.disconnect();
   }, [compact]);
   return (<>
-    <div ref={ref} className={`pl-2.5 ${compact ? 'space-y-1 max-h-[min(46dvh,460px)] overflow-hidden' : 'space-y-2'}`}
+    <div ref={ref} className={`pl-2.5 ${compact ? 'space-y-1 max-h-[min(calc(23dvh+96px),460px)] overflow-hidden' : 'space-y-2'}`}
          style={cortada ? { maskImage: 'linear-gradient(to bottom, black calc(100% - 28px), transparent)', WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 28px), transparent)' } : undefined}>
       {children}
     </div>

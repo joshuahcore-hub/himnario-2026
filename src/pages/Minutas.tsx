@@ -23,6 +23,8 @@ import { esComputador } from '@/lib/proyeccion';
 
 /** Dónde quedó la lista de minutas de cada espacio (se conserva al cambiar de pestaña mientras la app esté abierta). */
 const posicionMinutas: Record<string, number> = {};
+/** (1.19.14) Alto de la fila de una minuta normal (px): la fila se ubica como si midiera esto, aunque una sea más larga. */
+const ALTO_FILA = 376;
 
 export default function Minutas() {
   const navigate = useNavigate();
@@ -285,7 +287,7 @@ export default function Minutas() {
       ) : (
         // (1.18.2, Josué) Las minutas un poco más arriba (el relleno de abajo sube el centro; no tanto, para que no
         // se vean descentradas).
-        <div className="relative flex-1 flex items-center overflow-hidden pb-[7dvh]">
+        <div className="relative flex-1 flex flex-col overflow-hidden pb-[7dvh]">
           {/* Doble flecha (1.13.4, Josué): ir a la primera / a la última sin pasar una por una. Atenuada (sin efecto)
               cuando ya se está en ese extremo; se esconde mientras se seleccionan minutas. */}
           {!selectMode && ordenadas.length > 2 && (['izq', 'der'] as const).map(lado => {
@@ -300,11 +302,16 @@ export default function Minutas() {
               </BotonSeguro>
             );
           })}
+          {/* (1.19.14, Josué) Las minutas empiezan SIEMPRE a la misma altura (la de una minuta normal): antes la fila
+              se centraba según la tarjeta más alta y una minuta muy larga subía a todas. Se centra una caja de alto fijo
+              (ALTO_FILA) y la fila va arriba dentro de ella; la larga baja hasta su límite y termina en "⋯". */}
+          <div className="flex-1 min-h-0 flex items-center w-full">
+          <div className="relative w-full" style={{ height: ALTO_FILA }}>
           <div
             ref={scrollRef}
             // Computador: a todo el ancho (se ven varias minutas a los lados) y tarjetas más grandes (340 px);
             // la rueda del mouse las mueve hacia los lados. El relleno lateral deja la primera y la última al centro.
-            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory w-full py-4 px-[calc(50%-140px)] md:px-[calc(50%-170px)]"
+            className="absolute top-0 left-0 flex items-start gap-4 md:gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory w-full py-4 px-[calc(50%-140px)] md:px-[calc(50%-170px)]"
             // Solo hacia los lados: sin desplazamiento vertical (antes se podía correr arriba/abajo sin sentido).
             // Con una minuta seleccionada la lista queda quieta: no se desliza a los lados (Josué, 1.5.6).
             style={{ overflowY: 'hidden', overflowX: selectMode ? 'hidden' : 'auto', touchAction: selectMode ? 'none' : 'pan-x', overscrollBehavior: 'contain' }}
@@ -385,6 +392,8 @@ export default function Minutas() {
                 </div>
               </div>
             ))}
+          </div>
+          </div>
           </div>
         </div>
       )}
