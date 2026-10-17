@@ -42,6 +42,9 @@ export interface Translations {
   minutas_error_delete: string;
   minutas_error_rename: string;
   minutas_deleted: (n: number) => string;
+  minutas_mover: string;
+  minutas_mover_titulo: (n: number) => string;
+  minutas_movidas: (n: number, espacio: string) => string;
   minutas_delete_confirm_title: (n: number) => string;
   minutas_delete_confirm_text: string;
   minutas_pinned: string;
@@ -436,6 +439,9 @@ export const es: Translations = {
   minutas_error_delete: 'Error al eliminar',
   minutas_error_rename: 'Error al renombrar',
   minutas_deleted: (n) => (n === 1 ? 'Minuta eliminada' : `${n} minutas eliminadas`),
+  minutas_mover: 'Mover a otro espacio',
+  minutas_mover_titulo: (n) => (n === 1 ? '¿A qué espacio mover esta minuta?' : `¿A qué espacio mover estas ${n} minutas?`),
+  minutas_movidas: (n, e) => (n === 1 ? `Minuta movida a ${e}` : `${n} minutas movidas a ${e}`),
   minutas_delete_confirm_title: n => (n === 1 ? '¿Eliminar esta minuta?' : `¿Eliminar ${n} minutas?`),
   minutas_delete_confirm_text: 'Se quitará para todos. El administrador puede recuperarla desde el historial.',
   minutas_pinned: 'Minuta fijada',
@@ -826,6 +832,9 @@ export const en: Translations = {
   minutas_error_delete: 'Error deleting',
   minutas_error_rename: 'Error renaming',
   minutas_deleted: (n) => (n === 1 ? 'Service deleted' : `${n} services deleted`),
+  minutas_mover: 'Move to another space',
+  minutas_mover_titulo: (n) => (n === 1 ? 'Move this service to which space?' : `Move these ${n} services to which space?`),
+  minutas_movidas: (n, e) => (n === 1 ? `Service moved to ${e}` : `${n} services moved to ${e}`),
   minutas_delete_confirm_title: n => (n === 1 ? 'Delete this service?' : `Delete ${n} services?`),
   minutas_delete_confirm_text: 'It will be removed for everyone. The administrator can restore it from the history.',
   minutas_pinned: 'Service pinned',
@@ -1216,6 +1225,9 @@ export const pt: Translations = {
   minutas_error_delete: 'Erro ao excluir',
   minutas_error_rename: 'Erro ao renomear',
   minutas_deleted: (n) => (n === 1 ? 'Minuta excluída' : `${n} minutas excluídas`),
+  minutas_mover: 'Mover para outro espaço',
+  minutas_mover_titulo: (n) => (n === 1 ? 'Para qual espaço mover esta minuta?' : `Para qual espaço mover estas ${n} minutas?`),
+  minutas_movidas: (n, e) => (n === 1 ? `Minuta movida para ${e}` : `${n} minutas movidas para ${e}`),
   minutas_delete_confirm_title: n => (n === 1 ? 'Excluir esta minuta?' : `Excluir ${n} minutas?`),
   minutas_delete_confirm_text: 'Será removida para todos. O administrador pode recuperá-la no histórico.',
   minutas_pinned: 'Minuta fixada',

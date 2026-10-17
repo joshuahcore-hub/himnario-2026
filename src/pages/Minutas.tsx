@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
 import { createPortal } from 'react-dom';
 import { useEspacios } from '@/lib/espacios';
-import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2, ChevronsLeft, ChevronsRight, EllipsisVertical, ArrowLeftRight, Presentation, Download } from 'lucide-react';
+import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2, ChevronsLeft, ChevronsRight, EllipsisVertical, ArrowLeftRight, Presentation, Download, FolderInput } from 'lucide-react';
 import { compartirImagen, imagenDeMinuta } from '@/lib/imagenMinuta';
 import { formatearFecha } from '@/lib/minutaUtils';
 import Portada from '@/components/Portada';
@@ -137,6 +137,28 @@ export default function Minutas() {
       salirSeleccion();
     } catch (e: any) {
       toast.error(e.message || t.minutas_error_rename);
+    }
+  };
+
+  // (1.20.0, Josué) Mover a otro espacio: mantener presionada → carpeta → elegir el espacio (solo los otros). Solo las
+  // propias (como editar). Se van de la lista a la vista y quedan en ese espacio.
+  const [moverAbierto, setMoverAbierto] = useState(false);
+  const [aMover, setAMover] = useState<string[]>([]);
+  const [moviendo, setMoviendo] = useState<string | null>(null);
+  const abrirMover = (ids: string[]) => { setAMover(ids); setMoverAbierto(true); };
+  const cerrarMover = () => { if (moviendo) return; setMoverAbierto(false); if (!selectMode) setSelected(new Set()); };
+  const mover = async (destino: { id: string; nombre: string }) => {
+    if (moviendo) return;
+    setMoviendo(destino.id);
+    try {
+      for (const id of aMover) guardarMinutaLocal(await api<MinutaData>(`minutas/${id}`, { metodo: 'PATCH', datos: { espacio: destino.id } }));
+      toast.success(t.minutas_movidas(aMover.length, destino.nombre));
+      setMoverAbierto(false);
+      salirSeleccion();
+    } catch (e: any) {
+      toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.create_error_save));
+    } finally {
+      setMoviendo(null);
     }
   };
 
@@ -444,6 +466,15 @@ export default function Minutas() {
               {unaSeleccionada?.publicada ? <Lock size={22} /> : <Globe size={22} className="text-green-600 dark:text-green-400" />}
             </BotonSeguro>
           )}
+          {todasPropias && espacios.length > 1 && (
+            <BotonSeguro
+              onClick={() => abrirMover([...selected])}
+              className="tap-btn w-14 h-14 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground animate-in fade-in zoom-in-95 duration-200"
+              aria-label={t.minutas_mover}
+            >
+              <FolderInput size={22} />
+            </BotonSeguro>
+          )}
           {todasPropias && (
             <BotonSeguro
               onClick={() => { setCantidadABorrar(selected.size); setConfirmarBorrar(true); }}
@@ -466,11 +497,31 @@ export default function Minutas() {
         { icono: menu.m.publicada ? <Lock size={15} /> : <Globe size={15} />, texto: menu.m.publicada ? t.minuta_make_private : t.minuta_publish, hacer: () => cambiarVisibilidad(menu.m) },
         { icono: <Pin size={15} />, texto: menu.m.fijada ? t.minutas_unpin : t.minutas_pin, hacer: () => fijar(menu.m) },
       ] : []),
+      ...(menu.m.mia && espacios.length > 1 ? [{ icono: <FolderInput size={15} />, texto: t.minutas_mover, hacer: () => { setSelected(new Set([menu.m.id])); abrirMover([menu.m.id]); } }] : []),
       ...(puedeProyectar ? [{ icono: <Presentation size={15} />, texto: t.proy_titulo, hacer: () => { setProyectar(menu.m); setProyAbierta(true); } }] : []),
       ...(menu.m.mia ? [{ icono: <Trash2 size={15} />, texto: t.minutas_delete, peligro: true,
                           hacer: () => { setSelected(new Set([menu.m.id])); setCantidadABorrar(1); setConfirmarBorrar(true); } }] : []),
     ]} />, document.body)}
     {proyectar && <PanelProyeccion abierto={proyAbierta} onCerrar={() => setProyAbierta(false)} minuta={proyectar} />}
+
+    {/* (1.20.0) Mover a otro espacio: un botón por cada OTRO espacio. Fuera del contenedor, como el de eliminar. */}
+    <Dialog open={moverAbierto} onOpenChange={abierto => { if (!abierto) cerrarMover(); }}>
+      <DialogContent className="max-w-[320px] rounded-2xl gap-3">
+        <DialogHeader>
+          <DialogTitle className="text-base">{t.minutas_mover_titulo(aMover.length || 1)}</DialogTitle>
+          <DialogDescription className="sr-only">{t.minutas_mover}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 pt-1">
+          {espacios.filter(e => e.id !== espacio.id).map(e => (
+            <Button key={e.id} variant="outline" className="h-10 text-sm gap-1.5" disabled={!!moviendo} onClick={() => mover(e)}>
+              {moviendo === e.id ? <Loader2 size={16} className="animate-spin" /> : <FolderInput size={16} />}
+              {e.nombre}
+            </Button>
+          ))}
+          <Button variant="ghost" className="h-10 text-sm" disabled={!!moviendo} onClick={cerrarMover}>{t.minutas_cancel}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
 
     {/* Confirmar eliminación. Fuera del contenedor: si no, tocar el diálogo saldría del modo selección. */}
     <Dialog open={confirmarBorrar} onOpenChange={abierto => { if (!abierto && !borrando) { setConfirmarBorrar(false); if (!selectMode) setSelected(new Set()); } }}>

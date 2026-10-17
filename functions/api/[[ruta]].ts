@@ -321,6 +321,12 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     if (body.fecha !== undefined) { cambios.push('fecha = ?'); valores.push(validarFecha(body.fecha)); }
     if (body.cantos !== undefined) { cambios.push('cantos = ?'); valores.push(validarCantos(body.cantos)); }
     if (body.fijada !== undefined) { cambios.push('fijada = ?'); valores.push(body.fijada ? 1 : 0); }
+    // (1.20.0, Josué) Mover a otro espacio (Batuco, Talca…): solo quien la creó, como editar. No avisa a nadie.
+    if (body.espacio !== undefined) {
+      const e = (await listaEspacios(env)).find(x => x.id === body.espacio);
+      if (!e) throw new ErrorApi(404, 'Ese espacio ya no existe.');
+      cambios.push('espacio = ?'); valores.push(e.id);
+    }
     let cambioVisibilidad: 'publicada' | 'privada' | null = null;
     if (body.publicada !== undefined && !!body.publicada !== actual.publicada) {
       // Publicar o volver a privada: SOLO quien la creó (tampoco el administrador: dejar privada una ajena la
@@ -341,7 +347,7 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       ...(cambioVisibilidad ? [registrar(env, id, yo.id, cambioVisibilidad, titulo)] : []),
     ]);
     // Fijar o desfijar no avisa nada (no cambia la minuta).
-    const soloFijar = cambios.length === 3 && body.fijada !== undefined;
+    const soloFijar = cambios.length === 3 && (body.fijada !== undefined || body.espacio !== undefined);
     if (!soloFijar) {
       avisar(env, { tipo: cambioVisibilidad ?? 'editada', autorId: yo.id, autor: yo.nombre, minutaId: id,
                     titulo: `${tituloAviso(titulo, body.fecha ?? actual.fecha)} · ${(await validarEspacio(env, actual.espacio)).nombre}`,
