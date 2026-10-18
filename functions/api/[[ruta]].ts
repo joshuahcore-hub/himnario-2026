@@ -1200,8 +1200,10 @@ async function rutasNotificaciones(request: Request, env: Env, partes: string[])
   const tipos: readonly string[] = yo.rol === 'admin' ? TIPOS_ADMIN : TIPOS_OTROS;
 
   if (accion === 'sin-ver' && metodo === 'GET') {
-    const f = await env.DB.prepare('SELECT COUNT(*) AS n FROM notificaciones WHERE dispositivo_id = ? AND vista = 0').bind(yo.id).first<{ n: number }>();
-    return json({ n: f?.n ?? 0 });
+    // (1.20.3) Con los ids: la app cierra en la barra del celular las notificaciones que ya no están sin ver.
+    const { results } = await env.DB.prepare('SELECT id FROM notificaciones WHERE dispositivo_id = ? AND vista = 0 ORDER BY id DESC LIMIT 300')
+      .bind(yo.id).all<{ id: number }>();
+    return json({ n: results.length, ids: results.map(r => r.id) });
   }
 
   // (1.15.0, Josué) ⋮ → Notificaciones → "Avisos": lo que le llegó a esta persona (los últimos 100), ya en texto.

@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAcceso } from '@/hooks/useAcceso';
+import { cerrarVistasDeLaBandeja } from '@/lib/notificaciones';
 
 let cantidad = 0;
 // (1.15.0) Por separado: solicitudes (Administración) y avisos sin ver (Notificaciones).
@@ -18,9 +19,10 @@ export async function revisarPendientes() {
     // (1.11.0) También las notificaciones que el administrador aún no vio (p. ej. las borró de la bandeja sin abrirlas).
     const [lista, sinVer] = await Promise.all([
       api<{ estado: string }[]>('admin/dispositivos'),
-      api<{ n: number }>('notificaciones/sin-ver').catch(() => ({ n: 0 })),
+      api<{ n: number; ids?: number[] }>('notificaciones/sin-ver').catch(() => ({ n: 0, ids: undefined })),
     ]);
     detalle = { solicitudes: lista.filter(d => d.estado === 'pendiente').length, sinVer: sinVer.n };
+    if (sinVer.ids) cerrarVistasDeLaBandeja(sinVer.ids); // (1.20.3) lo visto sale también de la barra del celular
     cantidad = detalle.solicitudes + detalle.sinVer;
     oyentes.forEach(f => f(cantidad));
   } catch { /* sin internet o sin permiso: se deja como estaba */ } finally {

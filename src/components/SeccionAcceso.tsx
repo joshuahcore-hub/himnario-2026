@@ -130,7 +130,10 @@ export default function MenuAcceso() {
   // se abría otro, y por un instante se juntaban los dos fondos oscuros).
   const [pidiendo, setPidiendo] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  useAlTocarFuera(menuRef, menuAbierto, useCallback(() => setMenuAbierto(false), []));
+  // (1.20.3, Josué) El menú va en un portal POR ENCIMA del velo oscuro (antes quedaba debajo y se veía oscurecido).
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [posMenu, setPosMenu] = useState<{ top: number; right: number } | null>(null);
+  useAlTocarFuera(menuRef, menuAbierto, useCallback(() => setMenuAbierto(false), []), panelRef);
 
   useEffect(() => {
     const abrir = () => { if (!acceso.esAdmin) { setClave(''); setDialogo('admin'); } };
@@ -267,15 +270,21 @@ export default function MenuAcceso() {
         <button onClick={() => {
                   // (1.17.8) Al abrir el menú ya se traen los avisos y ajustes: Notificaciones se ve al instante.
                   if (!menuAbierto && acceso.registrado) { precargarAvisos(acceso.esAdmin, locale).catch(() => {}); precargarPreferencias(); }
+                  if (!menuAbierto && menuRef.current) {
+                    const r = menuRef.current.getBoundingClientRect();
+                    setPosMenu({ top: r.bottom + 4, right: window.innerWidth - r.right });
+                  }
                   setMenuAbierto(a => !a);
                 }} className="tap-btn relative p-2 -mr-2 text-muted-foreground" aria-label={t.settings_more}>
           <EllipsisVertical size={20} />
           {pendientes > 0 && <span className="absolute top-1.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-background" />}
         </button>
-        {menuAbierto && (
-          <div className="absolute right-0 top-full mt-1 z-30 min-w-[210px] rounded-xl border border-border bg-card p-1 shadow-xl origin-top-right animate-in fade-in zoom-in-95 duration-150">
+        {menuAbierto && posMenu && createPortal(
+          <div ref={panelRef} className="fixed z-[56] min-w-[210px] rounded-xl border border-border bg-card p-1 shadow-xl origin-top-right animate-in fade-in zoom-in-95 duration-150"
+               style={{ top: posMenu.top, right: posMenu.right }}>
             {opciones}
-          </div>
+          </div>,
+          document.body,
         )}
       </div>
 

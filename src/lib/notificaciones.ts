@@ -66,10 +66,24 @@ export const leerPreferencias = () => api<Preferencias>('notificaciones/preferen
 export const cambiarPreferencias = (cambios: { activas?: boolean; tipo?: string; activo?: boolean }) =>
   api<Preferencias>('notificaciones/preferencias', { metodo: 'PATCH', datos: cambios });
 
-/** Marca como vistas todas las notificaciones de esta persona (al entrar a Administración o a Minutas). */
-/** (1.20.2) Esta minuta se vio (al frente en Minutas o abierta): sus avisos quedan vistos. */
-export const marcarMinutaVista = (id: string) => api('notificaciones/vista', { metodo: 'POST', datos: { minuta: id } }).catch(() => {});
-/** (1.20.2) Se entró a la pantalla de esos avisos (Administración → "registro"). */
-export const marcarTiposVistos = (tipos: string[]) => api('notificaciones/vista', { metodo: 'POST', datos: { tipos } }).catch(() => {});
+/** (1.20.3, Josué) Lo que ya se vio en la app también se quita de la barra del celular: se cierran las notificaciones
+ *  mostradas cuyo aviso ya no está "sin ver" en el servidor. `sinVer` = ids sin ver (si ya se tienen). */
+export async function cerrarVistasDeLaBandeja(sinVer?: number[]) {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    const mostradas = (await reg?.getNotifications()) ?? [];
+    if (!mostradas.length) return;
+    const ids = sinVer ?? (await api<{ ids?: number[] }>('notificaciones/sin-ver')).ids;
+    if (!ids) return;
+    for (const n of mostradas) if (typeof n.data?.id === 'number' && !ids.includes(n.data.id)) n.close();
+  } catch { /* sin service worker o sin internet: queda como está */ }
+}
+const yLimpiar = (p: Promise<unknown>) => p.then(() => cerrarVistasDeLaBandeja(), () => {});
 
-export const marcarTodasVistas = () => api('notificaciones/vista', { metodo: 'POST', datos: { todas: true } }).catch(() => {});
+/** (1.20.2) Esta minuta se vio (al frente en Minutas o abierta): sus avisos quedan vistos. */
+export const marcarMinutaVista = (id: string) => yLimpiar(api('notificaciones/vista', { metodo: 'POST', datos: { minuta: id } }));
+/** (1.20.2) Se entró a la pantalla de esos avisos (Administración → "registro"). */
+export const marcarTiposVistos = (tipos: string[]) => yLimpiar(api('notificaciones/vista', { metodo: 'POST', datos: { tipos } }));
+
+/** Marca como vistas todas las notificaciones de esta persona (al entrar a Minutas, los que no son admin). */
+export const marcarTodasVistas = () => yLimpiar(api('notificaciones/vista', { metodo: 'POST', datos: { todas: true } }));

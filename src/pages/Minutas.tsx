@@ -57,7 +57,10 @@ export default function Minutas() {
   const medirExtremos = () => {
     const el = scrollRef.current;
     if (!el) return;
-    const inicio = el.scrollLeft < 8, fin = el.scrollLeft + el.clientWidth > el.scrollWidth - 8;
+    // (1.20.3, Josué) Se apagaba tarde: esperaba a quedar a 8 px del extremo, y el último tramo del deslizamiento es el
+    // más lento. Ahora basta con estar a menos de media minuta (la lista ya va a quedar en la primera / la última).
+    const margen = Math.max(8, (el.querySelector<HTMLElement>('[data-minuta]')?.offsetWidth ?? 0) / 2);
+    const inicio = el.scrollLeft < margen, fin = el.scrollLeft + el.clientWidth > el.scrollWidth - margen;
     setExtremo(e => (e.inicio === inicio && e.fin === fin ? e : { inicio, fin }));
   };
   const longPress = useRef<ReturnType<typeof setTimeout>>();
