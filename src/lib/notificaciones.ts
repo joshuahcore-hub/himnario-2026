@@ -67,4 +67,9 @@ export const cambiarPreferencias = (cambios: { activas?: boolean; tipo?: string;
   api<Preferencias>('notificaciones/preferencias', { metodo: 'PATCH', datos: cambios });
 
 /** Marca como vistas todas las notificaciones de esta persona (al entrar a Administración o a Minutas). */
+/** (1.20.2) Esta minuta se vio (al frente en Minutas o abierta): sus avisos quedan vistos. */
+export const marcarMinutaVista = (id: string) => api('notificaciones/vista', { metodo: 'POST', datos: { minuta: id } }).catch(() => {});
+/** (1.20.2) Se entró a la pantalla de esos avisos (Administración → "registro"). */
+export const marcarTiposVistos = (tipos: string[]) => api('notificaciones/vista', { metodo: 'POST', datos: { tipos } }).catch(() => {});
+
 export const marcarTodasVistas = () => api('notificaciones/vista', { metodo: 'POST', datos: { todas: true } }).catch(() => {});

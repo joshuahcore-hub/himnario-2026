@@ -9,6 +9,7 @@ import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { revisarPendientes } from '@/hooks/usePendientes';
+import { marcarTiposVistos } from '@/lib/notificaciones';
 import { Input } from '@/components/ui/input';
 import { agregarEspacio, eliminarEspacio, renombrarEspacio, useEspacios } from '@/lib/espacios';
 
@@ -88,6 +89,8 @@ export default function Admin() {
   }, [t]);
 
   useEffect(() => { if (esAdmin) cargar(); }, [esAdmin, cargar]);
+  // (1.20.2, Josué) Entrar a Administración = ya se vieron los avisos de "alguien se registró": se apaga el punto rojo.
+  useEffect(() => { if (esAdmin) marcarTiposVistos(['registro']).then(() => revisarPendientes()); }, [esAdmin]);
   // Quitar a una persona de la lista (1.11.0, Josué: registros repetidos). Mantener presionada su tarjeta → confirmar.
   // No se borra nada: sus minutas y recordatorios siguen; si vuelve a registrarse en ese celular, reaparece.
   const [aQuitar, setAQuitar] = useState<DispositivoAdmin | null>(null);

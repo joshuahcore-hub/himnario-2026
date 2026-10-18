@@ -21,6 +21,8 @@ import { cadena, renumerar } from '@/lib/minutaUtils';
 import { api } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
+import { marcarMinutaVista } from '@/lib/notificaciones';
+import { revisarPendientes } from '@/hooks/usePendientes';
 function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
   song: ParsedSong;
   /** (1.13.1) Las notas son las que envié (vista "Enviados"). */
@@ -175,6 +177,8 @@ export default function MinutaReader() {
   const { theme: temaLector } = useTheme();
   // Recordatorios (1.7.0): los "siempre en esta alabanza" y los "solo en esta minuta".
   const { registrado, puedeDejarAOtros } = useAcceso();
+  // (1.20.2, Josué) Abrir la minuta también cuenta como vista: sus avisos se marcan y se apaga el punto rojo.
+  useEffect(() => { if (id && registrado) marcarMinutaVista(id).then(() => revisarPendientes()); }, [id, registrado]);
   // Vista "Enviados" (1.13.1): los post-it que dejé a otras personas en vez de los míos.
   const [verEnviados, setVerEnviados] = useState(false);
   // Computador (1.13.4, Josué): flecha para volver, flechas a los lados y la rueda del mouse (una canción por paso).

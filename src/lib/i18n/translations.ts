@@ -693,7 +693,7 @@ export const es: Translations = {
   notif_tipo: {
     registro: 'Alguien se registra', creada: 'Se crea una minuta', editada: 'Se edita una minuta',
     publicada: 'Se publica una minuta', privada: 'Una minuta pasa a privada', duplicada: 'Se duplica una minuta',
-    borrada: 'Se elimina una minuta', restaurada: 'Se restaura una minuta', nueva_minuta: 'Se publica una minuta nueva', recordatorio: 'Alguien me deja un recordatorio', proyeccion: 'Alguien genera una proyección',
+    borrada: 'Se elimina una minuta', restaurada: 'Se restaura una minuta', nueva_minuta: 'Se publica una minuta nueva', recordatorio: 'Alguien me deja un recordatorio', proyeccion: 'Alguien genera una proyección', habilitado: 'Me habilitan un permiso',
   },
   admin_requested: 'Se registró el',
   admin_this_device: 'este celular',
@@ -1086,7 +1086,7 @@ export const en: Translations = {
   notif_tipo: {
     registro: 'Someone signs up', creada: 'A service is created', editada: 'A service is edited',
     publicada: 'A service is published', privada: 'A service is made private', duplicada: 'A service is duplicated',
-    borrada: 'A service is deleted', restaurada: 'A service is restored', nueva_minuta: 'A new service is published', recordatorio: 'Someone leaves me a reminder', proyeccion: 'Someone generates a slideshow',
+    borrada: 'A service is deleted', restaurada: 'A service is restored', nueva_minuta: 'A new service is published', recordatorio: 'Someone leaves me a reminder', proyeccion: 'Someone generates a slideshow', habilitado: 'I am given a permission',
   },
   admin_requested: 'Signed up on',
   admin_this_device: 'this phone',
@@ -1479,7 +1479,7 @@ export const pt: Translations = {
   notif_tipo: {
     registro: 'Alguém se cadastra', creada: 'Uma minuta é criada', editada: 'Uma minuta é editada',
     publicada: 'Uma minuta é publicada', privada: 'Uma minuta fica privada', duplicada: 'Uma minuta é duplicada',
-    borrada: 'Uma minuta é excluída', restaurada: 'Uma minuta é restaurada', nueva_minuta: 'Uma nova minuta é publicada', recordatorio: 'Alguém me deixa um lembrete', proyeccion: 'Alguém gera uma projeção',
+    borrada: 'Uma minuta é excluída', restaurada: 'Uma minuta é restaurada', nueva_minuta: 'Uma nova minuta é publicada', recordatorio: 'Alguém me deixa um lembrete', proyeccion: 'Alguém gera uma projeção', habilitado: 'Recebo uma permissão',
   },
   admin_requested: 'Cadastrou-se em',
   admin_this_device: 'este celular',

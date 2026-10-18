@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
 import { createPortal } from 'react-dom';
-import { useEspacios } from '@/lib/espacios';
+import { useEspacios, elegirEspacio } from '@/lib/espacios';
+import { revisarPendientes, usePendientesDetalle } from '@/hooks/usePendientes';
 import { Trash2, Pin, WifiOff, RefreshCw, Pencil, Globe, Lock, Copy, Loader2, Share2, ChevronsLeft, ChevronsRight, EllipsisVertical, ArrowLeftRight, Presentation, Download, FolderInput } from 'lucide-react';
 import { compartirImagen, imagenDeMinuta } from '@/lib/imagenMinuta';
 import { formatearFecha } from '@/lib/minutaUtils';
@@ -17,7 +18,7 @@ import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { cargarRecordatorios } from '@/lib/recordatorios';
 import BotonSeguro from '@/components/BotonSeguro';
-import { marcarTodasVistas } from '@/lib/notificaciones';
+import { marcarTodasVistas, marcarMinutaVista } from '@/lib/notificaciones';
 import PanelProyeccion from '@/components/PanelProyeccion';
 import { esComputador } from '@/lib/proyeccion';
 
@@ -87,7 +88,48 @@ export default function Minutas() {
     else if (ubicada.current !== espacio.id) el.scrollLeft = posicionMinutas[espacio.id] ?? el.scrollWidth;
     ubicada.current = espacio.id;
     medirExtremos();
+    revisarAlFrente();
   }, [ordenadas.length, espacio.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // (1.20.2, Josué) Un aviso de una minuta abre /minutas?ver=<id>: esa minuta queda AL FRENTE (en su espacio).
+  const [parametros, setParametros] = useSearchParams();
+  const ver = parametros.get('ver');
+  useLayoutEffect(() => {
+    if (!ver) return;
+    const m = todas.find(x => x.id === ver);
+    if (!m) { if (!cargando) setParametros({}, { replace: true }); return; } // aún cargando: se espera
+    setParametros({}, { replace: true });
+    const suyo = espacios.some(e => e.id === (m.espacio ?? 'batuco')) ? (m.espacio ?? 'batuco') : espacios[0]?.id;
+    if (suyo && suyo !== espacio.id) { enfocar.current = ver; ubicada.current = ''; elegirEspacio(suyo); return; }
+    const el = scrollRef.current;
+    const tarjeta = el?.querySelector<HTMLElement>(`[data-minuta="${ver}"]`);
+    if (el && tarjeta) { el.scrollLeft = tarjeta.offsetLeft - (el.clientWidth - tarjeta.offsetWidth) / 2; medirExtremos(); revisarAlFrente(); }
+  }, [ver, todas, cargando]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // (1.20.2, Josué) La minuta que queda AL FRENTE (al centro) cuenta como vista: sus avisos se marcan y se apaga el
+  // punto rojo. Se revisa cuando la lista deja de moverse.
+  const { sinVer } = usePendientesDetalle();
+  const sinVerRef = useRef(sinVer);
+  sinVerRef.current = sinVer;
+  const quietud = useRef<ReturnType<typeof setTimeout>>();
+  function revisarAlFrente() {
+    clearTimeout(quietud.current);
+    quietud.current = setTimeout(() => {
+      const el = scrollRef.current;
+      if (!el || !esAdmin || !sinVerRef.current) return;
+      const centro = el.getBoundingClientRect().left + el.clientWidth / 2;
+      let mejor: HTMLElement | null = null, dist = Infinity;
+      el.querySelectorAll<HTMLElement>('[data-minuta]').forEach(t => {
+        const r = t.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - centro);
+        if (d < dist) { dist = d; mejor = t; }
+      });
+      const id = (mejor as HTMLElement | null)?.dataset.minuta;
+      if (id) marcarMinutaVista(id).then(revisarPendientes);
+    }, 450);
+  }
+  useEffect(() => () => clearTimeout(quietud.current), []);
+  useEffect(() => { if (sinVer) revisarAlFrente(); }, [sinVer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSelect = (id: string) => setSelected(prev => {
     const next = new Set(prev);
@@ -342,7 +384,7 @@ export default function Minutas() {
             // Solo hacia los lados: sin desplazamiento vertical (antes se podía correr arriba/abajo sin sentido).
             // Con una minuta seleccionada la lista queda quieta: no se desliza a los lados (Josué, 1.5.6).
             style={{ overflowY: 'hidden', overflowX: selectMode ? 'hidden' : 'auto', touchAction: selectMode ? 'none' : 'pan-x', overscrollBehavior: 'contain' }}
-            onScroll={e => { posicionMinutas[espacio.id] = e.currentTarget.scrollLeft; medirExtremos(); }}
+            onScroll={e => { posicionMinutas[espacio.id] = e.currentTarget.scrollLeft; medirExtremos(); revisarAlFrente(); }}
             onWheel={e => {
               if (!selectMode && Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollRef.current?.scrollBy({ left: e.deltaY, behavior: 'smooth' });
             }}

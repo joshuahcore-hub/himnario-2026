@@ -493,9 +493,27 @@ async function rutasAdmin(request: Request, env: Env, partes: string[], ip: stri
     if (cambios.length === 0) throw new ErrorApi(400, 'Nada que cambiar.');
     // Los permisos de otro administrador no se tocan; quitarlo de la lista sí (p. ej. un celular viejo de Josué).
     const soloOcultar = cambios.length === 1 && body.oculta !== undefined;
+    type Permisos = { estado: string; ve_minutas: number; crea_minutas: number; recordatorios_otros: number; proyeccion: number };
+    const leerPermisos = () => env.DB.prepare('SELECT estado, ve_minutas, crea_minutas, recordatorios_otros, proyeccion FROM dispositivos WHERE id = ?')
+      .bind(partes[2]).first<Permisos>();
+    const antes = await leerPermisos();
     const r = await env.DB.prepare(`UPDATE dispositivos SET ${cambios.join(', ')}, actualizado = ? WHERE id = ?${soloOcultar ? '' : " AND rol != 'admin'"}`)
       .bind(...valores, ahora(), partes[2]).run();
     if (!r.meta.changes) throw new ErrorApi(404, 'Dispositivo no encontrado.');
+    // (1.20.2, Josué) A quien se le HABILITA algo se le avisa ("Se te habilitó como visor…"). Quitar permisos no avisa.
+    const despues = await leerPermisos();
+    if (antes && despues) {
+      const nuevos: string[] = [];
+      if (!antes.crea_minutas && despues.crea_minutas) nuevos.push('creador');
+      else if (!antes.ve_minutas && despues.ve_minutas) nuevos.push('visor');
+      if (!antes.recordatorios_otros && despues.recordatorios_otros) nuevos.push('recordatorios');
+      if (!antes.proyeccion && despues.proyeccion) nuevos.push('proyeccion');
+      if (antes.estado !== 'aprobado' && despues.estado === 'aprobado' && !nuevos.length) nuevos.push('aprobado');
+      if (nuevos.length) {
+        const trabajo = avisarHabilitado(env, partes[2], yo.nombre, nuevos).catch(e => console.error('avisos', e));
+        if (env.esperar) env.esperar(trabajo);
+      }
+    }
     return json({ ok: true });
   }
 
@@ -909,7 +927,8 @@ async function rutasPersonas(request: Request, env: Env): Promise<Response> {
 
 const TIPOS_ADMIN = ['registro', 'creada', 'editada', 'publicada', 'privada', 'duplicada', 'borrada', 'restaurada', 'recordatorio', 'proyeccion'] as const;
 // (1.13.2) "recordatorio" = alguien te dejó un post-it. Le llega a cualquiera (también al admin).
-const TIPOS_OTROS = ['nueva_minuta', 'recordatorio'] as const;
+// (1.20.2, Josué) "habilitado" = el administrador te habilitó algo (visor, creador, recordatorios, proyección).
+const TIPOS_OTROS = ['nueva_minuta', 'recordatorio', 'habilitado'] as const;
 type TipoAviso = (typeof TIPOS_ADMIN)[number] | (typeof TIPOS_OTROS)[number];
 
 interface Aviso {
@@ -946,6 +965,13 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       nueva_minuta: ['Nueva minuta', (a, t) => `«${t}» · ${a}`],
       recordatorio: ['Nuevo recordatorio', (a, t) => `${a} te dejó un recordatorio en «${t}».`],
       proyeccion: ['Proyección generada', (a, t) => `${a} generó la proyección de «${t}».`],
+      habilitado: ['Nuevo permiso', (_a, t) => ({
+        visor: 'Se te habilitó como visor: ya puedes ver las minutas.',
+        creador: 'Se te habilitó como creador: ya puedes crear minutas.',
+        recordatorios: 'Se te habilitó para dejar recordatorios a otras personas.',
+        proyeccion: 'Se te habilitó para generar la proyección del culto.',
+        aprobado: 'Tu acceso a la app fue aprobado.',
+      } as Record<string, string>)[t] ?? 'Se te habilitó un permiso nuevo.'],
     },
   },
   en: {
@@ -962,6 +988,13 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       nueva_minuta: ['New service', (a, t) => `“${t}” · ${a}`],
       recordatorio: ['New reminder', (a, t) => `${a} left you a reminder on “${t}”.`],
       proyeccion: ['Slideshow generated', (a, t) => `${a} generated the slideshow for “${t}”.`],
+      habilitado: ['New permission', (_a, t) => ({
+        visor: 'You were enabled as a viewer: you can now see the services.',
+        creador: 'You were enabled as a creator: you can now create services.',
+        recordatorios: 'You were enabled to leave reminders for other people.',
+        proyeccion: 'You were enabled to generate the service slideshow.',
+        aprobado: 'Your access to the app was approved.',
+      } as Record<string, string>)[t] ?? 'You were given a new permission.'],
     },
   },
   pt: {
@@ -978,6 +1011,13 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       nueva_minuta: ['Nova minuta', (a, t) => `«${t}» · ${a}`],
       recordatorio: ['Novo lembrete', (a, t) => `${a} deixou um lembrete para você em «${t}».`],
       proyeccion: ['Projeção gerada', (a, t) => `${a} gerou a projeção de «${t}».`],
+      habilitado: ['Nova permissão', (_a, t) => ({
+        visor: 'Você foi habilitado como visualizador: já pode ver as minutas.',
+        creador: 'Você foi habilitado como criador: já pode criar minutas.',
+        recordatorios: 'Você foi habilitado para deixar lembretes para outras pessoas.',
+        proyeccion: 'Você foi habilitado para gerar a projeção do culto.',
+        aprobado: 'Seu acesso ao app foi aprovado.',
+      } as Record<string, string>)[t] ?? 'Você recebeu uma nova permissão.'],
     },
   },
 };
@@ -998,7 +1038,10 @@ async function enviarAvisos(env: Env, a: Aviso) {
   const { results: admins } = await env.DB.prepare(
     `SELECT id, notif_apagadas FROM dispositivos WHERE rol = 'admin' AND estado = 'aprobado' AND notif_activas = 1 AND id != ?`,
   ).bind(a.autorId).all<Fila>();
-  const urlAdmin = a.tipo === 'registro' ? '/admin' : a.tipo === 'proyeccion' && a.minutaId ? `/minuta/${a.minutaId}` : '/settings?avisos=1';
+  // (1.20.2, Josué) Un aviso de una minuta lleva a Minutas con ESA minuta al frente (verla ahí lo da por visto);
+  // la eliminada ya no está en la lista: va a los avisos.
+  const urlAdmin = a.tipo === 'registro' ? '/admin' : a.tipo === 'proyeccion' && a.minutaId ? `/minuta/${a.minutaId}`
+    : a.minutaId && a.tipo !== 'borrada' ? `/minutas?ver=${a.minutaId}` : '/settings?avisos=1';
   for (const d of admins) if (!apagadasDe(d.notif_apagadas).includes(a.tipo)) destinos.push({ id: d.id, tipo: a.tipo, url: urlAdmin });
   if (a.publica && a.minutaId) {
     const { results: otros } = await env.DB.prepare(
@@ -1007,12 +1050,12 @@ async function enviarAvisos(env: Env, a: Aviso) {
          AND EXISTS (SELECT 1 FROM suscripciones s WHERE s.dispositivo_id = d.id)`,
     ).bind(a.autorId).all<Fila>();
     for (const d of otros) {
-      if (!apagadasDe(d.notif_apagadas).includes('nueva_minuta')) destinos.push({ id: d.id, tipo: 'nueva_minuta', url: `/minuta/${a.minutaId}` });
+      if (!apagadasDe(d.notif_apagadas).includes('nueva_minuta')) destinos.push({ id: d.id, tipo: 'nueva_minuta', url: `/minutas?ver=${a.minutaId}` });
     }
   }
   if (destinos.length === 0) return;
   const t = ahora();
-  const datos = JSON.stringify({ autor: a.autor, titulo: a.titulo ?? '', publica: !!a.publica });
+  const datos = JSON.stringify({ autor: a.autor, titulo: a.titulo ?? '', publica: !!a.publica, minuta: a.minutaId ?? null });
   await env.DB.batch([
     ...destinos.map(d => env.DB.prepare('INSERT INTO notificaciones (dispositivo_id, tipo, datos, url, creada) VALUES (?, ?, ?, ?, ?)')
       .bind(d.id, d.tipo, datos, d.url, t)),
@@ -1035,6 +1078,19 @@ async function avisarRecordatorio(env: Env, d: { paraId: string; autor: string; 
   await env.DB.prepare('INSERT INTO notificaciones (dispositivo_id, tipo, datos, url, creada) VALUES (?, ?, ?, ?, ?)')
     .bind(d.paraId, 'recordatorio', datos, virtual ? '/minutas' : `/hymnal/${d.himno}`, ahora()).run();
   const { results } = await env.DB.prepare('SELECT endpoint FROM suscripciones WHERE dispositivo_id = ?').bind(d.paraId).all<{ endpoint: string }>();
+  await Promise.all(results.map(s => despertar(env, s.endpoint)));
+}
+
+/** (1.20.2) Le habilitaron algo: queda en sus Avisos siempre; la notificación sale si las tiene encendidas. */
+async function avisarHabilitado(env: Env, paraId: string, autor: string, permisos: string[]) {
+  const f = await env.DB.prepare('SELECT notif_activas, notif_apagadas FROM dispositivos WHERE id = ?').bind(paraId)
+    .first<{ notif_activas: number; notif_apagadas: string | null }>();
+  if (!f) return;
+  const t = ahora();
+  await env.DB.batch(permisos.map(p => env.DB.prepare('INSERT INTO notificaciones (dispositivo_id, tipo, datos, url, creada) VALUES (?, ?, ?, ?, ?)')
+    .bind(paraId, 'habilitado', JSON.stringify({ autor, titulo: p }), p === 'visor' || p === 'creador' ? '/minutas' : '/settings', t)));
+  if (!f.notif_activas || apagadasDe(f.notif_apagadas).includes('habilitado')) return;
+  const { results } = await env.DB.prepare('SELECT endpoint FROM suscripciones WHERE dispositivo_id = ?').bind(paraId).all<{ endpoint: string }>();
   await Promise.all(results.map(s => despertar(env, s.endpoint)));
 }
 
@@ -1121,6 +1177,18 @@ async function rutasNotificaciones(request: Request, env: Env, partes: string[])
       if (ids.length) {
         await env.DB.prepare(`UPDATE notificaciones SET vista = 1, entregada = 1 WHERE dispositivo_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
           .bind(quien, ...ids).run();
+      }
+    } else if (typeof body.minuta === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(body.minuta)) {
+      // (1.20.2, Josué) La minuta se vio (al frente en Minutas o abierta): sus avisos quedan vistos.
+      const m = body.minuta;
+      await env.DB.prepare(`UPDATE notificaciones SET vista = 1, entregada = 1 WHERE dispositivo_id = ? AND vista = 0
+                            AND (url = ? OR url = ? OR datos LIKE ?)`).bind(quien, `/minuta/${m}`, `/minutas?ver=${m}`, `%"minuta":"${m}"%`).run();
+    } else if (Array.isArray(body.tipos) && body.tipos.length) {
+      // (1.20.2, Josué) Se entró a la pantalla de esos avisos (p. ej. Administración → "registro").
+      const tipos = body.tipos.filter((x: unknown) => typeof x === 'string' && (TIPOS_ADMIN as readonly string[]).concat(TIPOS_OTROS).includes(x)).slice(0, 20);
+      if (tipos.length) {
+        await env.DB.prepare(`UPDATE notificaciones SET vista = 1, entregada = 1 WHERE dispositivo_id = ? AND vista = 0 AND tipo IN (${tipos.map(() => '?').join(',')})`)
+          .bind(quien, ...tipos).run();
       }
     } else if (body.todas === true) {
       await env.DB.prepare('UPDATE notificaciones SET vista = 1, entregada = 1 WHERE dispositivo_id = ? AND vista = 0').bind(quien).run();
