@@ -43,6 +43,10 @@ export interface Translations {
   minutas_error_rename: string;
   minutas_deleted: (n: number) => string;
   minutas_mover: string;
+  espacio_avisos_titulo: (espacio: string) => string;
+  espacio_avisos_texto: (espacio: string) => string;
+  espacio_avisos_si: string;
+  espacio_avisos_no: string;
   minutas_mover_titulo: (n: number) => string;
   minutas_movidas: (n: number, espacio: string) => string;
   minutas_delete_confirm_title: (n: number) => string;
@@ -441,6 +445,10 @@ export const es: Translations = {
   minutas_error_rename: 'Error al renombrar',
   minutas_deleted: (n) => (n === 1 ? 'Minuta eliminada' : `${n} minutas eliminadas`),
   minutas_mover: 'Mover a otro espacio',
+  espacio_avisos_titulo: (e) => `¿Quieres avisos de las minutas de ${e}?`,
+  espacio_avisos_texto: (e) => `Te llegará una notificación cuando alguien publique una minuta en ${e}.`,
+  espacio_avisos_si: 'Sí, avisarme',
+  espacio_avisos_no: 'Ahora no',
   minutas_mover_titulo: (n) => (n === 1 ? '¿A qué espacio mover esta minuta?' : `¿A qué espacio mover estas ${n} minutas?`),
   minutas_movidas: (n, e) => (n === 1 ? `Minuta movida a ${e}` : `${n} minutas movidas a ${e}`),
   minutas_delete_confirm_title: n => (n === 1 ? '¿Eliminar esta minuta?' : `¿Eliminar ${n} minutas?`),
@@ -835,6 +843,10 @@ export const en: Translations = {
   minutas_error_rename: 'Error renaming',
   minutas_deleted: (n) => (n === 1 ? 'Service deleted' : `${n} services deleted`),
   minutas_mover: 'Move to another space',
+  espacio_avisos_titulo: (e) => `Get notified about services in ${e}?`,
+  espacio_avisos_texto: (e) => `You'll get a notification when someone publishes a service in ${e}.`,
+  espacio_avisos_si: 'Yes, notify me',
+  espacio_avisos_no: 'Not now',
   minutas_mover_titulo: (n) => (n === 1 ? 'Move this service to which space?' : `Move these ${n} services to which space?`),
   minutas_movidas: (n, e) => (n === 1 ? `Service moved to ${e}` : `${n} services moved to ${e}`),
   minutas_delete_confirm_title: n => (n === 1 ? 'Delete this service?' : `Delete ${n} services?`),
@@ -1229,6 +1241,10 @@ export const pt: Translations = {
   minutas_error_rename: 'Erro ao renomear',
   minutas_deleted: (n) => (n === 1 ? 'Minuta excluída' : `${n} minutas excluídas`),
   minutas_mover: 'Mover para outro espaço',
+  espacio_avisos_titulo: (e) => `Quer avisos das minutas de ${e}?`,
+  espacio_avisos_texto: (e) => `Você vai receber uma notificação quando alguém publicar uma minuta em ${e}.`,
+  espacio_avisos_si: 'Sim, avisar',
+  espacio_avisos_no: 'Agora não',
   minutas_mover_titulo: (n) => (n === 1 ? 'Para qual espaço mover esta minuta?' : `Para qual espaço mover estas ${n} minutas?`),
   minutas_movidas: (n, e) => (n === 1 ? `Minuta movida para ${e}` : `${n} minutas movidas para ${e}`),
   minutas_delete_confirm_title: n => (n === 1 ? 'Excluir esta minuta?' : `Excluir ${n} minutas?`),

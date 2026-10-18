@@ -9,7 +9,7 @@ import { compartirImagen, imagenDeMinuta } from '@/lib/imagenMinuta';
 import { formatearFecha } from '@/lib/minutaUtils';
 import Portada from '@/components/Portada';
 import type { MinutaData } from '@/lib/types';
-import { useMinutas, quitarMinutaLocal, guardarMinutaLocal, tomarParaEnfocar } from '@/lib/minutaCache';
+import { useMinutas, quitarMinutaLocal, guardarMinutaLocal, tomarParaEnfocar, tomarEspacioPorPreguntar } from '@/lib/minutaCache';
 import { tituloVisible } from '@/lib/minutaUtils';
 import { api, ErrorDeRed } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { cargarRecordatorios } from '@/lib/recordatorios';
 import BotonSeguro from '@/components/BotonSeguro';
-import { marcarTodasVistas, marcarMinutaVista } from '@/lib/notificaciones';
+import { marcarTodasVistas, marcarMinutaVista, leerPreferencias, cambiarPreferencias } from '@/lib/notificaciones';
 import PanelProyeccion from '@/components/PanelProyeccion';
 import { esComputador } from '@/lib/proyeccion';
 
@@ -183,6 +183,29 @@ export default function Minutas() {
     } catch (e: any) {
       toast.error(e.message || t.minutas_error_rename);
     }
+  };
+
+  // (1.20.5, Josué) Tras crear la PRIMERA minuta propia en un espacio: si los avisos de ese espacio están apagados,
+  // se pregunta una sola vez si quiere recibirlos.
+  const [preguntaEspacio, setPreguntaEspacio] = useState<{ id: string; nombre: string } | null>(null);
+  const [preguntaAbierta, setPreguntaAbierta] = useState(false);
+  useEffect(() => {
+    const esp = tomarEspacioPorPreguntar();
+    const clave = `himnario_pregunta_avisos_${esp}`;
+    let ya = false;
+    try { ya = !!localStorage.getItem(clave); } catch { /* sin almacenamiento */ }
+    if (!esp || ya) return;
+    leerPreferencias().then(p => {
+      const x = p.tipos.find(t => t.tipo === `espacio:${esp}`);
+      if (!p.activas || !x || x.activo) return;
+      try { localStorage.setItem(clave, '1'); } catch { /* da igual */ }
+      setPreguntaEspacio({ id: esp, nombre: x.nombre ?? esp });
+      setPreguntaAbierta(true);
+    }).catch(() => {});
+  }, []);
+  const responderEspacio = (si: boolean) => {
+    setPreguntaAbierta(false);
+    if (si && preguntaEspacio) cambiarPreferencias({ tipo: `espacio:${preguntaEspacio.id}`, activo: true }).catch(() => {});
   };
 
   // (1.20.0, Josué) Mover a otro espacio: mantener presionada → carpeta → elegir el espacio (solo los otros). Solo las
@@ -553,6 +576,20 @@ export default function Minutas() {
                           hacer: () => { setSelected(new Set([menu.m.id])); setCantidadABorrar(1); setConfirmarBorrar(true); } }] : []),
     ]} />, document.body)}
     {proyectar && <PanelProyeccion abierto={proyAbierta} onCerrar={() => setProyAbierta(false)} minuta={proyectar} />}
+
+    {/* (1.20.5) ¿Avisos de este espacio? (tras la primera minuta propia en él). Tocar fuera = "Ahora no". */}
+    <Dialog open={preguntaAbierta} onOpenChange={abierto => { if (!abierto) responderEspacio(false); }}>
+      <DialogContent className="max-w-[320px] rounded-2xl gap-3">
+        <DialogHeader>
+          <DialogTitle className="text-base">{t.espacio_avisos_titulo(preguntaEspacio?.nombre ?? '')}</DialogTitle>
+          <DialogDescription className="text-xs">{t.espacio_avisos_texto(preguntaEspacio?.nombre ?? '')}</DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2 pt-1">
+          <Button variant="outline" className="flex-1 h-10 text-sm" onClick={() => responderEspacio(false)}>{t.espacio_avisos_no}</Button>
+          <Button className="flex-1 h-10 text-sm" onClick={() => responderEspacio(true)}>{t.espacio_avisos_si}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
 
     {/* (1.20.0) Mover a otro espacio: un botón por cada OTRO espacio. Fuera del contenedor, como el de eliminar. */}
     <Dialog open={moverAbierto} onOpenChange={abierto => { if (!abierto) cerrarMover(); }}>

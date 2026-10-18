@@ -53,6 +53,16 @@ export function tomarParaEnfocar(): string | null {
   return id;
 }
 
+// (1.20.5, Josué) Primera minuta propia en un espacio: al volver a la lista se pregunta si quiere avisos de ese espacio.
+export const tengoMinutaEn = (espacio: string) => leerLocal().some(m => m.mia && (m.espacio ?? 'batuco') === espacio);
+let espacioPorPreguntar: string | null = null;
+export const marcarEspacioPorPreguntar = (espacio: string) => { espacioPorPreguntar = espacio; };
+export function tomarEspacioPorPreguntar(): string | null {
+  const e = espacioPorPreguntar;
+  espacioPorPreguntar = null;
+  return e;
+}
+
 export function guardarMinutaLocal(m: MinutaData) {
   const lista = leerLocal().filter(x => x.id !== m.id);
   guardar([...lista, m].sort((a, b) => a.fecha.localeCompare(b.fecha) || a.creada.localeCompare(b.creada)));

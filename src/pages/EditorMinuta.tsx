@@ -16,7 +16,7 @@ import { armarCadena, cadena, cantoDesdeHimno, cantoFuera, esMarcador, especial,
 import { DialogEspecial, DialogFuera, DialogTexto, type DatosFuera } from '@/components/DialogosMinuta';
 import { buscarCancionExtra, useCancionesExtra, normalizarTitulo } from '@/lib/cancionesExtra';
 import { useAtrasCierra } from '@/lib/atras';
-import { getMinuta, guardarMinutaLocal, marcarParaEnfocar } from '@/lib/minutaCache';
+import { getMinuta, guardarMinutaLocal, marcarParaEnfocar, tengoMinutaEn, marcarEspacioPorPreguntar } from '@/lib/minutaCache';
 import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
@@ -409,9 +409,11 @@ export default function EditorMinuta() {
       ...(textoOriginal && !id ? { texto_original: textoOriginal } : {}),
     };
     try {
+      const primeraEnEspacio = !id && !tengoMinutaEn(espacioActual());
       const m = id
         ? await api<MinutaData>(`minutas/${id}`, { metodo: 'PATCH', datos })
         : await api<MinutaData>('minutas', { metodo: 'POST', datos: { ...datos, espacio: espacioActual() } });
+      if (primeraEnEspacio) marcarEspacioPorPreguntar(m.espacio ?? espacioActual());
       guardarMinutaLocal(m);
       toast.success(publicar && !yaPublicada ? t.minuta_published_toast
         : yaPublicada ? t.minuta_changes_published_toast
