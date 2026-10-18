@@ -283,7 +283,7 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       registrar(env, nueva, yo.id, 'creada', titulo),
       ...(publicada ? [registrar(env, nueva, yo.id, 'publicada', titulo)] : []),
     ]);
-    avisar(env, { tipo: 'creada', autorId: yo.id, autor: yo.nombre, minutaId: nueva, titulo: `${tituloAviso(titulo, body.fecha)} · ${espacio.nombre}`, publica: !!publicada });
+    avisar(env, { tipo: 'creada', autorId: yo.id, autor: yo.nombre, minutaId: nueva, titulo: tituloAviso(titulo, body.fecha), publica: !!publicada, espacio });
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
   }
 
@@ -305,7 +305,8 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
                       SELECT lower(hex(randomblob(16))), himno, autor_id, para_id, texto, ?, estado, pos_x, pos_y, tam, creado, ?
                       FROM recordatorios WHERE minuta_id = ? AND (autor_id = ? OR para_id = ?)`).bind(nueva, t, id, yo.id, yo.id),
     ]);
-    avisar(env, { tipo: 'duplicada', autorId: yo.id, autor: yo.nombre, minutaId: nueva, titulo: tituloAviso(original.titulo, original.fecha) });
+    avisar(env, { tipo: 'duplicada', autorId: yo.id, autor: yo.nombre, minutaId: nueva, titulo: tituloAviso(original.titulo, original.fecha),
+                  espacio: await validarEspacio(env, original.espacio) });
     return json(await obtenerMinuta(env, nueva, conAutores, yo.id), 201);
   }
 
@@ -350,7 +351,7 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
     const soloFijar = cambios.length === 3 && (body.fijada !== undefined || body.espacio !== undefined);
     if (!soloFijar) {
       avisar(env, { tipo: cambioVisibilidad ?? 'editada', autorId: yo.id, autor: yo.nombre, minutaId: id,
-                    titulo: `${tituloAviso(titulo, body.fecha ?? actual.fecha)} · ${(await validarEspacio(env, actual.espacio)).nombre}`,
+                    titulo: tituloAviso(titulo, body.fecha ?? actual.fecha), espacio: await validarEspacio(env, actual.espacio),
                     publica: cambioVisibilidad === 'publicada' });
     }
     // Sin verificar visibilidad: si el administrador dejó privada la minuta de otro, igual recibe la respuesta.
@@ -366,7 +367,8 @@ async function rutasMinutas(request: Request, env: Env, partes: string[]): Promi
       env.DB.prepare('UPDATE minutas SET borrada = 1, editada_por = ?, actualizada = ? WHERE id = ?').bind(yo.id, ahora(), id),
       registrar(env, id, yo.id, 'borrada', actual.titulo),
     ]);
-    avisar(env, { tipo: 'borrada', autorId: yo.id, autor: yo.nombre, minutaId: id, titulo: tituloAviso(actual.titulo, actual.fecha) });
+    avisar(env, { tipo: 'borrada', autorId: yo.id, autor: yo.nombre, minutaId: id, titulo: tituloAviso(actual.titulo, actual.fecha),
+                  espacio: await validarEspacio(env, actual.espacio) });
     return json({ ok: true });
   }
 
@@ -939,6 +941,15 @@ interface Aviso {
   titulo?: string;
   /** La minuta quedó visible para todos (creada publicada o pasó a publicada): avisa también a los demás. */
   publica?: boolean;
+  /** (1.20.4, Josué) Espacio de la minuta: va en el texto ("publicó una nueva minuta en Batuco") y cada persona elige
+   *  de qué espacios recibir avisos (en notif_apagadas como "espacio:<id>"). */
+  espacio?: { id: string; nombre: string };
+}
+
+/** Texto de un aviso guardado. Los avisos con espacio: "nueva_minuta" lo dice en la frase; los del admin, junto al título. */
+function textoDe(texto: TextoAviso[1], tipo: string, d: { autor: string; titulo: string; publica?: boolean; espacio?: string; minuta?: string }) {
+  const titulo = d.espacio && tipo !== 'nueva_minuta' ? `${d.titulo} · ${d.espacio}` : d.titulo;
+  return texto(d.autor, titulo, !!d.publica, d.espacio);
 }
 
 /** "Minuta" sola se muestra con su fecha, como en la app. */
@@ -949,7 +960,7 @@ function tituloAviso(titulo: string, fecha: unknown): string {
 }
 
 type Idioma = 'es' | 'en' | 'pt';
-type TextoAviso = [string, (autor: string, titulo: string, publica: boolean) => string];
+type TextoAviso = [string, (autor: string, titulo: string, publica: boolean, espacio?: string) => string];
 const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, TextoAviso> }> = {
   es: {
     vista: 'Marcar como vista',
@@ -962,7 +973,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       duplicada: ['Minuta duplicada', (a, t) => `${a} duplicó «${t}».`],
       borrada: ['Minuta eliminada', (a, t) => `${a} eliminó «${t}».`],
       restaurada: ['Minuta restaurada', (a, t) => `${a} restauró «${t}».`],
-      nueva_minuta: ['Nueva minuta', (a, t) => `«${t}» · ${a}`],
+      nueva_minuta: ['Nueva minuta', (a, t, _p, e) => (e ? `${a} publicó una nueva minuta en ${e}: «${t}».` : `«${t}» · ${a}`)],
       recordatorio: ['Nuevo recordatorio', (a, t) => `${a} te dejó un recordatorio en «${t}».`],
       proyeccion: ['Proyección generada', (a, t) => `${a} generó la proyección de «${t}».`],
       habilitado: ['Nuevo permiso', (_a, t) => ({
@@ -985,7 +996,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       duplicada: ['Service duplicated', (a, t) => `${a} duplicated “${t}”.`],
       borrada: ['Service deleted', (a, t) => `${a} deleted “${t}”.`],
       restaurada: ['Service restored', (a, t) => `${a} restored “${t}”.`],
-      nueva_minuta: ['New service', (a, t) => `“${t}” · ${a}`],
+      nueva_minuta: ['New service', (a, t, _p, e) => (e ? `${a} published a new service in ${e}: “${t}”.` : `“${t}” · ${a}`)],
       recordatorio: ['New reminder', (a, t) => `${a} left you a reminder on “${t}”.`],
       proyeccion: ['Slideshow generated', (a, t) => `${a} generated the slideshow for “${t}”.`],
       habilitado: ['New permission', (_a, t) => ({
@@ -1008,7 +1019,7 @@ const TEXTOS_AVISO: Record<Idioma, { vista: string; tipos: Record<TipoAviso, Tex
       duplicada: ['Minuta duplicada', (a, t) => `${a} duplicou «${t}».`],
       borrada: ['Minuta excluída', (a, t) => `${a} excluiu «${t}».`],
       restaurada: ['Minuta restaurada', (a, t) => `${a} restaurou «${t}».`],
-      nueva_minuta: ['Nova minuta', (a, t) => `«${t}» · ${a}`],
+      nueva_minuta: ['Nova minuta', (a, t, _p, e) => (e ? `${a} publicou uma nova minuta em ${e}: «${t}».` : `«${t}» · ${a}`)],
       recordatorio: ['Novo lembrete', (a, t) => `${a} deixou um lembrete para você em «${t}».`],
       proyeccion: ['Projeção gerada', (a, t) => `${a} gerou a projeção de «${t}».`],
       habilitado: ['Nova permissão', (_a, t) => ({
@@ -1042,7 +1053,11 @@ async function enviarAvisos(env: Env, a: Aviso) {
   // la eliminada ya no está en la lista: va a los avisos.
   const urlAdmin = a.tipo === 'registro' ? '/admin' : a.tipo === 'proyeccion' && a.minutaId ? `/minuta/${a.minutaId}`
     : a.minutaId && a.tipo !== 'borrada' ? `/minutas?ver=${a.minutaId}` : '/settings?avisos=1';
-  for (const d of admins) if (!apagadasDe(d.notif_apagadas).includes(a.tipo)) destinos.push({ id: d.id, tipo: a.tipo, url: urlAdmin });
+  const fueraDeSusEspacios = (apagadas: string[]) => !!a.espacio && apagadas.includes(`espacio:${a.espacio.id}`);
+  for (const d of admins) {
+    const apagadas = apagadasDe(d.notif_apagadas);
+    if (!apagadas.includes(a.tipo) && !fueraDeSusEspacios(apagadas)) destinos.push({ id: d.id, tipo: a.tipo, url: urlAdmin });
+  }
   if (a.publica && a.minutaId) {
     const { results: otros } = await env.DB.prepare(
       `SELECT d.id, d.notif_apagadas FROM dispositivos d
@@ -1050,12 +1065,13 @@ async function enviarAvisos(env: Env, a: Aviso) {
          AND EXISTS (SELECT 1 FROM suscripciones s WHERE s.dispositivo_id = d.id)`,
     ).bind(a.autorId).all<Fila>();
     for (const d of otros) {
-      if (!apagadasDe(d.notif_apagadas).includes('nueva_minuta')) destinos.push({ id: d.id, tipo: 'nueva_minuta', url: `/minutas?ver=${a.minutaId}` });
+      const apagadas = apagadasDe(d.notif_apagadas);
+      if (!apagadas.includes('nueva_minuta') && !fueraDeSusEspacios(apagadas)) destinos.push({ id: d.id, tipo: 'nueva_minuta', url: `/minutas?ver=${a.minutaId}` });
     }
   }
   if (destinos.length === 0) return;
   const t = ahora();
-  const datos = JSON.stringify({ autor: a.autor, titulo: a.titulo ?? '', publica: !!a.publica, minuta: a.minutaId ?? null });
+  const datos = JSON.stringify({ autor: a.autor, titulo: a.titulo ?? '', publica: !!a.publica, minuta: a.minutaId ?? null, espacio: a.espacio?.nombre });
   await env.DB.batch([
     ...destinos.map(d => env.DB.prepare('INSERT INTO notificaciones (dispositivo_id, tipo, datos, url, creada) VALUES (?, ?, ?, ?, ?)')
       .bind(d.id, d.tipo, datos, d.url, t)),
@@ -1163,7 +1179,7 @@ async function rutasNotificaciones(request: Request, env: Env, partes: string[])
     return json(results.map(f => {
       const d = JSON.parse(f.datos);
       const [titulo, texto] = textos.tipos[f.tipo] ?? textos.tipos.editada;
-      return { id: f.id, titulo, texto: texto(d.autor, d.titulo, !!d.publica), url: f.url, accion: textos.vista };
+      return { id: f.id, titulo, texto: textoDe(texto, f.tipo, d), url: f.url, accion: textos.vista };
     }));
   }
 
@@ -1216,7 +1232,7 @@ async function rutasNotificaciones(request: Request, env: Env, partes: string[])
     return json(results.map(f => {
       const d = JSON.parse(f.datos);
       const [titulo, texto] = textos.tipos[f.tipo] ?? textos.tipos.editada;
-      return { id: f.id, tipo: f.tipo, titulo, texto: texto(d.autor, d.titulo, !!d.publica), url: f.url, creada: f.creada, vista: !!f.vista };
+      return { id: f.id, tipo: f.tipo, titulo, texto: textoDe(texto, f.tipo, d), url: f.url, creada: f.creada, vista: !!f.vista };
     }));
   }
 
@@ -1240,10 +1256,14 @@ async function rutasNotificaciones(request: Request, env: Env, partes: string[])
       .first<{ notif_activas: number; notif_apagadas: string | null }>();
     let activas = !!f?.notif_activas;
     let apagadas = apagadasDe(f?.notif_apagadas ?? null);
+    // (1.20.4, Josué) De qué espacios recibir avisos de minutas: van como "tipos" más ("espacio:<id>") con su nombre.
+    const veMinutas = yo.rol === 'admin' || !!yo.ve_minutas;
+    const espacios = veMinutas ? await listaEspacios(env) : [];
+    const deEspacios = espacios.length > 1 ? espacios.map(e => ({ tipo: `espacio:${e.id}`, nombre: e.nombre })) : [];
     if (metodo === 'PATCH') {
       const body = await leerJson(request);
       if (typeof body.activas === 'boolean') activas = body.activas;
-      if (typeof body.tipo === 'string' && tipos.includes(body.tipo) && typeof body.activo === 'boolean') {
+      if (typeof body.tipo === 'string' && (tipos.includes(body.tipo) || deEspacios.some(e => e.tipo === body.tipo)) && typeof body.activo === 'boolean') {
         apagadas = body.activo ? apagadas.filter(x => x !== body.tipo) : [...new Set([...apagadas, body.tipo])];
       }
       await env.DB.prepare('UPDATE dispositivos SET notif_activas = ?, notif_apagadas = ? WHERE id = ?')
@@ -1251,7 +1271,8 @@ async function rutasNotificaciones(request: Request, env: Env, partes: string[])
     } else if (metodo !== 'GET') {
       throw new ErrorApi(405, 'Operación no permitida.');
     }
-    return json({ activas, tipos: tipos.map(tipo => ({ tipo, activo: !apagadas.includes(tipo) })) });
+    return json({ activas, tipos: [...tipos.map(tipo => ({ tipo, activo: !apagadas.includes(tipo) })),
+                                   ...deEspacios.map(e => ({ ...e, activo: !apagadas.includes(e.tipo) }))] });
   }
 
   throw new ErrorApi(404, 'Ruta no encontrada.');

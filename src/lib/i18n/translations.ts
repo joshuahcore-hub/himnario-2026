@@ -296,6 +296,7 @@ export interface Translations {
   notif_allow_text: string;
   notif_blocked: string;
   notif_types: string;
+  notif_espacios: string;
   notif_tipo: Record<string, string>;
   admin_requested: string;
   admin_this_device: string;
@@ -690,6 +691,7 @@ export const es: Translations = {
   notif_allow_text: 'Este celular aún no tiene permiso para mostrarlas.',
   notif_blocked: 'Las notificaciones están bloqueadas en este celular. Actívalas en los ajustes del teléfono para esta app.',
   notif_types: 'Avisarme cuando:',
+  notif_espacios: 'Minutas de estos espacios:',
   notif_tipo: {
     registro: 'Alguien se registra', creada: 'Se crea una minuta', editada: 'Se edita una minuta',
     publicada: 'Se publica una minuta', privada: 'Una minuta pasa a privada', duplicada: 'Se duplica una minuta',
@@ -1083,6 +1085,7 @@ export const en: Translations = {
   notif_allow_text: 'This phone has not allowed them yet.',
   notif_blocked: 'Notifications are blocked on this phone. Turn them on in the phone settings for this app.',
   notif_types: 'Notify me when:',
+  notif_espacios: 'Services from these spaces:',
   notif_tipo: {
     registro: 'Someone signs up', creada: 'A service is created', editada: 'A service is edited',
     publicada: 'A service is published', privada: 'A service is made private', duplicada: 'A service is duplicated',
@@ -1476,6 +1479,7 @@ export const pt: Translations = {
   notif_allow_text: 'Este celular ainda não permitiu mostrá-las.',
   notif_blocked: 'As notificações estão bloqueadas neste celular. Ative-as nos ajustes do telefone para este app.',
   notif_types: 'Avisar quando:',
+  notif_espacios: 'Minutas destes espaços:',
   notif_tipo: {
     registro: 'Alguém se cadastra', creada: 'Uma minuta é criada', editada: 'Uma minuta é editada',
     publicada: 'Uma minuta é publicada', privada: 'Uma minuta fica privada', duplicada: 'Uma minuta é duplicada',

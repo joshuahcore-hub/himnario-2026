@@ -59,7 +59,7 @@ export async function desuscribir() {
 
 export interface Preferencias {
   activas: boolean;
-  tipos: { tipo: string; activo: boolean }[];
+  tipos: { tipo: string; activo: boolean; nombre?: string }[];
 }
 
 export const leerPreferencias = () => api<Preferencias>('notificaciones/preferencias');

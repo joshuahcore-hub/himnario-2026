@@ -132,8 +132,16 @@ function AjustesNotificaciones({ onRegistrarme }: { onRegistrarme: () => void })
            style={{ opacity: prefs.activas ? 1 : 0.4, pointerEvents: prefs.activas ? 'auto' : 'none' }}
            aria-disabled={!prefs.activas}>
         <p className="text-[11px] text-muted-foreground pb-0.5">{t.notif_types}</p>
-        {prefs.tipos.map(x => (
+        {prefs.tipos.filter(x => !x.tipo.startsWith('espacio:')).map(x => (
           <Interruptor key={x.tipo} texto={t.notif_tipo[x.tipo] ?? x.tipo} activo={prefs.activas && x.activo}
+                       onCambiar={() => cambiar({ tipo: x.tipo, activo: !x.activo })} />
+        ))}
+        {/* (1.20.4, Josué) De qué espacios (Batuco, Talca…) recibir los avisos de minutas. */}
+        {prefs.tipos.some(x => x.tipo.startsWith('espacio:')) && (
+          <p className="text-[11px] text-muted-foreground pt-2 pb-0.5">{t.notif_espacios}</p>
+        )}
+        {prefs.tipos.filter(x => x.tipo.startsWith('espacio:')).map(x => (
+          <Interruptor key={x.tipo} texto={x.nombre ?? x.tipo} activo={prefs.activas && x.activo}
                        onCambiar={() => cambiar({ tipo: x.tipo, activo: !x.activo })} />
         ))}
       </div>
