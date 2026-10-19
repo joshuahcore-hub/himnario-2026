@@ -7,9 +7,11 @@ import { Trash2 } from 'lucide-react';
 const SALIDA_MS = 180;
 const CIERRE_MS = 170;
 
-export default function FilaDeslizable({ children, onBorrar, indice, estilo, bloqueado = false }: {
+export default function FilaDeslizable({ children, onBorrar, onSaliendo, indice, estilo, bloqueado = false }: {
   children: ReactNode;
   onBorrar: () => void;
+  /** (1.20.14) Apenas se suelta para borrar (antes de la animación): la lista ya puede actuar como si no estuviera. */
+  onSaliendo?: () => void;
   /** Posición en la lista (atributo data-fila, lo usa useReordenar para arrastrar). */
   indice?: number;
   /** Estilo extra (p. ej. el desplazamiento mientras se reordena). */
@@ -50,6 +52,7 @@ export default function FilaDeslizable({ children, onBorrar, indice, estilo, blo
     setSuave(true);
     if (Math.abs(dx) > Math.max(80, ancho * 0.35)) {
       // Sale hacia el lado deslizado, luego la fila se cierra y se borra.
+      onSaliendo?.();
       setDx(Math.sign(dx) * ancho * 1.1);
       setTimeout(() => {
         setAlto(contenedor.current?.offsetHeight ?? 0);

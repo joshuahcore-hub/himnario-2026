@@ -256,7 +256,16 @@ export default function EditorMinuta() {
 
   const [titulo, setTitulo] = useState(existente?.titulo ?? borrador?.titulo ?? '');
   const [fecha, setFecha] = useState(existente?.fecha ?? borrador?.fecha ?? hoy());
-  const [cantos, setCantos] = useState<Fila[]>(() => (existente?.cantos ?? borrador?.cantos ?? []).map(conClave));
+  // (1.20.14, Josué) Una sola ofrenda: si una minuta trae varias, queda solo la primera.
+  const [cantos, setCantos] = useState<Fila[]>(() => {
+    let vista = false;
+    return (existente?.cantos ?? borrador?.cantos ?? []).map(conClave).map(x => {
+      if (!x.ofrenda) return x;
+      if (vista) return { ...x, ofrenda: undefined };
+      vista = true;
+      return x;
+    });
+  });
   const [buscando, setBuscando] = useState(false);
   // (1.13.0) Cuadros de Especial y de alabanza fuera del himnario: k = fila que se edita (null = nueva).
   const [dlgEspecial, setDlgEspecial] = useState<{ abierto: boolean; k: number | null; nombre: string; imagen?: string | null }>({ abierto: false, k: null, nombre: '' });
@@ -360,7 +369,17 @@ export default function EditorMinuta() {
   };
 
   // Por clave (no por posición): la fila puede borrarse al terminar su animación, cuando la lista ya cambió.
-  const quitar = (clave: number) => setCantos(prev => prev.filter(c => c._k !== clave));
+  const quitar = (clave: number) => {
+    setCantos(prev => prev.filter(c => c._k !== clave));
+    setSaliendo(prev => prev.filter(k => k !== clave));
+  };
+  // (1.20.14, Josué) Filas que se están borrando (deslizadas, aún animándose): la lista actúa YA como si no estuvieran
+  // (el botón de unir de la de arriba y las ofrendas cambian al soltar, no al terminar la animación).
+  const [saliendo, setSaliendo] = useState<number[]>([]);
+  const siguiente = (i: number) => {
+    for (let j = i + 1; j < cantos.length; j++) if (!saliendo.includes(cantos[j]._k!)) return j;
+    return -1;
+  };
 
   const seleccionadosEnBusqueda = cantos.slice(inicioBusqueda).flatMap(c => (c.hymnNumber ? [c.hymnNumber] : []));
 
@@ -373,15 +392,21 @@ export default function EditorMinuta() {
 
   // (1.18.2, Josué) Unir sin límite: una alabanza (o un grupo) se une con la de abajo (o con su grupo) y quedan todas
   // en el mismo recuadro. Separar deja cada una en su propia fila.
-  const puedeAgrupar = (i: number) =>
-    !esMarcador(cantos[i]) && i + 1 < cantos.length && !esMarcador(cantos[i + 1]);
+  const puedeAgrupar = (i: number) => {
+    const j = siguiente(i);
+    return !esMarcador(cantos[i]) && j >= 0 && !esMarcador(cantos[j]);
+  };
 
-  const agrupar = (i: number) => setCantos(prev => {
-    const next = [...prev];
-    next[i] = { ...armarCadena([...cadena(next[i]), ...cadena(next[i + 1]).map(x => ({ ...x, position: 0, ofrenda: undefined }))]), _k: next[i]._k };
-    next.splice(i + 1, 1);
-    return next;
-  });
+  const agrupar = (i: number) => {
+    const j = siguiente(i);
+    if (j < 0) return;
+    setCantos(prev => {
+      const next = [...prev];
+      next[i] = { ...armarCadena([...cadena(next[i]), ...cadena(next[j]).map(x => ({ ...x, position: 0, ofrenda: undefined }))]), _k: next[i]._k };
+      next.splice(j, 1);
+      return next;
+    });
+  };
 
   const separar = (i: number) => setCantos(prev => {
     const next = [...prev];
@@ -391,7 +416,7 @@ export default function EditorMinuta() {
   });
 
   // (1.18.2, Josué) Ofrenda antes de esta alabanza: se marca/desmarca con el cuadradito.
-  const hayOfrenda = cantos.some(x => x.ofrenda);
+  const hayOfrenda = cantos.some(x => x.ofrenda && !saliendo.includes(x._k!));
   const alternarOfrenda = (clave: number) =>
     setCantos(prev => prev.map(x => (x._k === clave ? { ...x, ofrenda: x.ofrenda ? undefined : true } : x)));
   // (1.20.6, Josué) La PRIMERA vez que se marca una ofrenda en este celular, se explica qué hace; solo "Entendido",
@@ -551,7 +576,7 @@ export default function EditorMinuta() {
 
         <div ref={reordenar.contenedorRef}>
           {numerados.map((c, i) => (
-            <FilaDeslizable key={c._k} onBorrar={() => quitar(c._k!)} indice={i}
+            <FilaDeslizable key={c._k} onBorrar={() => quitar(c._k!)} onSaliendo={() => setSaliendo(v => [...v, c._k!])} indice={i}
               estilo={reordenar.estiloFila(i)} bloqueado={reordenar.arrastrando}>
               <div className={`flex items-center gap-0.5 rounded-lg border pl-2 pr-1 py-2.5 animate-in fade-in slide-in-from-bottom-1 duration-200 ${
                 c.found === false ? 'border-destructive/50 bg-destructive/5' : 'border-border bg-card'
@@ -588,11 +613,13 @@ export default function EditorMinuta() {
                 {/* (1.18.2, Josué) Sin X ni flechas: se borra deslizando y se ordena manteniendo presionado.
                     (1.19.2) Unir/separar (solo en algunas filas) a la IZQUIERDA y la ofrenda siempre al extremo derecho:
                     así los cuadraditos de ofrenda quedan todos en una misma columna. */}
+                {/* (1.20.14, Josué) Unir/separar con alto fijo h-8 (= el de la fila): antes medían 1rem + 16 px del ícono, 1 px
+                    más que la fila con la letra de la app, y al desaparecer el botón la fila se achicaba un poco. */}
                 {c.groupedWith && (
-                  <button onClick={() => separar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_ungroup}><Unlink size={16} /></button>
+                  <button onClick={() => separar(i)} className="tap-btn h-8 w-8 shrink-0 flex items-center justify-center text-muted-foreground" aria-label={t.editor_ungroup}><Unlink size={16} /></button>
                 )}
                 {puedeAgrupar(i) && (
-                  <button onClick={() => agrupar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_group}><Link2 size={16} /></button>
+                  <button onClick={() => agrupar(i)} className="tap-btn h-8 w-8 shrink-0 flex items-center justify-center text-muted-foreground" aria-label={t.editor_group}><Link2 size={16} /></button>
                 )}
                 {!esMarcador(c) && (
                   // (1.20.13, Josué) La ofrenda va UNA vez en el culto: con una marcada, los demás botones se desvanecen
