@@ -23,6 +23,7 @@ import { useAcceso } from '@/hooks/useAcceso';
 import PanelIA, { useEstadoIA } from '@/components/PanelIA';
 import type { LecturaMinuta } from '@/lib/leerMinuta';
 import BotonSeguro from '@/components/BotonSeguro';
+import { ConBarra } from '@/components/BarraDesplazamiento';
 
 function hoy(): string {
   const d = new Date();
@@ -154,7 +155,10 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
           <X size={20} />
         </BotonSeguro>
       </div>
-      <div className="flex-1 overflow-y-auto px-3 pt-2 pb-28 space-y-0.5">
+      {/* (1.20.12, Josué) Misma barrita del Himnario. */}
+      <div className="relative flex-1 min-h-0">
+      <ConBarra>{ref => (
+      <div ref={ref} className="h-full overflow-y-auto scrollbar-hide px-3 pt-2 pb-28 space-y-0.5">
         {carpeta ? (<>
           {/* Dentro de la subcarpeta: volver, crear otra y las guardadas (se marcan en verde). */}
           <button type="button" onClick={() => setCarpeta(false)}
@@ -224,6 +228,8 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
         })}
         {resultados.length === 0 && extrasCoinciden.length === 0 && <p className="text-muted-foreground text-xs text-center py-8">{t.hymnal_no_results}</p>}
         </>)}
+      </div>
+      )}</ConBarra>
       </div>
       {/* "Listo" flotando abajo, al alcance del pulgar */}
       <div className="absolute left-0 right-0 bottom-0 px-5 pt-6 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none"
@@ -519,7 +525,10 @@ export default function EditorMinuta() {
         </div>
       ) : <>
       {/* pt-1: deja aire arriba para que el borde de los campos no quede cortado contra la lista. */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 pt-1 pb-4 space-y-4 animate-in fade-in duration-200" style={{ overscrollBehavior: 'contain' }}>
+      {/* (1.20.12, Josué) Misma barrita del Himnario. */}
+      <div className="relative flex-1 min-h-0 animate-in fade-in duration-200">
+      <ConBarra>{ref => (
+      <div ref={ref} className="h-full overflow-y-auto scrollbar-hide px-5 pt-1 pb-4 space-y-4" style={{ overscrollBehavior: 'contain' }}>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder={t.editor_title_placeholder} className="h-10 text-sm" maxLength={80} />
           <SelectorFecha valor={fecha} onChange={setFecha} />
@@ -602,6 +611,8 @@ export default function EditorMinuta() {
           <div ref={finRef} />
         </div>
         {cantos.length > 1 && <p className="text-[10px] text-muted-foreground/70 text-center">{t.editor_group_hint}</p>}
+      </div>
+      )}</ConBarra>
       </div>
 
       {/* Guardar/Publicar aparecen SOLO cuando hay algo que guardar (regla de Josué): se despliegan con suavidad y,

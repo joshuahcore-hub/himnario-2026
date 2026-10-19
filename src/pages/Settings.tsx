@@ -1,4 +1,5 @@
 import { Moon, Sun, Languages, WifiOff, CheckCircle2 } from 'lucide-react';
+import { ConBarra } from '@/components/BarraDesplazamiento';
 import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
 import { useTheme, applyTheme, applyColor } from '@/hooks/useTheme';
@@ -47,7 +48,10 @@ export default function SettingsPage() {
     // (1.18.2, Josué) pb-6 (antes pb-24): el alto ya descuenta la barra de abajo; con el relleno grande, cuando aparecía
     // un instante "Preparando himnos…" con su barra (al recargar tras una versión nueva) la pantalla pasaba a ser
     // desplazable sin tener nada más abajo.
-    <div className="px-5 pt-4 pb-6 space-y-5 overflow-y-auto w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - var(--barra))' }}>
+    // (1.20.12, Josué) Misma barrita del Himnario; alto real de <main> (no 100dvh).
+    <div className="relative w-full max-w-lg mx-auto" style={{ height: 'calc(100% - var(--barra))' }}>
+    <ConBarra arriba="3.5rem">{ref => (
+    <div ref={ref} className="h-full px-5 pt-4 pb-6 space-y-5 overflow-y-auto scrollbar-hide">
       {/* Título y, a la derecha, el menú ⋮ con las opciones avanzadas (creador, perfil, administración). */}
       {/* relative z-30: el menú desplegado queda por encima de las tarjetas de abajo. */}
       <div className="relative z-30 [&:has([data-menu-abierto])]:z-[60] flex items-center justify-between">
@@ -129,6 +133,8 @@ export default function SettingsPage() {
       <p className="text-center text-[10px] text-muted-foreground/60 py-2" onClick={tocarVersion}>
         Himnario 2026 · {t.settings_version} {__APP_VERSION__}
       </p>
+    </div>
+    )}</ConBarra>
     </div>
   );
 }

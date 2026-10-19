@@ -7,7 +7,16 @@ const ALTO = 44;       // px mínimos de la píldora (1.20.9: crece si la lista 
 const ESPERA = 1300;   // ms visible después de dejar de moverse
 const TRANSICION = 'width 120ms ease-out, background-color 120ms ease-out';
 
-export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<HTMLElement> }) {
+/** (1.20.12) La misma barra para una zona que se crea dentro de un .map o una función de dibujo (sin hooks allí):
+ *  `<ConBarra>{ref => <div ref={ref} className="… overflow-y-auto scrollbar-hide">…</div>}</ConBarra>`.
+ *  Va dentro de un contenedor posicionado del mismo tamaño que la zona. */
+export function ConBarra({ children, arriba }: { children: (ref: React.RefObject<HTMLDivElement>) => React.ReactNode; arriba?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  return <><BarraDesplazamiento lista={ref} arriba={arriba} />{children(ref)}</>;
+}
+
+/** `arriba`: dónde empieza la barra (p. ej. debajo de los botones de un lector). */
+export default function BarraDesplazamiento({ lista, arriba }: { lista: React.RefObject<HTMLElement>; arriba?: string }) {
   const zona = useRef<HTMLDivElement>(null);
   const pildora = useRef<HTMLDivElement>(null);
   const arrastre = useRef<{ y: number; top: number } | null>(null);
@@ -78,7 +87,7 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
   return (
     <div ref={zona} aria-hidden
          className="absolute top-2 bottom-2 right-0 w-7 z-20 transition-opacity duration-300"
-         style={{ opacity: 0, pointerEvents: 'none', touchAction: 'none' }}
+         style={{ opacity: 0, pointerEvents: 'none', touchAction: 'none', ...(arriba && { top: arriba }) }}
          onPointerDown={e => {
            const p = pildora.current;
            if (!p) return;

@@ -16,6 +16,7 @@ import Zoomable from '@/components/Zoomable';
 import HimnoRecortado, { proporcionLetra, vistaRecortada } from '@/components/HimnoRecortado';
 import { esComputador } from '@/lib/proyeccion';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
+import { ConBarra } from '@/components/BarraDesplazamiento';
 /**
  * Barra para saltar a cualquier himno sin pasar uno por uno (pedido de Josué): se arrastra el círculo (o se toca un
  * punto de la barra) y, al soltar, se salta a ese himno. Mientras se arrastra, una burbuja muestra número y título.
@@ -349,8 +350,11 @@ export default function HymnDetail() {
     if (horizontal) {
       return (
         // Solo la franja con letra (sin el fondo vacío del lienzo); si cabe queda centrada, si no se recorre.
-        <div key={num} data-pagina className="absolute inset-0 flex overflow-y-auto overflow-x-hidden"
-             style={{ transform: `translateX(${offset * 100}%)`, overscrollBehavior: 'contain',
+        // (1.20.12, Josué) Con la misma barrita del Himnario para recorrerla (la del sistema se oculta).
+        <div key={num} className="absolute inset-0" style={{ transform: `translateX(${offset * 100}%)` }}>
+        <ConBarra arriba="3.5rem">{ref => (
+        <div ref={ref} data-pagina className="absolute inset-0 flex overflow-y-auto overflow-x-hidden scrollbar-hide"
+             style={{ overscrollBehavior: 'contain',
                       padding: '3.25rem env(safe-area-inset-right, 0px) 1rem env(safe-area-inset-left, 0px)' }}>
           <Zoomable className="w-full m-auto" reiniciarCon={num} onAmpliado={a => setAmpliadoNum(a ? num : null)}>
             {/* Girado = solo para ver (1.9.10, Josué): los post-it de la letra en su lugar; los de arriba del título,
@@ -364,6 +368,8 @@ export default function HymnDetail() {
               </HimnoRecortado>
             </div>
           </Zoomable>
+        </div>
+        )}</ConBarra>
         </div>
       );
     }

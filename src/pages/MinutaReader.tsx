@@ -23,6 +23,7 @@ import { useI18n } from '@/lib/i18n/index';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
 import { marcarMinutaVista } from '@/lib/notificaciones';
 import { revisarPendientes } from '@/hooks/usePendientes';
+import { ConBarra } from '@/components/BarraDesplazamiento';
 function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
   song: ParsedSong;
   /** (1.13.1) Las notas son las que envié (vista "Enviados"). */
@@ -413,24 +414,29 @@ export default function MinutaReader() {
     const clase = horizontal
       ? `absolute inset-0 flex overflow-y-auto overflow-x-hidden ${esCanto ? 'pb-6' : portada ? '' : 'p-5'}`
       : `absolute inset-0 flex items-center justify-center ${esCanto || portada ? '' : 'p-5 overflow-y-auto'}`;
-    return (
+    // (1.20.12, Josué) Lo que se desliza hacia abajo lleva la misma barrita del Himnario (la del sistema se oculta):
+    // la página entera (girado) o, en la portada, su zona interior. La barra va en un contenedor que se mueve con la página.
+    const pagina = (ref?: React.RefObject<HTMLDivElement>) => (
       <div
-        key={pageIdx}
+        ref={ref}
         data-pagina
-        className={clase}
-        style={{
-          transform: `translateX(${offset * 100}%)`,
-          ...(horizontal && { overscrollBehavior: 'contain', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' }),
-        }}
+        className={`${clase} scrollbar-hide`}
+        style={horizontal ? { overscrollBehavior: 'contain', paddingLeft: 'env(safe-area-inset-left, 0px)', paddingRight: 'env(safe-area-inset-right, 0px)' } : undefined}
       >
+        {contenido}
+      </div>
+    );
+    const contenido = (
+      <>
         {pageIdx === 0 ? (
+          <ConBarra arriba="3.5rem">{refPortada => (
           // Portada sin recuadro, directo sobre el fondo, como las páginas de las canciones (Josué, 1.5.1).
           // m-auto: centrada, y si no cabe (horizontal) empieza arriba en vez de cortarse.
           // Con zoom como las canciones (Josué, 1.6.4): pellizcar o doble toque; el zoom ocupa toda la página.
           <Zoomable className="w-full h-full" reiniciarCon={minuta.id}>
             {/* (1.18.2, Josué) Una minuta muy larga se ve completa: la portada se desplaza hacia abajo (desde 1.9.4 el
                 gesto vertical ya no sale del lector). Deslizar al lado sigue llevando a la primera canción. */}
-            <div className="h-full w-full flex overflow-y-auto p-5"
+            <div ref={refPortada} className="h-full w-full flex overflow-y-auto scrollbar-hide p-5"
                  style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}>
               <div className="w-full max-w-sm m-auto">
                 {/* (1.17.11, Josué) Post-it también en la portada: pegados donde se sueltan, como en las alabanzas;
@@ -448,6 +454,7 @@ export default function MinutaReader() {
               </div>
             </div>
           </Zoomable>
+          )}</ConBarra>
         ) : item?.isPalabra ? (
           <PaginaTexto horizontal={horizontal} postit={postitDe(item, pageIdx)}>
             <span className="text-3xl font-bold text-palabra">{t.portada_palabra}</span>
@@ -478,6 +485,11 @@ export default function MinutaReader() {
           <SongPage song={item} horizontal={horizontal} enviados={verEnviados}
                     notas={verEnviados ? notasDe(item.hymnNumber, 'enviados') : notasDe(item.hymnNumber)} onTocarNota={abrirPanel} />
         ) : null}
+      </>
+    );
+    return (
+      <div key={pageIdx} className="absolute inset-0" style={{ transform: `translateX(${offset * 100}%)` }}>
+        {portada ? pagina() : <ConBarra arriba="3.5rem">{ref => pagina(ref)}</ConBarra>}
       </div>
     );
   };

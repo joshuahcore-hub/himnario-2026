@@ -10,6 +10,7 @@ import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { revisarPendientes } from '@/hooks/usePendientes';
 import { marcarTiposVistos } from '@/lib/notificaciones';
+import { ConBarra } from '@/components/BarraDesplazamiento';
 import { Input } from '@/components/ui/input';
 import { agregarEspacio, eliminarEspacio, renombrarEspacio, useEspacios } from '@/lib/espacios';
 
@@ -227,7 +228,7 @@ export default function Admin() {
   );
 
   return (
-    <div className="flex flex-col w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - var(--barra))' }}>
+    <div className="flex flex-col w-full max-w-lg mx-auto" style={{ height: 'calc(100% - var(--barra))' }}>
       <div className="flex items-center gap-3 px-5 pt-4 pb-3">
         <button onClick={() => navigate('/settings')} className="text-foreground p-1" aria-label={t.tab_settings}><ArrowLeft size={20} /></button>
         <h1 className="text-xl font-bold text-foreground flex-1">{t.admin_title}</h1>
@@ -236,7 +237,10 @@ export default function Admin() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-2">
+      {/* (1.20.12, Josué) Misma barrita del Himnario. */}
+      <div className="relative flex-1 min-h-0">
+      <ConBarra>{ref => (
+      <div ref={ref} className="h-full overflow-y-auto scrollbar-hide px-5 pb-6 space-y-2">
         <SeccionEspacios />
         {iaCreadores !== null && (
           <button
@@ -262,6 +266,8 @@ export default function Admin() {
         {resto.length > 0 && <p className="text-[11px] font-semibold text-muted-foreground pt-3">{t.admin_people}</p>}
         {resto.map(tarjeta)}
         {dispositivos.length === 0 && !cargando && <p className="text-xs text-muted-foreground text-center py-8">{t.admin_no_people}</p>}
+      </div>
+      )}</ConBarra>
       </div>
 
       {/* Quitar de la lista (tocar fuera cancela). El aviso se fija al abrir (aQuitar no cambia al cerrar). */}
