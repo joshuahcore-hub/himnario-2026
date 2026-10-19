@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 
 const ALTO = 44;       // px mínimos de la píldora (1.20.9: crece si la lista es corta, p. ej. con filtro)
 const ESPERA = 1300;   // ms visible después de dejar de moverse
+const TRANSICION = 'width 120ms ease-out, background-color 120ms ease-out';
 
 export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<HTMLElement> }) {
   const zona = useRef<HTMLDivElement>(null);
@@ -37,9 +38,25 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
       }, ESPERA);
     };
     const alDesplazar = () => { ubicar(); mostrar(); };
+    // (1.20.11, Josué) Cambia la lista (filtro, búsqueda): la píldora toma su nuevo largo y lugar con una animación
+    // corta (solo en ese momento; al desplazar sigue al dedo sin transición).
+    let suave: ReturnType<typeof setTimeout> | undefined;
+    const alCambiar = () => {
+      if (arrastre.current) return;
+      p.style.transition = `${TRANSICION}, height 200ms ease-out, transform 200ms ease-out`;
+      ubicar();
+      if (el.scrollHeight - el.clientHeight < 40) { z.style.opacity = '0'; z.style.pointerEvents = 'none'; }
+      clearTimeout(suave);
+      suave = setTimeout(() => { p.style.transition = TRANSICION; }, 220);
+    };
+    const observador = new MutationObserver(alCambiar);
+    observador.observe(el, { childList: true, subtree: true });
     ubicar();
     el.addEventListener('scroll', alDesplazar, { passive: true });
-    return () => { el.removeEventListener('scroll', alDesplazar); clearTimeout(ocultar.current); };
+    return () => {
+      el.removeEventListener('scroll', alDesplazar); observador.disconnect();
+      clearTimeout(ocultar.current); clearTimeout(suave);
+    };
   }, [lista]);
 
   const mover = (clientY: number) => {
@@ -79,7 +96,7 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
          onPointerUp={() => { arrastre.current = null; marcar(false); lista.current?.dispatchEvent(new Event('scroll')); }}
          onPointerCancel={() => { arrastre.current = null; marcar(false); }}>
       <div ref={pildora} className="absolute right-1 top-0 w-[7px] rounded-full bg-foreground/50 shadow-sm"
-           style={{ height: ALTO, willChange: 'transform', transition: 'width 120ms ease-out, background-color 120ms ease-out' }} />
+           style={{ height: ALTO, willChange: 'transform', transition: TRANSICION }} />
     </div>
   );
 }

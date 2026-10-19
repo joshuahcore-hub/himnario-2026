@@ -14,6 +14,7 @@ import { ErrorDeRed } from '@/lib/api';
 import { eliminarCancionExtra, useCancionesExtra } from '@/lib/cancionesExtra';
 import { useAcceso } from '@/hooks/useAcceso';
 import { direccionFirme } from '@/lib/deslizar';
+import BarraDesplazamiento from '@/components/BarraDesplazamiento';
 
 function Volver({ titulo }: { titulo: string }) {
   const navigate = useNavigate();
@@ -35,10 +36,14 @@ export function ListaCancionesFuera() {
   const lista = useCancionesExtra();
   const { puedeEditar } = useAcceso();
   const [agregando, setAgregando] = useState(false);
+  const zonaLista = useRef<HTMLDivElement>(null);
   return (
-    <div className="flex flex-col w-full max-w-3xl mx-auto" style={{ height: 'calc(100dvh - var(--barra))' }}>
+    // (1.20.11, Josué) Alto real de <main> (no 100dvh) y la misma barrita del Himnario para recorrer la lista.
+    <div className="flex flex-col w-full max-w-3xl mx-auto" style={{ height: 'calc(100% - var(--barra))' }}>
       <Volver titulo={t.fuera_seccion} />
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0.5 content-start">
+      <div className="relative flex-1 min-h-0">
+      <BarraDesplazamiento lista={zonaLista} />
+      <div ref={zonaLista} className="h-full overflow-y-auto scrollbar-hide px-5 pb-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0.5 content-start">
         {/* Arriba primero el "+" para agregar (solo creadores), como en el buscador de alabanzas. */}
         {puedeEditar && (
           <button type="button" onClick={() => setAgregando(true)}
@@ -55,6 +60,7 @@ export function ListaCancionesFuera() {
           </button>
         ))}
         {lista.length === 0 && <p className="md:col-span-2 text-muted-foreground text-xs text-center py-8">{t.fuera_vacio}</p>}
+      </div>
       </div>
       <DialogFuera abierto={agregando} inicial={VACIA} nuevo esperarGuardado
                    onCerrar={() => setAgregando(false)} onListo={() => setAgregando(false)} />
