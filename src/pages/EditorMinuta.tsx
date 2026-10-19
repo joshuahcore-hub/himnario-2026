@@ -391,6 +391,7 @@ export default function EditorMinuta() {
   });
 
   // (1.18.2, Josué) Ofrenda antes de esta alabanza: se marca/desmarca con el cuadradito.
+  const hayOfrenda = cantos.some(x => x.ofrenda);
   const alternarOfrenda = (clave: number) =>
     setCantos(prev => prev.map(x => (x._k === clave ? { ...x, ofrenda: x.ofrenda ? undefined : true } : x)));
   // (1.20.6, Josué) La PRIMERA vez que se marca una ofrenda en este celular, se explica qué hace; solo "Entendido",
@@ -594,8 +595,13 @@ export default function EditorMinuta() {
                   <button onClick={() => agrupar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_group}><Link2 size={16} /></button>
                 )}
                 {!esMarcador(c) && (
+                  // (1.20.13, Josué) La ofrenda va UNA vez en el culto: con una marcada, los demás botones se desvanecen
+                  // (guardan su lugar: nada se mueve) y vuelven al desmarcarla.
                   <button onClick={() => tocarOfrenda(c)} aria-pressed={!!c.ofrenda} aria-label={t.editor_ofrenda} title={t.editor_ofrenda}
-                          className="tap-btn p-0.5 shrink-0">
+                          aria-hidden={hayOfrenda && !c.ofrenda} tabIndex={hayOfrenda && !c.ofrenda ? -1 : undefined}
+                          className="tap-btn p-0.5 shrink-0"
+                          style={{ opacity: hayOfrenda && !c.ofrenda ? 0 : 1, pointerEvents: hayOfrenda && !c.ofrenda ? 'none' : undefined,
+                                   transition: 'opacity 180ms ease-out' }}>
                     {/* (1.19.20, Josué) Ofrendero (bolsa con aro y mango) en vez de la mano. Marcado: amarillo suave, dibujo en café oscuro. */}
                     <span className={`w-7 h-7 rounded-md border flex items-center justify-center ${
                       c.ofrenda ? 'bg-ofrenda border-ofrenda text-[#4A3800]' : 'border-border text-muted-foreground'}`}
