@@ -216,6 +216,9 @@ export interface Translations {
   fuera_eliminada: string;
   ofrenda: string;
   editor_ofrenda: string;
+  ofrenda_ayuda_titulo: string;
+  ofrenda_ayuda_texto: string;
+  entendido: string;
   texto_boton: string;
   texto_titulo: string;
   texto_placeholder: string;
@@ -617,6 +620,9 @@ export const es: Translations = {
   fuera_eliminada: 'Alabanza eliminada',
   ofrenda: 'Ofrenda',
   editor_ofrenda: 'Ofrenda antes de esta alabanza',
+  ofrenda_ayuda_titulo: 'Ofrenda',
+  ofrenda_ayuda_texto: 'Este botón marca que antes de esta alabanza se recoge la OFRENDA. En el lector aparecerá "Ofrenda" en amarillo arriba de ella, para que todos lo sepan. Tócalo de nuevo para quitarla.',
+  entendido: 'Entendido',
   texto_boton: 'Agregar extra',
   texto_titulo: 'Extra',
   texto_placeholder: 'Añade un extra (Ej. una oportunidad)',
@@ -1015,6 +1021,9 @@ export const en: Translations = {
   fuera_eliminada: 'Song deleted',
   ofrenda: 'Offering',
   editor_ofrenda: 'Offering before this song',
+  ofrenda_ayuda_titulo: 'Offering',
+  ofrenda_ayuda_texto: 'This button marks that the OFFERING is taken before this song. In the reader, "Offering" will appear in yellow above it so everyone knows. Tap it again to unmark it.',
+  entendido: 'Got it',
   texto_boton: 'Add extra',
   texto_titulo: 'Extra',
   texto_placeholder: 'Add an extra (e.g. an opportunity)',
@@ -1413,6 +1422,9 @@ export const pt: Translations = {
   fuera_eliminada: 'Louvor excluído',
   ofrenda: 'Oferta',
   editor_ofrenda: 'Oferta antes deste louvor',
+  ofrenda_ayuda_titulo: 'Oferta',
+  ofrenda_ayuda_texto: 'Este botão marca que a OFERTA é recolhida antes deste louvor. No leitor, aparecerá "Oferta" em amarelo acima dele, para que todos saibam. Toque novamente para desmarcar.',
+  entendido: 'Entendi',
   texto_boton: 'Adicionar extra',
   texto_titulo: 'Extra',
   texto_placeholder: 'Adicione um extra (Ex.: uma oportunidade)',

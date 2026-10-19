@@ -387,6 +387,22 @@ export default function EditorMinuta() {
   // (1.18.2, Josué) Ofrenda antes de esta alabanza: se marca/desmarca con el cuadradito.
   const alternarOfrenda = (clave: number) =>
     setCantos(prev => prev.map(x => (x._k === clave ? { ...x, ofrenda: x.ofrenda ? undefined : true } : x)));
+  // (1.20.6, Josué) La PRIMERA vez que se marca una ofrenda en este celular, se explica qué hace; solo "Entendido",
+  // que la marca. Cerrar de otra forma (tocar fuera, Atrás) también cuenta como entendido. Después, nunca más.
+  const [ayudaOfrenda, setAyudaOfrenda] = useState<number | null>(null);
+  const tocarOfrenda = (c: Fila) => {
+    let vista = true;
+    try { vista = localStorage.getItem('ayuda-ofrenda-vista') === '1'; } catch { /* sin almacenamiento: no molestar */ }
+    if (!c.ofrenda && !vista) setAyudaOfrenda(c._k!);
+    else alternarOfrenda(c._k!);
+  };
+  const entenderOfrenda = () => {
+    if (ayudaOfrenda === null) return;
+    try { localStorage.setItem('ayuda-ofrenda-vista', '1'); } catch { /* nada */ }
+    const clave = ayudaOfrenda;
+    setAyudaOfrenda(null);
+    setCantos(prev => prev.map(x => (x._k === clave ? { ...x, ofrenda: true } : x)));
+  };
 
   // Guardar: la nueva queda privada (solo quien la crea); la existente conserva su visibilidad.
   // Publicar: guarda y la deja visible para todos.
@@ -569,7 +585,7 @@ export default function EditorMinuta() {
                   <button onClick={() => agrupar(i)} className="tap-btn p-2 text-muted-foreground" aria-label={t.editor_group}><Link2 size={16} /></button>
                 )}
                 {!esMarcador(c) && (
-                  <button onClick={() => alternarOfrenda(c._k!)} aria-pressed={!!c.ofrenda} aria-label={t.editor_ofrenda} title={t.editor_ofrenda}
+                  <button onClick={() => tocarOfrenda(c)} aria-pressed={!!c.ofrenda} aria-label={t.editor_ofrenda} title={t.editor_ofrenda}
                           className="tap-btn p-0.5 shrink-0">
                     {/* (1.19.20, Josué) Ofrendero (bolsa con aro y mango) en vez de la mano. Marcado: amarillo suave, dibujo en café oscuro. */}
                     <span className={`w-7 h-7 rounded-md border flex items-center justify-center ${
@@ -660,6 +676,20 @@ export default function EditorMinuta() {
             <Button variant="ghost" className="h-9 text-sm text-muted-foreground" onClick={salida.cerrarPregunta}>
               {t.editor_keep_editing}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* (1.20.6) Explicación de la ofrenda la primera vez: un solo botón. */}
+      <Dialog open={ayudaOfrenda !== null} onOpenChange={abierto => { if (!abierto) entenderOfrenda(); }}>
+        <DialogContent className="max-w-[320px] rounded-2xl gap-3">
+          <DialogHeader className="items-center text-center">
+            <span className="w-11 h-11 rounded-xl bg-ofrenda text-[#4A3800] flex items-center justify-center mb-1"><IconoOfrendero /></span>
+            <DialogTitle className="text-base">{t.ofrenda_ayuda_titulo}</DialogTitle>
+            <DialogDescription className="text-xs text-center">{t.ofrenda_ayuda_texto}</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center pt-1">
+            <Button className="h-10 text-sm px-6" onClick={entenderOfrenda}>{t.entendido}</Button>
           </div>
         </DialogContent>
       </Dialog>
