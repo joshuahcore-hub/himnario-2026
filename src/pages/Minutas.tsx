@@ -368,7 +368,8 @@ export default function Minutas() {
         <div className="flex justify-center pt-2">
           <BotonSeguro onClick={() => { if (!selectMode) otroEspacio(); }} aria-label={t.minutas_cambiar_espacio}
                        className={`tap-btn px-3 py-1 rounded-full flex items-center gap-2 text-base font-semibold text-foreground transition-opacity duration-200 ${selectMode ? 'opacity-40' : ''}`}>
-            <span key={espacio.id} className="animate-in fade-in duration-200">{espacio.nombre}</span>
+            {/* (1.20.18, Josué) Sin desvanecido: el nombre cambia directo. */}
+            <span>{espacio.nombre}</span>
             <ArrowLeftRight size={14} className="text-muted-foreground" />
           </BotonSeguro>
         </div>

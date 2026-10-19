@@ -516,7 +516,8 @@ export default function EditorMinuta() {
         {!id && espacios.length > 1 && (
           <BotonSeguro onClick={otroEspacio} aria-label={t.minutas_cambiar_espacio}
                        className="tap-btn flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
-            <span key={espacio.id} className="animate-in fade-in duration-200">{espacio.nombre}</span>
+            {/* (1.20.18, Josué) Sin desvanecido: el nombre cambia directo. */}
+            <span>{espacio.nombre}</span>
             <ArrowLeftRight size={12} className="text-muted-foreground" />
           </BotonSeguro>
         )}
