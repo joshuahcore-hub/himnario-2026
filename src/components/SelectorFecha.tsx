@@ -39,11 +39,9 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   useAtrasCierra(abierto, () => setAbierto(false)); // "atrás" cierra el calendario (1.13.4)
   const [elegida, setElegida] = useState<Date>(() => aFecha(valor));
   const [mes, setMes] = useState<Date>(() => aFecha(valor));
-  // (1.18.2, Josué) El NOMBRE del mes cambia al instante de soltar (antes esperaba a que terminara la tira) y entra
-  // girando desde el lado hacia donde se va: { mes, dir } con dir 1 = siguiente, -1 = anterior, 0 = al abrir.
-  // (1.20.15, Josué) De LADO, no de arriba/abajo, y muy rápido (no ligado a la tira): el mes que se va sale hacia
-  // el lado al que se desliza mientras se desvanece y el nuevo entra desde el otro lado. `antes` = el que se va.
-  const [titulo, setTitulo] = useState<{ mes: Date; dir: 0 | 1 | -1; antes?: Date }>(() => ({ mes: aFecha(valor), dir: 0 }));
+  // (1.18.2, Josué) El NOMBRE del mes cambia al instante de soltar (antes esperaba a que terminara la tira); desde
+  // 1.20.17, de golpe y sin animación (Josué). { mes, dir }: dir 1 = siguiente, -1 = anterior, 0 = al abrir.
+  const [titulo, setTitulo] = useState<{ mes: Date; dir: 0 | 1 | -1 }>(() => ({ mes: aFecha(valor), dir: 0 }));
 
   // La tira de meses se mueve DIRECTAMENTE (style.transform), sin estado de React: así, mientras el dedo se
   // mueve, no se redibujan los tres calendarios en cada movimiento (eso se veía a saltos, "tac, tac"; Josué 1.5.3).
@@ -77,7 +75,7 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
   const cambiarMes = (dir: 1 | -1) => {
     if (ocupado.current) return;
     ocupado.current = true;
-    setTitulo(v => ({ mes: addMonths(v.mes, dir), dir, antes: v.mes }));
+    setTitulo(v => ({ mes: addMonths(v.mes, dir), dir }));
     moverTira(-dir * PASO, true);
     setTimeout(() => {
       flushSync(() => setMes(m => addMonths(m, dir))); // el mes nuevo queda dibujado…
@@ -165,21 +163,10 @@ export default function SelectorFecha({ valor, onChange, className = '' }: {
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="relative flex-1 h-8 flex items-center justify-center overflow-hidden">
-                {titulo.antes && titulo.dir !== 0 && (
-                  <span key={`sale-${aIso(titulo.mes)}`} aria-hidden
-                        className={`absolute inset-0 flex items-center justify-center text-sm font-semibold capitalize animate-out fade-out ${
-                          titulo.dir > 0 ? 'slide-out-to-left-6' : 'slide-out-to-right-6'}`}
-                        style={{ animationDuration: '140ms', animationFillMode: 'forwards', animationTimingFunction: 'ease-in' }}>
-                    {format(titulo.antes, 'LLLL yyyy', { locale: idioma })}
-                  </span>
-                )}
-                <span key={aIso(titulo.mes)} aria-live="polite"
-                      className={`text-sm font-semibold capitalize ${titulo.dir ? `animate-in fade-in ${titulo.dir > 0 ? 'slide-in-from-right-6' : 'slide-in-from-left-6'}` : ''}`}
-                      style={{ animationDuration: '160ms', animationTimingFunction: 'ease-out' }}>
-                  {format(titulo.mes, 'LLLL yyyy', { locale: idioma })}
-                </span>
-              </div>
+              {/* (1.20.17, Josué) Sin animación: el nombre cambia de golpe en el instante en que cambia el mes. */}
+              <span aria-live="polite" className="text-sm font-semibold capitalize">
+                {format(titulo.mes, 'LLLL yyyy', { locale: idioma })}
+              </span>
               <button
                 type="button"
                 onClick={() => cambiarMes(1)}
