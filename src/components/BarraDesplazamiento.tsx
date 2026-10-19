@@ -43,6 +43,14 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
     el.scrollTop = (top / recorrido) * (el.scrollHeight - el.clientHeight);
   };
 
+  // (1.20.8, Josué) Al tocarla se agranda un poco y se oscurece (se nota que quedó tomada); al soltar vuelve. Rápido y suave.
+  const marcar = (tomada: boolean) => {
+    const p = pildora.current;
+    if (!p) return;
+    p.style.width = tomada ? '12px' : '7px';
+    p.style.backgroundColor = tomada ? 'hsl(var(--foreground) / 0.75)' : '';
+  };
+
   return (
     <div ref={zona} aria-hidden
          className="absolute top-2 bottom-2 right-0 w-7 z-20 transition-opacity duration-300"
@@ -51,6 +59,7 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
            const p = pildora.current;
            if (!p) return;
            e.preventDefault();
+           marcar(true);
            e.currentTarget.setPointerCapture(e.pointerId);
            const actual = new DOMMatrix(getComputedStyle(p).transform).m42;
            const yPildora = e.currentTarget.getBoundingClientRect().top + actual;
@@ -60,10 +69,10 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
            mover(e.clientY);
          }}
          onPointerMove={e => { if (arrastre.current) mover(e.clientY); }}
-         onPointerUp={() => { arrastre.current = null; lista.current?.dispatchEvent(new Event('scroll')); }}
-         onPointerCancel={() => { arrastre.current = null; }}>
+         onPointerUp={() => { arrastre.current = null; marcar(false); lista.current?.dispatchEvent(new Event('scroll')); }}
+         onPointerCancel={() => { arrastre.current = null; marcar(false); }}>
       <div ref={pildora} className="absolute right-1 top-0 w-[7px] rounded-full bg-foreground/50 shadow-sm"
-           style={{ height: ALTO, willChange: 'transform' }} />
+           style={{ height: ALTO, willChange: 'transform', transition: 'width 120ms ease-out, background-color 120ms ease-out' }} />
     </div>
   );
 }
