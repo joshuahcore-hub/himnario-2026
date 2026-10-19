@@ -1,4 +1,4 @@
-import { Moon, Sun, Globe, WifiOff, CheckCircle2 } from 'lucide-react';
+import { Moon, Sun, Languages, WifiOff, CheckCircle2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
 import { useTheme, applyTheme, applyColor } from '@/hooks/useTheme';
@@ -65,7 +65,7 @@ export default function SettingsPage() {
       <div className="grid grid-cols-[minmax(0,110fr)_minmax(0,104fr)_minmax(0,110fr)] max-[359px]:grid-cols-2 gap-2 [&>*:nth-child(3)]:max-[359px]:col-span-2">
         <Desplegable<Locale>
           titulo={t.settings_language}
-          icono={<Globe size={13} className="text-muted-foreground" />}
+          icono={<Languages size={13} className="text-muted-foreground" />}
           valor={locale}
           opciones={LANGUAGES.map(l => ({ valor: l.code, etiqueta: nombreIdioma(l.code, locale) }))}
           onElegir={setLocale}
