@@ -782,9 +782,9 @@ function Conmutador({ izquierda, derecha, derechaActiva, onCambiar, deshabilitad
             onClick={() => onCambiar(!derechaActiva)}
             className={`relative w-full ${dosLineas ? 'h-[52px] rounded-[22px]' : 'h-10 rounded-full'} bg-muted p-1 grid grid-cols-2 items-center text-[13px] font-medium [touch-action:manipulation] disabled:opacity-50`}>
       <span aria-hidden className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] ${dosLineas ? 'rounded-[18px]' : 'rounded-full'} bg-card shadow-sm`}
-            style={{ transform: derechaActiva ? 'translateX(100%)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
-      <span className={`relative text-center ${texto} px-2 transition-colors duration-200 ${derechaActiva ? 'text-muted-foreground' : 'text-foreground'}`}>{izquierda}</span>
-      <span className={`relative text-center ${texto} px-2 transition-colors duration-200 ${derechaActiva ? 'text-foreground' : 'text-muted-foreground'}`}>{derecha}</span>
+            style={{ transform: derechaActiva ? 'translateX(100%)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+      <span className={`relative text-center ${texto} px-2 transition-colors duration-100 ${derechaActiva ? 'text-muted-foreground' : 'text-foreground'}`}>{izquierda}</span>
+      <span className={`relative text-center ${texto} px-2 transition-colors duration-100 ${derechaActiva ? 'text-foreground' : 'text-muted-foreground'}`}>{derecha}</span>
     </button>
   );
 }
@@ -918,7 +918,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
   // con un poco de movimiento no se cancela).
   const pastilla = (activa: boolean) =>
     // pan-x: la fila de personas se DESLIZA hacia el lado (con touch-action none no se podía ver a los de la derecha).
-    `h-9 px-3.5 rounded-full text-[13px] font-medium border select-none [touch-action:pan-x] transition-colors duration-150 ${
+    `h-9 px-3.5 rounded-full text-[13px] font-medium border select-none [touch-action:pan-x] transition-colors duration-100 ${
       activa ? 'bg-[#FFF4CC] border-[#FFF4CC] text-[#4A3800]' : 'border-border text-muted-foreground'
     }`;
   const textoEstado = (r: Recordatorio) =>
@@ -1013,7 +1013,7 @@ export function PanelRecordatorio({ abierto, onCerrar, himno, anterior, enviados
               <button key={sim ?? 'texto'} type="button" aria-pressed={activo}
                       onClick={() => setTexto(sim ? textoSimbolo(sim) : (simboloDe(texto) ? escrito : texto))}
                       aria-label={sim ? t.rec_simbolo[sim] : t.rec_simbolo_texto}
-                      className={`h-9 w-9 rounded-full flex items-center justify-center border transition-colors duration-150 ${
+                      className={`h-9 w-9 rounded-full flex items-center justify-center border transition-colors duration-100 ${
                         activo ? 'bg-[#FFF4CC] border-[#FFF4CC] text-[#4A3800]' : 'border-border text-muted-foreground'}`}>
                 {sim ? <IconoSimbolo simbolo={sim} tam={18} /> : <Type size={17} />}
               </button>

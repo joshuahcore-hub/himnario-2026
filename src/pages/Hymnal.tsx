@@ -168,10 +168,10 @@ export default function HymnalPage() {
         {/* (1.18.0, Josué) Ordenar: Numérico / Alfabético, arriba a la derecha (se recuerda en el celular). */}
         <div role="radiogroup" aria-label={t.hymnal_ordenar} className="relative grid grid-cols-2 rounded-full bg-muted p-0.5 text-[12px] font-medium">
           <span aria-hidden className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-card shadow-sm"
-                style={{ transform: orden === 'alfabetico' ? 'translateX(100%)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+                style={{ transform: orden === 'alfabetico' ? 'translateX(100%)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
           {(['numerico', 'alfabetico'] as const).map(o => (
             <BotonSeguro key={o} role="radio" aria-checked={orden === o} onClick={() => setOrden(o)}
-                         className={`relative px-3 h-7 rounded-full transition-colors duration-200 ${orden === o ? 'text-foreground' : 'text-muted-foreground'}`}>
+                         className={`relative px-3 h-7 rounded-full transition-colors duration-100 ${orden === o ? 'text-foreground' : 'text-muted-foreground'}`}>
               {o === 'numerico' ? t.hymnal_orden_numerico : t.hymnal_orden_alfabetico}
             </BotonSeguro>
           ))}

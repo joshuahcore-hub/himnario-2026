@@ -534,12 +534,12 @@ export default function EditorMinuta() {
           <div className="relative grid grid-cols-2 rounded-lg bg-muted p-1 text-xs font-medium">
             <span
               className="absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-md bg-background shadow-sm"
-              style={{ transform: modo === 'ia' ? 'translateX(100%)' : 'none', transition: 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+              style={{ transform: modo === 'ia' ? 'translateX(100%)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }}
             />
-            <BotonSeguro onClick={() => setModo('manual')} className={`relative h-8 transition-colors ${modo === 'manual' ? 'text-foreground' : 'text-muted-foreground'}`}>
+            <BotonSeguro onClick={() => setModo('manual')} className={`relative h-8 transition-colors duration-100 ${modo === 'manual' ? 'text-foreground' : 'text-muted-foreground'}`}>
               {t.editor_mode_manual}
             </BotonSeguro>
-            <BotonSeguro onClick={() => { setModo('ia'); revisarIA(); }} className={`relative h-8 transition-colors ${modo === 'ia' ? 'text-foreground' : 'text-muted-foreground'}`}>
+            <BotonSeguro onClick={() => { setModo('ia'); revisarIA(); }} className={`relative h-8 transition-colors duration-100 ${modo === 'ia' ? 'text-foreground' : 'text-muted-foreground'}`}>
               {t.editor_mode_ai}
             </BotonSeguro>
           </div>

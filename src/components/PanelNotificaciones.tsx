@@ -20,9 +20,9 @@ export function Interruptor({ activo, onCambiar, texto, fuerte = false }: { acti
   return (
     <button type="button" onClick={onCambiar} className="tap-btn w-full min-h-[42px] flex items-center justify-between gap-3 py-2 text-left">
       <span className={`text-xs text-foreground ${fuerte ? 'font-semibold' : ''}`}>{texto}</span>
-      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${activo ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-100 ${activo ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
         <span className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-background shadow-sm"
-              style={{ transform: activo ? 'translateX(16px)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+              style={{ transform: activo ? 'translateX(16px)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
       </span>
     </button>
   );
@@ -164,7 +164,7 @@ export default function PanelNotificaciones({ onRegistrarme, onIr, pestanaInicia
       <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
         {(['avisos', 'ajustes'] as const).map(p => (
           <button key={p} type="button" onClick={() => setPestana(p)}
-                  className={`h-8 rounded-md text-xs font-semibold transition-colors duration-150 ${pestana === p ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+                  className={`h-8 rounded-md text-xs font-semibold transition-colors duration-100 ${pestana === p ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
             {p === 'avisos' ? t.notif_tab_avisos : t.notif_tab_ajustes}
           </button>
         ))}

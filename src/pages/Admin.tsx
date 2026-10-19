@@ -38,9 +38,9 @@ function Interruptor({ activo, onCambiar, texto }: { activo: boolean; onCambiar:
   return (
     <button type="button" onClick={onCambiar} className="tap-btn w-full min-h-[40px] flex items-center justify-between gap-3 py-1.5 text-left">
       <span className="text-xs text-foreground">{texto}</span>
-      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ${activo ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-100 ${activo ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
         <span className="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-background shadow-sm"
-              style={{ transform: activo ? 'translateX(16px)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+              style={{ transform: activo ? 'translateX(16px)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
       </span>
     </button>
   );
@@ -157,6 +157,23 @@ export default function Admin() {
     }
   };
 
+  // (1.20.21, Josué) Cada interruptor pide confirmar (era muy fácil quitarle un permiso a alguien por error). El texto
+  // se fija al ABRIR; `confirmando` aparte para que el panel se desvanezca con el mismo texto.
+  type Confirmacion = { titulo: string; texto?: string; quitar: boolean; accion: () => void };
+  const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
+  const pedir = (c: Confirmacion) => { setConfirmacion(c); setConfirmando(true); };
+  const CLAVE_PERMISO = { ve_minutas: 've', crea_minutas: 'crear', recordatorios_otros: 'recordar', proyeccion: 'proyectar' } as const;
+  const pedirPermiso = (d: DispositivoAdmin, campo: keyof typeof CLAVE_PERMISO) => {
+    const activo = campo === 've_minutas' ? d.ve_minutas !== 0 : !!d[campo];
+    const p = CLAVE_PERMISO[campo];
+    pedir(activo
+      ? { titulo: t.admin_perm_off_title(d.nombre, p), quitar: true, accion: () => cambiarPermiso(d, campo),
+          texto: campo === 've_minutas' && d.crea_minutas ? t.admin_perm_off_text_ver : t.admin_perm_off_text }
+      : { titulo: t.admin_perm_on_title(d.nombre, p), quitar: false, accion: () => cambiarPermiso(d, campo),
+          texto: campo === 'crea_minutas' && d.ve_minutas === 0 ? t.admin_perm_on_text_crear : t.admin_perm_on_text });
+  };
+
   const cambiarIaCreadores = async (valor: boolean) => {
     setIaCreadores(valor);
     try {
@@ -210,10 +227,10 @@ export default function Admin() {
       {!d.yo && d.rol !== 'admin' && d.estado === 'aprobado' && (
         <div className="border-t border-border pt-1.5 space-y-0.5">
           {/* (1.10.0, Josué) Ver minutas: encendido al registrarse; el admin lo puede apagar. */}
-          <Interruptor texto={t.admin_can_view} activo={d.ve_minutas !== 0} onCambiar={() => cambiarPermiso(d, 've_minutas')} />
-          <Interruptor texto={t.admin_can_create} activo={!!d.crea_minutas} onCambiar={() => cambiarPermiso(d, 'crea_minutas')} />
-          <Interruptor texto={t.admin_can_remind} activo={!!d.recordatorios_otros} onCambiar={() => cambiarPermiso(d, 'recordatorios_otros')} />
-          <Interruptor texto={t.admin_can_project} activo={!!d.proyeccion} onCambiar={() => cambiarPermiso(d, 'proyeccion')} />
+          <Interruptor texto={t.admin_can_view} activo={d.ve_minutas !== 0} onCambiar={() => pedirPermiso(d, 've_minutas')} />
+          <Interruptor texto={t.admin_can_create} activo={!!d.crea_minutas} onCambiar={() => pedirPermiso(d, 'crea_minutas')} />
+          <Interruptor texto={t.admin_can_remind} activo={!!d.recordatorios_otros} onCambiar={() => pedirPermiso(d, 'recordatorios_otros')} />
+          <Interruptor texto={t.admin_can_project} activo={!!d.proyeccion} onCambiar={() => pedirPermiso(d, 'proyeccion')} />
         </div>
       )}
       {/* (1.7.8, Josué) Sin "Deshabilitar/Habilitar": cada persona se maneja solo con los dos interruptores. Solo las
@@ -244,7 +261,9 @@ export default function Admin() {
         <SeccionEspacios />
         {iaCreadores !== null && (
           <button
-            onClick={() => cambiarIaCreadores(!iaCreadores)}
+            onClick={() => pedir(iaCreadores
+              ? { titulo: t.admin_ia_off_title, quitar: true, accion: () => cambiarIaCreadores(false) }
+              : { titulo: t.admin_ia_on_title, quitar: false, accion: () => cambiarIaCreadores(true) })}
             className="w-full bg-card rounded-xl border border-border p-3 flex items-center gap-3 text-left mb-2 animate-in fade-in"
           >
             <div className="flex-1 min-w-0">
@@ -253,10 +272,10 @@ export default function Admin() {
               <p className="text-[10px] text-muted-foreground">{t.admin_ia_creators_desc}</p>
             </div>
             {/* Interruptor propio (sin controles nativos) */}
-            <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${iaCreadores ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+            <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-100 ${iaCreadores ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
               <span
                 className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-background shadow-sm"
-                style={{ transform: iaCreadores ? 'translateX(20px)' : 'none', transition: 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+                style={{ transform: iaCreadores ? 'translateX(20px)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }}
               />
             </span>
           </button>
@@ -269,6 +288,23 @@ export default function Admin() {
       </div>
       )}</ConBarra>
       </div>
+
+      {/* (1.20.21) Confirmar un permiso: Cancelar / Habilitar (o Quitar, en rojo). Tocar fuera cancela. */}
+      <Dialog open={confirmando} onOpenChange={o => { if (!o) setConfirmando(false); }}>
+        <DialogContent className="max-w-[320px] rounded-2xl gap-3">
+          <DialogHeader>
+            <DialogTitle className="text-base">{confirmacion?.titulo}</DialogTitle>
+            {confirmacion?.texto && <DialogDescription className="text-xs text-center">{confirmacion.texto}</DialogDescription>}
+          </DialogHeader>
+          <div className="flex justify-center gap-2">
+            <Button variant="outline" className="h-9 px-4 text-sm" onClick={() => setConfirmando(false)}>{t.rec_cancel}</Button>
+            <Button variant={confirmacion?.quitar ? 'destructive' : 'default'} className="h-9 px-4 text-sm"
+                    onClick={() => { setConfirmando(false); confirmacion?.accion(); }}>
+              {confirmacion?.quitar ? t.admin_perm_off : t.admin_perm_on}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Quitar de la lista (tocar fuera cancela). El aviso se fija al abrir (aQuitar no cambia al cerrar). */}
       <Dialog open={confirmarQuitar} onOpenChange={o => { if (!o) setConfirmarQuitar(false); }}>

@@ -293,6 +293,17 @@ export interface Translations {
   proy_guardado: (carpeta: string) => string;
   admin_hide_title: (nombre: string) => string;
   admin_hide_text: string;
+  /** (1.20.21) Confirmar cada cambio de permiso. p = 've' | 'crear' | 'recordar' | 'proyectar'. */
+  admin_perm_on_title: (nombre: string, p: string) => string;
+  admin_perm_off_title: (nombre: string, p: string) => string;
+  admin_perm_on_text: string;
+  admin_perm_on_text_crear: string;
+  admin_perm_off_text: string;
+  admin_perm_off_text_ver: string;
+  admin_perm_on: string;
+  admin_perm_off: string;
+  admin_ia_on_title: string;
+  admin_ia_off_title: string;
   notif_title: string;
   notif_tab_avisos: string;
   notif_tab_ajustes: string;
@@ -695,6 +706,16 @@ export const es: Translations = {
   proy_guardado: c => `Guardado en «${c}»`,
   admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
   admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
+  admin_perm_on_title: (n, p) => `¿Habilitar a ${n} para ${({ ve: 'ver las minutas', crear: 'crear minutas', recordar: 'dejar recordatorios a otras personas', proyectar: 'generar la proyección del culto' } as Record<string, string>)[p]}?`,
+  admin_perm_off_title: (n, p) => `¿Quitarle a ${n} el permiso para ${({ ve: 'ver las minutas', crear: 'crear minutas', recordar: 'dejar recordatorios a otras personas', proyectar: 'generar la proyección del culto' } as Record<string, string>)[p]}?`,
+  admin_perm_on_text: 'Le llegará un aviso de que se le habilitó.',
+  admin_perm_on_text_crear: 'También podrá ver las minutas. Le llegará un aviso de que se le habilitó.',
+  admin_perm_off_text: 'No se le avisará. Puedes volver a habilitarlo cuando quieras.',
+  admin_perm_off_text_ver: 'Tampoco podrá crear minutas. No se le avisará; puedes volver a habilitarlo cuando quieras.',
+  admin_perm_on: 'Habilitar',
+  admin_perm_off: 'Quitar',
+  admin_ia_on_title: '¿Permitir a los creadores leer minutas desde una foto?',
+  admin_ia_off_title: '¿Dejar de permitir a los creadores leer minutas desde una foto?',
   notif_title: 'Notificaciones',
   notif_tab_avisos: 'Avisos',
   notif_tab_ajustes: 'Ajustes',
@@ -1096,6 +1117,16 @@ export const en: Translations = {
   proy_guardado: c => `Saved to “${c}”`,
   admin_hide_title: n => `Remove ${n} from the list?`,
   admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
+  admin_perm_on_title: (n, p) => `Allow ${n} to ${({ ve: 'view services', crear: 'create services', recordar: 'leave reminders for others', proyectar: 'generate the service projection' } as Record<string, string>)[p]}?`,
+  admin_perm_off_title: (n, p) => `Remove ${n}'s permission to ${({ ve: 'view services', crear: 'create services', recordar: 'leave reminders for others', proyectar: 'generate the service projection' } as Record<string, string>)[p]}?`,
+  admin_perm_on_text: 'They will get a notice that it was enabled.',
+  admin_perm_on_text_crear: 'They will also be able to view services. They will get a notice that it was enabled.',
+  admin_perm_off_text: "They won't be notified. You can enable it again anytime.",
+  admin_perm_off_text_ver: "They also won't be able to create services. They won't be notified; you can enable it again anytime.",
+  admin_perm_on: 'Enable',
+  admin_perm_off: 'Remove',
+  admin_ia_on_title: 'Allow creators to read services from a photo?',
+  admin_ia_off_title: 'Stop allowing creators to read services from a photo?',
   notif_title: 'Notifications',
   notif_tab_avisos: 'Activity',
   notif_tab_ajustes: 'Settings',
@@ -1497,6 +1528,16 @@ export const pt: Translations = {
   proy_guardado: c => `Salvo em «${c}»`,
   admin_hide_title: n => `Remover ${n} da lista?`,
   admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
+  admin_perm_on_title: (n, p) => `Habilitar ${n} para ${({ ve: 'ver as minutas', crear: 'criar minutas', recordar: 'deixar lembretes para outras pessoas', proyectar: 'gerar a projeção do culto' } as Record<string, string>)[p]}?`,
+  admin_perm_off_title: (n, p) => `Tirar de ${n} a permissão para ${({ ve: 'ver as minutas', crear: 'criar minutas', recordar: 'deixar lembretes para outras pessoas', proyectar: 'gerar a projeção do culto' } as Record<string, string>)[p]}?`,
+  admin_perm_on_text: 'Receberá um aviso de que foi habilitado.',
+  admin_perm_on_text_crear: 'Também poderá ver as minutas. Receberá um aviso de que foi habilitado.',
+  admin_perm_off_text: 'Não será avisado. Você pode habilitar de novo quando quiser.',
+  admin_perm_off_text_ver: 'Também não poderá criar minutas. Não será avisado; você pode habilitar de novo quando quiser.',
+  admin_perm_on: 'Habilitar',
+  admin_perm_off: 'Tirar',
+  admin_ia_on_title: 'Permitir que os criadores leiam minutas de uma foto?',
+  admin_ia_off_title: 'Deixar de permitir que os criadores leiam minutas de uma foto?',
   notif_title: 'Notificações',
   notif_tab_avisos: 'Avisos',
   notif_tab_ajustes: 'Ajustes',
