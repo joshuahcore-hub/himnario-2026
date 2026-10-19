@@ -20,11 +20,14 @@ export default function FilaDeslizable({ children, onBorrar, onSaliendo, indice,
   bloqueado?: boolean;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
-  const toque = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null);
+  const toque = useRef<{ x: number; y: number; horizontal: boolean | null; pasado?: boolean } | null>(null);
   const [dx, setDx] = useState(0);
   const [suave, setSuave] = useState(false);
   const [alto, setAlto] = useState<number | null>(null);
   const [cerrando, setCerrando] = useState(false);
+
+  /** Desde cuánto desplazamiento se borra al soltar. */
+  const umbral = () => Math.max(80, (contenedor.current?.offsetWidth ?? 320) * 0.35);
 
   const alTocar = (e: React.TouchEvent) => {
     if (cerrando) return;
@@ -41,6 +44,10 @@ export default function FilaDeslizable({ children, onBorrar, onSaliendo, indice,
     if (t.horizontal) {
       setSuave(false);
       setDx(mx);
+      // (1.20.16, Josué) Vibra un poquito al pasar el punto en que, al soltar, la fila se borra (y al volver atrás, nada).
+      const pasado = Math.abs(mx) > umbral();
+      if (pasado && !t.pasado) navigator.vibrate?.(12);
+      t.pasado = pasado;
     }
   };
 
@@ -50,7 +57,7 @@ export default function FilaDeslizable({ children, onBorrar, onSaliendo, indice,
     if (!t?.horizontal) return;
     const ancho = contenedor.current?.offsetWidth ?? 320;
     setSuave(true);
-    if (Math.abs(dx) > Math.max(80, ancho * 0.35)) {
+    if (Math.abs(dx) > umbral()) {
       // Sale hacia el lado deslizado, luego la fila se cierra y se borra.
       onSaliendo?.();
       setDx(Math.sign(dx) * ancho * 1.1);

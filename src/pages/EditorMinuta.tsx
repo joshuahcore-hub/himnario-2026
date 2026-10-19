@@ -508,7 +508,7 @@ export default function EditorMinuta() {
   return (
     // La pantalla no se desplaza entera (como en Minutas): solo la zona de cantos, y solo si no cabe.
     // min-h-0 en la zona flex-1: sin eso crece con su contenido y empuja la pantalla completa.
-    <div className="flex flex-col overflow-hidden w-full max-w-lg mx-auto" style={{ height: 'calc(100dvh - var(--barra))', overscrollBehavior: 'none' }}>
+    <div className="flex flex-col overflow-hidden w-full max-w-lg mx-auto" style={{ height: 'calc(100% - var(--barra))', overscrollBehavior: 'none' }}>
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <h1 className="text-xl font-bold text-foreground">{id ? t.editor_title_edit : t.create_title}</h1>
         {/* (1.17.3, Josué) En qué espacio se crea: pequeño, a la derecha del título; tocarlo cambia de espacio. Es el
