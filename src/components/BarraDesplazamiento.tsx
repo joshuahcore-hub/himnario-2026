@@ -3,7 +3,7 @@
 // React en cada movimiento: fluido) y se esconde sola al rato. La zona que se puede tocar es más ancha que la píldora.
 import { useEffect, useRef } from 'react';
 
-const ALTO = 44;       // px de la píldora
+const ALTO = 44;       // px mínimos de la píldora (1.20.9: crece si la lista es corta, p. ej. con filtro)
 const ESPERA = 1300;   // ms visible después de dejar de moverse
 
 export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<HTMLElement> }) {
@@ -11,13 +11,20 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
   const pildora = useRef<HTMLDivElement>(null);
   const arrastre = useRef<{ y: number; top: number } | null>(null);
   const ocultar = useRef<ReturnType<typeof setTimeout>>();
+  const alto = useRef(ALTO);
 
   useEffect(() => {
     const el = lista.current, z = zona.current, p = pildora.current;
     if (!el || !z || !p) return;
-    const recorrido = () => Math.max(0, z.clientHeight - ALTO);
+    const recorrido = () => Math.max(0, z.clientHeight - alto.current);
     const ubicar = () => {
       const max = el.scrollHeight - el.clientHeight;
+      // (1.20.9, Josué) Alto proporcional a lo que se ve de la lista: con pocos himnos la píldora es grande y no
+      // "salta" de arriba abajo con un poquito de desplazamiento. Nunca menos de ALTO ni más del 85 % de la zona.
+      if (!arrastre.current) {
+        const h = Math.round(Math.min(z.clientHeight * 0.85, Math.max(ALTO, z.clientHeight * el.clientHeight / Math.max(1, el.scrollHeight))));
+        if (h !== alto.current) { alto.current = h; p.style.height = `${h}px`; }
+      }
       p.style.transform = `translateY(${max > 0 ? (el.scrollTop / max) * recorrido() : 0}px)`;
     };
     const mostrar = () => {
@@ -38,7 +45,7 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
   const mover = (clientY: number) => {
     const el = lista.current, z = zona.current, a = arrastre.current;
     if (!el || !z || !a) return;
-    const recorrido = Math.max(1, z.clientHeight - ALTO);
+    const recorrido = Math.max(1, z.clientHeight - alto.current);
     const top = Math.min(recorrido, Math.max(0, a.top + clientY - a.y));
     el.scrollTop = (top / recorrido) * (el.scrollHeight - el.clientHeight);
   };
@@ -64,8 +71,8 @@ export default function BarraDesplazamiento({ lista }: { lista: React.RefObject<
            const actual = new DOMMatrix(getComputedStyle(p).transform).m42;
            const yPildora = e.currentTarget.getBoundingClientRect().top + actual;
            // Tocar fuera de la píldora la lleva ahí (centrada en el dedo); tocarla, la toma donde está.
-           const dentro = e.clientY >= yPildora && e.clientY <= yPildora + ALTO;
-           arrastre.current = { y: e.clientY, top: dentro ? actual : e.clientY - e.currentTarget.getBoundingClientRect().top - ALTO / 2 };
+           const dentro = e.clientY >= yPildora && e.clientY <= yPildora + alto.current;
+           arrastre.current = { y: e.clientY, top: dentro ? actual : e.clientY - e.currentTarget.getBoundingClientRect().top - alto.current / 2 };
            mover(e.clientY);
          }}
          onPointerMove={e => { if (arrastre.current) mover(e.clientY); }}
