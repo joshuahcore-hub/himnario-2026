@@ -4,6 +4,7 @@
 // al volver atrás se consume esa entrada, se repone y se muestra la pregunta.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { setGuardiaSalida } from '@/lib/guardiaSalida';
+import { ignorarProximoAtras } from '@/lib/atras';
 
 export function useSalidaProtegida(hayCambios: boolean, antesDeSalir?: () => boolean) {
   /** Salida pendiente de confirmar (null = no hay pregunta abierta). */
@@ -33,7 +34,8 @@ export function useSalidaProtegida(hayCambios: boolean, antesDeSalir?: () => boo
   useEffect(() => {
     if (!hayCambios) {
       // Ya no hay cambios (p. ej. se deshicieron): quitar la entrada extra para que "atrás" salga normal.
-      if (trampa.current && !saliendo.current) { trampa.current = false; history.back(); }
+      // ignorarProximoAtras: ese "atrás" es de la app; si hay un panel abierto (buscador), no debe cerrarlo.
+      if (trampa.current && !saliendo.current) { trampa.current = false; ignorarProximoAtras(); history.back(); }
       return;
     }
     if (!trampa.current) { history.pushState({ trampaEditor: true }, ''); trampa.current = true; }

@@ -17,6 +17,10 @@ if (typeof window !== 'undefined') {
   });
 }
 
+/** (1.20.20) El próximo "atrás" lo hace la app misma (p. ej. quitar la entrada de useSalidaProtegida): que no cierre
+ *  ningún panel. Sin esto, desmarcar el único canto agregado cerraba el buscador. */
+export function ignorarProximoAtras() { ignorar++; }
+
 export function useAtrasCierra(abierto: boolean, cerrar: () => void) {
   const cerrarRef = useRef(cerrar);
   cerrarRef.current = cerrar;
