@@ -629,11 +629,11 @@ export default function EditorMinuta() {
                           aria-hidden={hayOfrenda && !c.ofrenda} tabIndex={hayOfrenda && !c.ofrenda ? -1 : undefined}
                           className="tap-btn p-0.5 shrink-0"
                           style={{ opacity: hayOfrenda && !c.ofrenda ? 0 : 1, pointerEvents: hayOfrenda && !c.ofrenda ? 'none' : undefined,
-                                   transition: 'opacity 180ms ease-out' }}>
+                                   transition: 'opacity 100ms ease-out' }}>
                     {/* (1.19.20, Josué) Ofrendero (bolsa con aro y mango) en vez de la mano. Marcado: amarillo suave, dibujo en café oscuro. */}
                     <span className={`w-7 h-7 rounded-md border flex items-center justify-center ${
                       c.ofrenda ? 'bg-ofrenda border-ofrenda text-[#4A3800]' : 'border-border text-muted-foreground'}`}
-                          style={{ transition: 'background-color 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out' }}>
+                          style={{ transition: 'background-color 80ms ease-out, border-color 80ms ease-out, color 80ms ease-out' }}>
                       <IconoOfrendero />
                     </span>
                   </button>
