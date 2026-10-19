@@ -152,7 +152,9 @@ export default function HymnalPage() {
   return (
     // (1.19.10, Josué) Contenedor con la barra propia para recorrer la lista (se toma y se arrastra); la barra del
     // sistema se oculta para no ver dos.
-    <div className="relative" style={{ height: 'calc(100dvh - var(--barra))' }}>
+    // (1.20.7, Josué) Alto = el espacio real de <main> menos la barra (no 100dvh: a veces medía de más y la barrita
+    // bajaba hasta quedar escondida detrás de la barra de abajo).
+    <div className="relative" style={{ height: 'calc(100% - var(--barra))' }}>
     <BarraDesplazamiento lista={scrollRef} />
     <div
       ref={scrollRef}
