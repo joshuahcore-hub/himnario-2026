@@ -17,7 +17,10 @@ import TonalityPicker from '@/components/TonalityPicker';
 import TempoPicker from '@/components/TempoPicker';
 import BotonSeguro from '@/components/BotonSeguro';
 import BarraDesplazamiento from '@/components/BarraDesplazamiento';
-import Zoomable from '@/components/Zoomable';
+import Zoomable, { type EstadoZoom } from '@/components/Zoomable';
+
+// (1.21.1, Josué) El zoom de la lista se conserva al abrir un himno y volver (vive mientras la app está abierta).
+let zoomGuardado: { activo: boolean } & EstadoZoom = { activo: false, escala: 1, x: 0, y: 0 };
 
 function keyMatchesFilter(hymnKey: string, filterKey: string): boolean {
   return hymnKey.toUpperCase() === filterKey.toUpperCase();
@@ -60,7 +63,8 @@ export default function HymnalPage() {
     setOrdenEstado(o);
     try { localStorage.setItem('himnario_orden', o); } catch { /* da igual */ }
   };
-  const [zoom, setZoom] = useState(false);
+  const [zoom, setZoomEstado] = useState(zoomGuardado.activo);
+  const setZoom = (z: boolean) => { setZoomEstado(z); zoomGuardado = { activo: z, escala: 1, x: 0, y: 0 }; };
   const filtered = useMemo(() => {
     let list = hymns;
 
@@ -105,7 +109,8 @@ export default function HymnalPage() {
     if (savedScroll > 0) lista.scrollTop = savedScroll;
     const ultimo = tomarUltimoHimno();
     const fila = ultimo !== null ? lista.querySelector<HTMLElement>(`[data-himno="${ultimo}"]`) : null;
-    if (fila) {
+    // Con zoom puesto se vuelve EXACTAMENTE a la misma vista (posición + zoom), sin recentrar.
+    if (fila && zoomGuardado.escala <= 1) {
       const caja = lista.getBoundingClientRect(), r = fila.getBoundingClientRect();
       const visible = r.top >= caja.top + 8 && r.bottom <= caja.bottom - 8;
       if (!visible) lista.scrollTop += r.top - caja.top - (caja.height - r.height) / 2;
@@ -166,7 +171,8 @@ export default function HymnalPage() {
         Z
       </BotonSeguro>
     )}
-    <Zoomable className="h-full" activo={zoom}>
+    <Zoomable className="h-full" activo={zoom} inicial={zoomGuardado}
+              onCambio={e => { if (zoomGuardado.activo) zoomGuardado = { activo: true, ...e }; }}>
     <div
       ref={scrollRef}
       onScroll={e => saveScrollTop(e.currentTarget.scrollTop)}

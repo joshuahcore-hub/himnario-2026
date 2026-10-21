@@ -2,9 +2,15 @@
 // ampliado, se puede mover con un dedo. Sin zoom, deja pasar el deslizamiento horizontal (cambiar de canto).
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
-export default function Zoomable({ children, className = '', reiniciarCon, onAmpliado, activo = true }: {
+export type EstadoZoom = { escala: number; x: number; y: number };
+
+export default function Zoomable({ children, className = '', reiniciarCon, onAmpliado, activo = true, inicial, onCambio }: {
   /** (1.21.0) false = sin zoom ni gestos (vuelve a 1). La lista del himnario lo activa con su botón "Z". */
   activo?: boolean;
+  /** (1.21.1) Zoom con que aparece (la lista del himnario lo recupera al volver de un himno). */
+  inicial?: EstadoZoom;
+  /** (1.21.1) Avisa cada cambio de zoom/posición (para guardarlo). */
+  onCambio?: (e: EstadoZoom) => void;
   /** (1.17.2) Avisa si está ampliado (para usar la imagen nítida). */
   onAmpliado?: (ampliado: boolean) => void;
   children: ReactNode;
@@ -13,13 +19,19 @@ export default function Zoomable({ children, className = '', reiniciarCon, onAmp
   reiniciarCon?: unknown;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
-  const [escala, setEscala] = useState(1);
-  const [mover, setMover] = useState({ x: 0, y: 0 });
+  const [escala, setEscala] = useState(inicial?.escala ?? 1);
+  const [mover, setMover] = useState({ x: inicial?.x ?? 0, y: inicial?.y ?? 0 });
   const pellizco = useRef<{ distancia: number; escala: number } | null>(null);
   const arrastre = useRef<{ x: number; y: number } | null>(null);
   const [gesto, setGesto] = useState(false);
 
-  useEffect(() => { setEscala(1); setMover({ x: 0, y: 0 }); }, [reiniciarCon, activo]);
+  // Al aparecer conserva `inicial`; vuelve a 1 solo cuando CAMBIA reiniciarCon o activo.
+  const primera = useRef(true);
+  useEffect(() => {
+    if (primera.current) { primera.current = false; return; }
+    setEscala(1); setMover({ x: 0, y: 0 });
+  }, [reiniciarCon, activo]);
+  useEffect(() => { onCambio?.({ escala, x: mover.x, y: mover.y }); }, [escala, mover]); // eslint-disable-line react-hooks/exhaustive-deps
   const ampliado = escala > 1.15;
   useEffect(() => { onAmpliado?.(ampliado); }, [ampliado]); // eslint-disable-line react-hooks/exhaustive-deps
 
