@@ -17,6 +17,7 @@ import TonalityPicker from '@/components/TonalityPicker';
 import TempoPicker from '@/components/TempoPicker';
 import BotonSeguro from '@/components/BotonSeguro';
 import BarraDesplazamiento from '@/components/BarraDesplazamiento';
+import Zoomable from '@/components/Zoomable';
 
 function keyMatchesFilter(hymnKey: string, filterKey: string): boolean {
   return hymnKey.toUpperCase() === filterKey.toUpperCase();
@@ -59,6 +60,7 @@ export default function HymnalPage() {
     setOrdenEstado(o);
     try { localStorage.setItem('himnario_orden', o); } catch { /* da igual */ }
   };
+  const [zoom, setZoom] = useState(false);
   const filtered = useMemo(() => {
     let list = hymns;
 
@@ -156,6 +158,15 @@ export default function HymnalPage() {
     // bajaba hasta quedar escondida detrás de la barra de abajo).
     <div className="relative" style={{ height: 'calc(100% - var(--barra))' }}>
     <BarraDesplazamiento lista={scrollRef} />
+    {/* (1.21.0, Josué) Botón "Z": activa pellizcar/doble toque para ampliar la lista; el "Z" flotante lo apaga. */}
+    {zoom && (
+      <BotonSeguro onClick={() => setZoom(false)} aria-label="Zoom"
+                   className="tap-btn absolute right-4 bottom-4 z-10 h-11 w-11 rounded-full bg-primary text-primary-foreground text-base font-bold shadow-lg animate-in fade-in zoom-in-95"
+                   style={{ animationDuration: '150ms' }}>
+        Z
+      </BotonSeguro>
+    )}
+    <Zoomable className="h-full" activo={zoom}>
     <div
       ref={scrollRef}
       onScroll={e => saveScrollTop(e.currentTarget.scrollTop)}
@@ -165,6 +176,13 @@ export default function HymnalPage() {
       <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-3">
         <h1 className="text-xl font-bold text-foreground">{t.hymnal_title}</h1>
+        <div className="flex items-center gap-2">
+        <BotonSeguro onClick={() => setZoom(!zoom)} aria-label="Zoom"
+                     className={`tap-btn h-8 w-8 rounded-full text-[13px] font-bold transition-colors ${
+                       zoom ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                     style={{ transitionDuration: '100ms' }}>
+          Z
+        </BotonSeguro>
         {/* (1.18.0, Josué) Ordenar: Numérico / Alfabético, arriba a la derecha (se recuerda en el celular). */}
         <div role="radiogroup" aria-label={t.hymnal_ordenar} className="relative grid grid-cols-2 rounded-full bg-muted p-0.5 text-[12px] font-medium">
           <span aria-hidden className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-card shadow-sm"
@@ -175,6 +193,7 @@ export default function HymnalPage() {
               {o === 'numerico' ? t.hymnal_orden_numerico : t.hymnal_orden_alfabetico}
             </BotonSeguro>
           ))}
+        </div>
         </div>
       </div>
 
@@ -319,6 +338,7 @@ export default function HymnalPage() {
       </div>
       </div>
     </div>
+    </Zoomable>
     </div>
   );
 }

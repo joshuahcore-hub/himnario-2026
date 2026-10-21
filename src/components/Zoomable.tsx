@@ -2,7 +2,9 @@
 // ampliado, se puede mover con un dedo. Sin zoom, deja pasar el deslizamiento horizontal (cambiar de canto).
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
-export default function Zoomable({ children, className = '', reiniciarCon, onAmpliado }: {
+export default function Zoomable({ children, className = '', reiniciarCon, onAmpliado, activo = true }: {
+  /** (1.21.0) false = sin zoom ni gestos (vuelve a 1). La lista del himnario lo activa con su botón "Z". */
+  activo?: boolean;
   /** (1.17.2) Avisa si está ampliado (para usar la imagen nítida). */
   onAmpliado?: (ampliado: boolean) => void;
   children: ReactNode;
@@ -17,7 +19,7 @@ export default function Zoomable({ children, className = '', reiniciarCon, onAmp
   const arrastre = useRef<{ x: number; y: number } | null>(null);
   const [gesto, setGesto] = useState(false);
 
-  useEffect(() => { setEscala(1); setMover({ x: 0, y: 0 }); }, [reiniciarCon]);
+  useEffect(() => { setEscala(1); setMover({ x: 0, y: 0 }); }, [reiniciarCon, activo]);
   const ampliado = escala > 1.15;
   useEffect(() => { onAmpliado?.(ampliado); }, [ampliado]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -73,10 +75,10 @@ export default function Zoomable({ children, className = '', reiniciarCon, onAmp
       ref={contenedor}
       className={`overflow-hidden ${className}`}
       style={{ touchAction: escala > 1 ? 'none' : 'pan-y' }}
-      onTouchStart={alTocar}
-      onTouchMove={alMover}
-      onTouchEnd={alSoltar}
-      onDoubleClick={dobleToque}
+      onTouchStart={activo ? alTocar : undefined}
+      onTouchMove={activo ? alMover : undefined}
+      onTouchEnd={activo ? alSoltar : undefined}
+      onDoubleClick={activo ? dobleToque : undefined}
     >
       <div
         className="h-full w-full"
