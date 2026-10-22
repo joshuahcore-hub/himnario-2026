@@ -3,7 +3,8 @@
 // y "Generar" descarga "PPT Culto DD-MM-AAAA.pptx". Avisa qué alabanzas no tienen diapositivas.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '@/lib/aviso';
-import { ChevronDown, FolderOpen, Loader2, Presentation, TriangleAlert } from 'lucide-react';
+import { BookOpen, ChevronDown, FolderOpen, Loader2, Presentation, TriangleAlert, Upload, X } from 'lucide-react';
+import type { OriginalPredicacion } from '@/lib/predicacion';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
@@ -64,6 +65,13 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
   const [vers, setVers] = useState(1);
   const [hasta, setHasta] = useState(0); // 0 = un solo versículo
   const [estado, setEstado] = useState<null | { etapa: 'bajando' | 'armando'; progreso?: number }>(null);
+  // (1.22.0, Josué) Predicación: el PowerPoint del hermano (fondo oscuro, con acotaciones) entra convertido para
+  // proyectar, antes de la última alabanza. Desde/Hasta: qué diapositivas suyas van (su archivo suele traer más).
+  const [pred, setPred] = useState<null | { nombre: string; archivo: ArrayBuffer; originales: OriginalPredicacion[] }>(null);
+  const [predDesde, setPredDesde] = useState(1);
+  const [predHasta, setPredHasta] = useState(1);
+  const [leyendoPred, setLeyendoPred] = useState(false);
+  const archivoPred = useRef<HTMLInputElement>(null);
   // Carpeta donde se guarda (se recuerda entre veces).
   const [carpeta, setCarpeta] = useState<Awaited<ReturnType<typeof carpetaGuardada>>>(null);
   useEffect(() => { carpetaGuardada().then(setCarpeta); }, []);
@@ -71,8 +79,34 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
   const [abiertoAntes, setAbiertoAntes] = useState(abierto);
   if (abierto !== abiertoAntes) {
     setAbiertoAntes(abierto);
-    if (abierto) { setLibro(0); setCap(1); setVers(1); setHasta(0); setEstado(null); }
+    if (abierto) { setLibro(0); setCap(1); setVers(1); setHasta(0); setEstado(null); setPred(null); }
   }
+
+  const subirPred = async (f: File | undefined) => {
+    if (!f) return;
+    setLeyendoPred(true);
+    try {
+      const archivo = await f.arrayBuffer();
+      const [{ default: JSZip }, { leerPredicacion }] = await Promise.all([import('jszip'), import('@/lib/predicacion')]);
+      const originales = await leerPredicacion(await JSZip.loadAsync(archivo.slice(0)));
+      if (!originales.some(o => o.salida.length)) throw new Error();
+      setPred({ nombre: f.name.replace(/\.pptx$/i, ''), archivo, originales });
+      setPredDesde(1);
+      setPredHasta(originales.length);
+    } catch {
+      toast.error(t.proy_pred_error);
+    } finally {
+      setLeyendoPred(false);
+      if (archivoPred.current) archivoPred.current.value = '';
+    }
+  };
+  const opcionesPred = useMemo(() => (pred?.originales ?? []).map(o => ({
+    v: o.n, t: `${o.n} · ${o.resumen.length > 34 ? `${o.resumen.slice(0, 33)}…` : o.resumen}`,
+  })), [pred]);
+  const cantidadPred = useMemo(
+    () => (pred?.originales ?? []).filter(o => o.n >= predDesde && o.n <= predHasta).reduce((n, o) => n + o.salida.length, 0),
+    [pred, predDesde, predHasta],
+  );
 
   useEffect(() => {
     if (!abierto) return;
@@ -119,7 +153,8 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
     // El permiso de la carpeta se pide AQUÍ, dentro del clic (después ya no se puede).
     const destino = carpeta && (await permisoCarpeta(carpeta)) ? carpeta : null;
     try {
-      const r = await generarProyeccion(minuta, { versiculo: texto, referencia }, setEstado, destino);
+      const r = await generarProyeccion(minuta, { versiculo: texto, referencia }, setEstado, destino,
+        pred && cantidadPred ? { archivo: pred.archivo, desde: predDesde, hasta: predHasta } : null);
       toast.success(r.carpeta ? `${t.proy_guardado(r.carpeta)}: ${nombreArchivo(minuta.fecha)}` : `${t.proy_listo}: ${nombreArchivo(minuta.fecha)}`);
       onCerrar();
     } catch (e: any) {
@@ -163,6 +198,31 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
               <div className="flex gap-2 text-[11px] text-amber-700 dark:text-amber-400">
                 <TriangleAlert size={14} className="shrink-0 mt-px" />
                 <p>{t.proy_sin_diapositivas} {sinDiapositivas.map(c => (c.hymnNumber ? `${c.hymnNumber} ${c.title}` : c.title)).join(' · ')}</p>
+              </div>
+            )}
+            {/* Predicación (opcional). */}
+            <input ref={archivoPred} type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                   className="hidden" onChange={e => subirPred(e.target.files?.[0])} />
+            {!pred ? (
+              <button type="button" onClick={() => archivoPred.current?.click()} disabled={leyendoPred}
+                      className="w-full h-9 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center gap-1.5">
+                {leyendoPred ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}{t.proy_subir_pred}
+              </button>
+            ) : (
+              <div className="rounded-xl bg-muted px-3 py-2.5 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <BookOpen size={14} className="shrink-0 text-muted-foreground" />
+                  <span className="font-semibold text-foreground truncate flex-1">{pred.nombre}</span>
+                  <button type="button" onClick={() => setPred(null)} aria-label={t.proy_quitar}
+                          className="shrink-0 p-1 -m-1 rounded-md text-muted-foreground hover:text-foreground"><X size={14} /></button>
+                </div>
+                <div className="flex gap-2">
+                  <Selector etiqueta={t.proy_pred_desde} ancho="flex-1 min-w-0" valor={predDesde} opciones={opcionesPred}
+                            onElegir={v => { setPredDesde(v); if (predHasta < v) setPredHasta(v); }} />
+                  <Selector etiqueta={t.proy_hasta} ancho="flex-1 min-w-0" valor={predHasta} opciones={opcionesPred.filter(o => o.v >= predDesde)}
+                            onElegir={v => setPredHasta(Number(v))} />
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t.proy_pred_info(cantidadPred)}</p>
               </div>
             )}
             </div>
