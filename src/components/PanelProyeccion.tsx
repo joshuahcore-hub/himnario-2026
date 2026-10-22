@@ -3,7 +3,7 @@
 // y "Generar" descarga "PPT Culto DD-MM-AAAA.pptx". Avisa qué alabanzas no tienen diapositivas.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '@/lib/aviso';
-import { ChevronDown, FolderOpen, Loader2, Presentation, TriangleAlert } from 'lucide-react';
+import { ChevronDown, FilePlus2, FolderOpen, Loader2, Presentation, TriangleAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
@@ -64,6 +64,17 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
   const [vers, setVers] = useState(1);
   const [hasta, setHasta] = useState(0); // 0 = un solo versículo
   const [estado, setEstado] = useState<null | { etapa: 'bajando' | 'armando'; progreso?: number }>(null);
+  // (1.22.6, Josué) "Añadir PowerPoint": la predicación (el "B y N" que el hermano deja en la nube) va en el mismo
+  // PowerPoint, antes de la última alabanza. Se arrastra encima o se elige.
+  const [pred, setPred] = useState<null | { nombre: string; archivo: ArrayBuffer }>(null);
+  const [encimaPred, setEncimaPred] = useState(false);
+  const archivoPred = useRef<HTMLInputElement>(null);
+  const tomarPred = async (f: File | undefined) => {
+    if (!f) return;
+    if (!/\.pptx$/i.test(f.name)) { toast.error(t.pred_error); return; }
+    setPred({ nombre: f.name.replace(/\.pptx$/i, ''), archivo: await f.arrayBuffer() });
+    if (archivoPred.current) archivoPred.current.value = '';
+  };
   // Carpeta donde se guarda (se recuerda entre veces).
   const [carpeta, setCarpeta] = useState<Awaited<ReturnType<typeof carpetaGuardada>>>(null);
   useEffect(() => { carpetaGuardada().then(setCarpeta); }, []);
@@ -71,7 +82,7 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
   const [abiertoAntes, setAbiertoAntes] = useState(abierto);
   if (abierto !== abiertoAntes) {
     setAbiertoAntes(abierto);
-    if (abierto) { setLibro(0); setCap(1); setVers(1); setHasta(0); setEstado(null); }
+    if (abierto) { setLibro(0); setCap(1); setVers(1); setHasta(0); setEstado(null); setPred(null); }
   }
 
   useEffect(() => {
@@ -119,7 +130,7 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
     // El permiso de la carpeta se pide AQUÍ, dentro del clic (después ya no se puede).
     const destino = carpeta && (await permisoCarpeta(carpeta)) ? carpeta : null;
     try {
-      const r = await generarProyeccion(minuta, { versiculo: texto, referencia }, setEstado, destino);
+      const r = await generarProyeccion(minuta, { versiculo: texto, referencia }, setEstado, destino, pred?.archivo.slice(0) ?? null);
       toast.success(r.carpeta ? `${t.proy_guardado(r.carpeta)}: ${nombreArchivo(minuta.fecha)}` : `${t.proy_listo}: ${nombreArchivo(minuta.fecha)}`);
       onCerrar();
     } catch (e: any) {
@@ -163,6 +174,28 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
               <div className="flex gap-2 text-[11px] text-amber-700 dark:text-amber-400">
                 <TriangleAlert size={14} className="shrink-0 mt-px" />
                 <p>{t.proy_sin_diapositivas} {sinDiapositivas.map(c => (c.hymnNumber ? `${c.hymnNumber} ${c.title}` : c.title)).join(' · ')}</p>
+              </div>
+            )}
+            {/* Predicación (opcional): antes de la última alabanza. */}
+            <input ref={archivoPred} type="file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                   className="hidden" onChange={e => tomarPred(e.target.files?.[0])} />
+            {!pred ? (
+              <button type="button" onClick={() => archivoPred.current?.click()}
+                      onDragOver={e => { e.preventDefault(); setEncimaPred(true); }} onDragLeave={() => setEncimaPred(false)}
+                      onDrop={e => { e.preventDefault(); e.stopPropagation(); setEncimaPred(false); tomarPred(e.dataTransfer.files?.[0]); }}
+                      className={`w-full h-12 rounded-xl border-2 border-dashed text-sm flex items-center justify-center gap-1.5 transition-colors ${
+                        encimaPred ? 'border-primary bg-muted text-foreground' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                <FilePlus2 size={15} />{encimaPred ? t.pred_soltar : t.pred_boton}
+              </button>
+            ) : (
+              <div className="rounded-xl bg-muted px-3 py-2.5 flex items-center gap-2">
+                <FilePlus2 size={15} className="shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground truncate">{pred.nombre}</p>
+                  <p className="text-[11px] text-muted-foreground">{t.proy_pred_va}</p>
+                </div>
+                <button type="button" onClick={() => setPred(null)} aria-label={t.proy_quitar}
+                        className="shrink-0 p-1 -m-1 rounded-md text-muted-foreground hover:text-foreground"><X size={15} /></button>
               </div>
             )}
             </div>

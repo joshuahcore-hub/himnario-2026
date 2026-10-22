@@ -62,7 +62,8 @@ export default function BotonPredicacion() {
   useEffect(() => {
     let dentro = 0;
     const conArchivo = (e: DragEvent) => !!e.dataTransfer?.types.includes('Files');
-    const entra = (e: DragEvent) => { if (conArchivo(e)) { dentro++; setArrastrando(true); } };
+    // Con una ventana abierta (p. ej. Generar proyección, que tiene su propio "Añadir PowerPoint") la zona no aparece.
+    const entra = (e: DragEvent) => { if (conArchivo(e) && !document.querySelector('[role="dialog"]')) { dentro++; setArrastrando(true); } };
     const sale = (e: DragEvent) => { if (conArchivo(e) && --dentro <= 0) { dentro = 0; setArrastrando(false); } };
     const encima = (e: DragEvent) => { if (conArchivo(e)) e.preventDefault(); };
     const suelta = (e: DragEvent) => { if (conArchivo(e)) { e.preventDefault(); dentro = 0; setArrastrando(false); } };

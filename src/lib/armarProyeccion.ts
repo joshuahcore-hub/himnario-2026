@@ -49,7 +49,9 @@ export function claveTitulo(titulo: string): string {
   return 't:' + t.replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves: string[], portada: Portada): Promise<JSZip> {
+/** predicacion: XML de las diapositivas de la predicación (B y N, ver predicacion.ts), que van antes de la última alabanza. */
+export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves: string[], portada: Portada,
+  predicacion: string[] = []): Promise<JSZip> {
   const leer = async (p: string) => (await zip.file(p)?.async('string')) ?? '';
   let pres = await leer('ppt/presentation.xml');
   const presRelsPath = 'ppt/_rels/presentation.xml.rels';
@@ -67,12 +69,17 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
 
   // Orden pedido: portada, alabanzas (las que existen), imágenes fijas. (1.13.4, Josué) Un Especial ("e:" + nombre)
   // es una copia de la portada que dice "ESPECIAL <NOMBRE>".
-  const orden: { pos: number; especial?: string }[] = [{ pos: indice.portada }];
-  for (const n of claves) {
-    if (n.startsWith('e:')) { orden.push({ pos: indice.portada, especial: n.slice(2) }); continue; }
+  // (1.22.6, Josué) La predicación (si se añadió) va antes de la última alabanza; con una sola, después de ella.
+  const orden: { pos: number; especial?: string; predicacion?: true }[] = [{ pos: indice.portada }];
+  const cantos = claves.map((n, i) => (!n.startsWith('e:') && indice.himnos[n] ? i : -1)).filter(i => i >= 0);
+  const antesDe = !predicacion.length ? -1 : cantos.length > 1 ? cantos[cantos.length - 1] : claves.length;
+  claves.forEach((n, i) => {
+    if (i === antesDe) orden.push({ pos: 0, predicacion: true });
+    if (n.startsWith('e:')) { orden.push({ pos: indice.portada, especial: n.slice(2) }); return; }
     const r = indice.himnos[n];
-    if (r) for (let i = r[0]; i <= r[1]; i++) orden.push({ pos: i });
-  }
+    if (r) for (let j = r[0]; j <= r[1]; j++) orden.push({ pos: j });
+  });
+  if (antesDe === claves.length) orden.push({ pos: 0, predicacion: true });
   for (let i = indice.fijas[0]; i <= indice.fijas[1]; i++) orden.push({ pos: i });
 
   let maxId = Math.max(...slides.map(s => +s.id));
@@ -81,7 +88,26 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
   const usadas = new Set<number>();
   const nuevas: { id: string; rid: string; parte: string }[] = [];
   const especiales: { parte: string; nombre: string }[] = [];
-  for (const { pos, especial } of orden) {
+  const agregar = (parte: string) => {
+    const rid = `rId${++maxRid}`;
+    presRels = presRels.replace('</Relationships>', `<Relationship Id="${rid}" Type="${REL_SLIDE}" Target="${parte.replace('ppt/', '')}"/></Relationships>`);
+    tipos = tipos.replace('</Types>', `<Override PartName="/${parte}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
+    nuevas.push({ id: String(++maxId), rid, parte });
+  };
+  for (const { pos, especial, predicacion: esPred } of orden) {
+    if (esPred) {
+      // Diapositivas nuevas con el diseño de la primera alabanza (no se ven sus gráficos: traen fondo propio).
+      const base = slides[(orden.find(o => o.pos && o.pos !== indice.portada)?.pos ?? indice.portada) - 1];
+      const layout = leerRels(await leer(relsDe(base.parte))).find(r => r.type.endsWith('/slideLayout'))!;
+      for (const xml of predicacion) {
+        const parte = `ppt/slides/slide${++maxParte}.xml`;
+        zip.file(parte, xml);
+        zip.file(relsDe(parte), '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+          + `<Relationship Id="rId1" Type="${layout.type}" Target="${layout.target}"/></Relationships>`);
+        agregar(parte);
+      }
+      continue;
+    }
     const s = slides[pos - 1];
     if (!usadas.has(pos)) { usadas.add(pos); nuevas.push(s); continue; }
     // Repetida (la misma alabanza dos veces en la minuta): copia de la diapositiva, sin sus notas.
@@ -89,10 +115,7 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
     zip.file(parte, await leer(s.parte));
     const r = (await leer(relsDe(s.parte))).replace(/<Relationship\b[^>]*notesSlide[^>]*\/>/g, '');
     zip.file(relsDe(parte), r);
-    const rid = `rId${++maxRid}`;
-    presRels = presRels.replace('</Relationships>', `<Relationship Id="${rid}" Type="${REL_SLIDE}" Target="${parte.replace('ppt/', '')}"/></Relationships>`);
-    tipos = tipos.replace('</Types>', `<Override PartName="/${parte}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
-    nuevas.push({ id: String(++maxId), rid, parte });
+    agregar(parte);
     if (especial !== undefined) especiales.push({ parte, nombre: especial });
   }
   pres = pres.replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,

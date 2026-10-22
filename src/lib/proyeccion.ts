@@ -181,14 +181,23 @@ export async function guardarArchivo(blob: Blob, nombre: string, carpeta: Carpet
 export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fecha'> & { id?: string },
   portada: { versiculo: string; referencia: string },
   onEstado: (e: { etapa: 'bajando' | 'armando'; progreso?: number }) => void,
-  carpeta: Carpeta | null = null): Promise<{ carpeta: string | null }> {
+  carpeta: Carpeta | null = null,
+  predicacion: ArrayBuffer | null = null): Promise<{ carpeta: string | null }> {
   const meta = await leerMeta();
   onEstado({ etapa: 'bajando', progreso: 0 });
   const maestro = await bajarMaestro(meta, p => onEstado({ etapa: 'bajando', progreso: p }));
   onEstado({ etapa: 'armando' });
-  const [{ default: JSZip }, { armarProyeccion }] = await Promise.all([import('jszip'), import('@/lib/armarProyeccion')]);
+  const [{ default: JSZip }, { armarProyeccion }, { diapositivasParaProyeccion }] = await Promise.all([
+    import('jszip'), import('@/lib/armarProyeccion'), import('@/lib/predicacion')]);
   const zip = await JSZip.loadAsync(maestro);
-  await armarProyeccion(zip, meta.indice, clavesDeMinuta(minuta).map(x => x.clave), portada);
+  // (1.22.6) Predicación añadida (el "B y N" del hermano): al tamaño de diapositiva del maestro.
+  let pred: string[] = [];
+  if (predicacion) {
+    const pres = (await zip.file('ppt/presentation.xml')?.async('string')) ?? '';
+    const cx = +(pres.match(/<p:sldSz\b[^>]*\bcx="(\d+)"/)?.[1] ?? 9144000), cy = +(pres.match(/<p:sldSz\b[^>]*\bcy="(\d+)"/)?.[1] ?? 6858000);
+    pred = await diapositivasParaProyeccion(await JSZip.loadAsync(predicacion), cx, cy, await leerBiblia().catch(() => undefined));
+  }
+  await armarProyeccion(zip, meta.indice, clavesDeMinuta(minuta).map(x => x.clave), portada, pred);
   const blob = await zip.generateAsync({
     type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 },
     mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',

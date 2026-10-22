@@ -310,6 +310,38 @@ export async function convertirPredicacion(zip: JSZip, biblia?: BibliaPred):
   return { diapos: diapos.length, primera: diapos[0], correcciones };
 }
 
+/** (1.22.6, Josué) Para Generar proyección: la Jessie añade el "B y N" que el hermano dejó en la nube (hecho con
+ *  convertirPredicacion; puede que él lo haya abierto y guardado en PowerPoint). Se vuelve a leer su texto (cita
+ *  subrayada + párrafos, o el título centrado) y se rehacen las diapositivas: así no arrastran nada de su archivo.
+ *  Si en cambio suben el original oscuro, se convierte igual que con "Añadir PowerPoint". */
+export async function diapositivasParaProyeccion(zip: JSZip, cx: number, cy: number, biblia?: BibliaPred): Promise<string[]> {
+  const leer = async (p: string) => (await zip.file(p)?.async('string')) ?? '';
+  const pres = await leer('ppt/presentation.xml');
+  if (!pres) throw new Error('No es un PowerPoint (.pptx).');
+  const rels = await leer('ppt/_rels/presentation.xml.rels');
+  const destino = new Map([...rels.matchAll(/<Relationship\b[^>]*\/>/g)].map(r => [
+    r[0].match(/\bId="([^"]*)"/)?.[1] ?? '', r[0].match(/\bTarget="([^"]*)"/)?.[1] ?? '']));
+  const ids = [...(pres.match(/<p:sldIdLst>([\s\S]*?)<\/p:sldIdLst>/)?.[1] ?? '').matchAll(/r:id="([^"]+)"/g)].map(x => x[1]);
+  const diapos: DiapoPredicacion[] = [];
+  for (const id of ids) {
+    const xml = await leer(resolver('ppt/presentation.xml', destino.get(id) ?? ''));
+    if (/<p:sld\b[^>]*\bshow="0"/.test(xml)) continue;
+    const sp = (xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) ?? []).find(s => /<p:cNvPr\b[^>]*name="Predicación"/.test(s));
+    if (!sp) continue;
+    const pars = (sp.match(/<a:p>[\s\S]*?<\/a:p>/g) ?? [])
+      .map(p => ({ t: limpiar(runsDe(p).map(r => r.t).join('')), sub: /<a:rPr\b[^>]*\bu="sng"/.test(p), ctr: /algn="ctr"/.test(p),
+        sz: +(p.match(/<a:rPr\b[^>]*\bsz="(\d+)"/)?.[1] ?? SZ_TEXTO) }))
+      .filter(p => p.t);
+    if (!pars.length) continue;
+    if (pars.length === 1 && pars[0].ctr && !pars[0].sub) { diapos.push({ titulo: pars[0].t, parrafos: [], sz: pars[0].sz }); continue; }
+    const enc = pars[0].sub ? pars.shift()!.t : undefined;
+    diapos.push({ encabezado: enc, parrafos: pars.map(p => p.t), sz: pars[0]?.sz ?? SZ_TEXTO });
+  }
+  const lista = diapos.length ? diapos : (await leerPredicacion(zip, cx, cy, biblia)).flatMap(o => o.salida);
+  if (!lista.length) throw new Error('Sin texto para proyectar.');
+  return lista.map(d => xmlDiapoPredicacion(d, cx, cy));
+}
+
 /** (1.22.5, Josué) Ícono en el Escritorio: Windows muestra la miniatura que trae el archivo (docProps/thumbnail.jpeg), así
  *  el claro se distingue del original del hermano (que muestra la "P" de PowerPoint). */
 export async function ponerMiniatura(zip: JSZip, jpeg: Uint8Array) {

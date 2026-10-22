@@ -302,6 +302,8 @@ export interface Translations {
   pred_donde: string;
   pred_guardado: string;
   pred_corregido: (n: number) => string;
+  proy_pred_va: string;
+  proy_quitar: string;
   admin_hide_title: (nombre: string) => string;
   admin_hide_text: string;
   /** (1.20.21) Confirmar cada cambio de permiso. p = 've' | 'crear' | 'recordar' | 'proyectar'. */
@@ -726,6 +728,8 @@ export const es: Translations = {
   pred_donde: 'Se abre en el Escritorio con el nombre puesto: dale Guardar (o elige otra carpeta).',
   pred_guardado: 'Guardado',
   pred_corregido: n => (n === 1 ? 'Corregí 1 error del original:' : `Corregí ${n} errores del original:`),
+  proy_pred_va: 'Predicación: va antes de la última alabanza',
+  proy_quitar: 'Quitar',
   admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
   admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
   admin_perm_on_title: (n, p) => `¿Habilitar a ${n} para ${({ ve: 'ver las minutas', crear: 'crear minutas', recordar: 'dejar recordatorios a otras personas', proyectar: 'generar la proyección del culto' } as Record<string, string>)[p]}?`,
@@ -1148,6 +1152,8 @@ export const en: Translations = {
   pred_donde: 'Opens on the Desktop with the name filled in: press Save (or choose another folder).',
   pred_guardado: 'Saved',
   pred_corregido: n => (n === 1 ? 'Fixed 1 error in the original:' : `Fixed ${n} errors in the original:`),
+  proy_pred_va: 'Sermon: goes before the last song',
+  proy_quitar: 'Remove',
   admin_hide_title: n => `Remove ${n} from the list?`,
   admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
   admin_perm_on_title: (n, p) => `Allow ${n} to ${({ ve: 'view services', crear: 'create services', recordar: 'leave reminders for others', proyectar: 'generate the service projection' } as Record<string, string>)[p]}?`,
@@ -1570,6 +1576,8 @@ export const pt: Translations = {
   pred_donde: 'Abre na Área de Trabalho com o nome preenchido: clique em Salvar (ou escolha outra pasta).',
   pred_guardado: 'Salvo',
   pred_corregido: n => (n === 1 ? 'Corrigi 1 erro do original:' : `Corrigi ${n} erros do original:`),
+  proy_pred_va: 'Pregação: vai antes do último louvor',
+  proy_quitar: 'Remover',
   admin_hide_title: n => `Remover ${n} da lista?`,
   admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
   admin_perm_on_title: (n, p) => `Habilitar ${n} para ${({ ve: 'ver as minutas', crear: 'criar minutas', recordar: 'deixar lembretes para outras pessoas', proyectar: 'gerar a projeção do culto' } as Record<string, string>)[p]}?`,
