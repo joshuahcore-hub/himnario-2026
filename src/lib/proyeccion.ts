@@ -156,6 +156,18 @@ export async function permisoCarpeta(c: Carpeta): Promise<boolean> {
   } catch { return false; }
 }
 
+export async function olvidarCarpeta(clave: string): Promise<void> {
+  try {
+    const db = await baseCarpeta();
+    await new Promise<void>(ok => {
+      const tx = db.transaction('carpeta', 'readwrite');
+      tx.objectStore('carpeta').delete(clave);
+      tx.oncomplete = () => ok();
+      tx.onerror = () => ok();
+    });
+  } catch { /* nada */ }
+}
+
 /** ¿Ya se puede escribir en la carpeta sin preguntar? (No pide nada: sirve fuera de un toque, p. ej. al soltar.) */
 export async function permisoYaDado(c: Carpeta): Promise<boolean> {
   try { return (await c.queryPermission({ mode: 'readwrite' })) === 'granted'; } catch { return false; }

@@ -1,13 +1,14 @@
 // "Añadir PowerPoint" (1.22.0, Josué 22-10-2026): en el computador (el notebook del culto), abajo a la derecha. Se
 // arrastra ahí el PowerPoint que el hermano usa al predicar (fondo negro, con acotaciones) y se guarda solo, listo para
-// proyectar (fondo claro, sin acotaciones; ver src/lib/predicacion.ts), en la carpeta elegida UNA vez (el Escritorio).
-// Si el navegador vuelve a pedir permiso para esa carpeta, queda esperando un toque en "Guardar".
+// proyectar (fondo claro, sin acotaciones; ver src/lib/predicacion.ts). Se DESCARGA al tiro: para que caiga en el
+// Escritorio, Chrome de ese computador descarga en el Escritorio (Configuración → Descargas, una vez). Opcional: otra
+// carpeta propia; si el navegador vuelve a pedir permiso para ella, queda esperando un toque en "Guardar".
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FilePlus2, FolderOpen, Loader2 } from 'lucide-react';
 import { toast } from '@/lib/aviso';
 import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useI18n } from '@/lib/i18n/index';
-import { carpetaGuardada, elegirCarpeta, guardarArchivo, permisoCarpeta, permisoYaDado, puedeElegirCarpeta, type Carpeta } from '@/lib/proyeccion';
+import { carpetaGuardada, elegirCarpeta, guardarArchivo, olvidarCarpeta, permisoCarpeta, permisoYaDado, puedeElegirCarpeta, type Carpeta } from '@/lib/proyeccion';
 
 const MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
@@ -57,9 +58,10 @@ export default function BotonPredicacion() {
       await convertirPredicacion(zip);
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 }, mimeType: MIME });
       const nombre = `${f.name.replace(/\.pptx$/i, '')} (proyectar).pptx`;
-      // Soltar no cuenta como toque: la primera vez (Escritorio aún sin elegir) o si la carpeta pide permiso otra vez,
-      // se espera un toque en "Guardar en el Escritorio".
-      if (puedeElegirCarpeta() && (!carpeta || !(await permisoYaDado(carpeta)))) { setPendiente({ blob, nombre }); setAbierto(true); return; }
+      // Sin carpeta propia: descarga al tiro (Chrome NO deja escribir directo en el Escritorio: "contiene archivos del
+      // sistema", foto de Josué 22-10-2026; el Escritorio se logra con la carpeta de descargas de Chrome en el Escritorio).
+      // Con carpeta propia que volvió a pedir permiso: soltar no cuenta como toque, se espera el toque en "Guardar".
+      if (carpeta && !(await permisoYaDado(carpeta))) { setPendiente({ blob, nombre }); setAbierto(true); return; }
       listo(await guardarArchivo(blob, nombre, carpeta), nombre);
       setAbierto(false);
     } catch {
@@ -72,10 +74,7 @@ export default function BotonPredicacion() {
 
   const guardarPendiente = async () => {
     if (!pendiente) return;
-    // Por defecto el Escritorio de ESE computador: el navegador solo deja escribir ahí si se confirma una vez (el selector
-    // se abre ya en el Escritorio: basta "Seleccionar carpeta"). Queda recordado; "Cambiar" elige otra.
-    let destino = carpeta && (await permisoCarpeta(carpeta)) ? carpeta : null;
-    if (!carpeta) { destino = await elegirCarpeta('predicacion'); if (destino) setCarpeta(destino); }
+    const destino = carpeta && (await permisoCarpeta(carpeta)) ? carpeta : null;
     listo(await guardarArchivo(pendiente.blob, pendiente.nombre, destino), pendiente.nombre);
     setPendiente(null);
     setAbierto(false);
@@ -114,7 +113,7 @@ export default function BotonPredicacion() {
           {pendiente ? (
             <button type="button" onClick={guardarPendiente}
                     className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold">
-              {t.pred_guardar(carpeta?.name ?? t.pred_escritorio)}
+              {t.pred_guardar(carpeta?.name ?? t.pred_descargas)}
             </button>
           ) : (
             <button type="button" {...recibir} onClick={() => input.current?.click()} disabled={trabajando}
@@ -126,9 +125,13 @@ export default function BotonPredicacion() {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <FolderOpen size={14} className="shrink-0" />
               <span>{t.proy_guardar_en}</span>
-              <span className="font-semibold text-foreground truncate">{carpeta?.name ?? t.pred_escritorio}</span>
-              <button type="button" onClick={async () => { const c = await elegirCarpeta('predicacion'); if (c) setCarpeta(c); }}
-                      className="ml-auto shrink-0 underline underline-offset-2 hover:text-foreground">{t.proy_cambiar}</button>
+              <span className="font-semibold text-foreground truncate">{carpeta?.name ?? t.pred_descargas}</span>
+              {/* Otra carpeta (no puede ser el Escritorio mismo, sí una carpeta dentro de él); o volver a las descargas. */}
+              <button type="button" onClick={async () => {
+                        if (carpeta) { await olvidarCarpeta('predicacion'); setCarpeta(null); return; }
+                        const c = await elegirCarpeta('predicacion'); if (c) setCarpeta(c);
+                      }}
+                      className="ml-auto shrink-0 underline underline-offset-2 hover:text-foreground">{carpeta ? t.pred_usar_descargas : t.proy_cambiar}</button>
             </div>
           )}
         </div>

@@ -298,7 +298,8 @@ export interface Translations {
   pred_convirtiendo: string;
   pred_guardar: (carpeta: string) => string;
   pred_error: string;
-  pred_escritorio: string;
+  pred_descargas: string;
+  pred_usar_descargas: string;
   admin_hide_title: (nombre: string) => string;
   admin_hide_text: string;
   /** (1.20.21) Confirmar cada cambio de permiso. p = 've' | 'crear' | 'recordar' | 'proyectar'. */
@@ -719,7 +720,8 @@ export const es: Translations = {
   pred_convirtiendo: 'Convirtiendo…',
   pred_guardar: c => `Guardar en ${c}`,
   pred_error: 'No se pudo convertir ese PowerPoint (tiene que ser .pptx).',
-  pred_escritorio: 'el Escritorio',
+  pred_descargas: 'Descargas de Chrome',
+  pred_usar_descargas: 'Usar descargas',
   admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
   admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
   admin_perm_on_title: (n, p) => `¿Habilitar a ${n} para ${({ ve: 'ver las minutas', crear: 'crear minutas', recordar: 'dejar recordatorios a otras personas', proyectar: 'generar la proyección del culto' } as Record<string, string>)[p]}?`,
@@ -1138,7 +1140,8 @@ export const en: Translations = {
   pred_convirtiendo: 'Converting…',
   pred_guardar: c => `Save to ${c}`,
   pred_error: 'Could not convert that PowerPoint (it must be .pptx).',
-  pred_escritorio: 'the Desktop',
+  pred_descargas: 'Browser downloads',
+  pred_usar_descargas: 'Use downloads',
   admin_hide_title: n => `Remove ${n} from the list?`,
   admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
   admin_perm_on_title: (n, p) => `Allow ${n} to ${({ ve: 'view services', crear: 'create services', recordar: 'leave reminders for others', proyectar: 'generate the service projection' } as Record<string, string>)[p]}?`,
@@ -1557,7 +1560,8 @@ export const pt: Translations = {
   pred_convirtiendo: 'Convertendo…',
   pred_guardar: c => `Salvar em ${c}`,
   pred_error: 'Não foi possível converter esse PowerPoint (deve ser .pptx).',
-  pred_escritorio: 'a Área de Trabalho',
+  pred_descargas: 'Downloads do navegador',
+  pred_usar_descargas: 'Usar downloads',
   admin_hide_title: n => `Remover ${n} da lista?`,
   admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
   admin_perm_on_title: (n, p) => `Habilitar ${n} para ${({ ve: 'ver as minutas', crear: 'criar minutas', recordar: 'deixar lembretes para outras pessoas', proyectar: 'gerar a projeção do culto' } as Record<string, string>)[p]}?`,
