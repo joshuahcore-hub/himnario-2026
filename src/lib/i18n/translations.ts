@@ -296,10 +296,11 @@ export interface Translations {
   pred_soltar: string;
   pred_elegir: string;
   pred_convirtiendo: string;
-  pred_guardar: (carpeta: string) => string;
+  pred_guardar: string;
   pred_error: string;
-  pred_descargas: string;
-  pred_usar_descargas: string;
+  pred_listo: (n: number) => string;
+  pred_donde: string;
+  pred_guardado: string;
   admin_hide_title: (nombre: string) => string;
   admin_hide_text: string;
   /** (1.20.21) Confirmar cada cambio de permiso. p = 've' | 'crear' | 'recordar' | 'proyectar'. */
@@ -718,10 +719,11 @@ export const es: Translations = {
   pred_soltar: 'Suéltalo aquí',
   pred_elegir: 'Arrastra el PowerPoint o elígelo',
   pred_convirtiendo: 'Convirtiendo…',
-  pred_guardar: c => `Guardar en ${c}`,
+  pred_guardar: 'Guardar',
   pred_error: 'No se pudo convertir ese PowerPoint (tiene que ser .pptx).',
-  pred_descargas: 'Descargas de Chrome',
-  pred_usar_descargas: 'Usar descargas',
+  pred_listo: n => `Listo para proyectar: ${n} diapositivas`,
+  pred_donde: 'Se abre en el Escritorio con el nombre puesto: dale Guardar (o elige otra carpeta).',
+  pred_guardado: 'Guardado',
   admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
   admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
   admin_perm_on_title: (n, p) => `¿Habilitar a ${n} para ${({ ve: 'ver las minutas', crear: 'crear minutas', recordar: 'dejar recordatorios a otras personas', proyectar: 'generar la proyección del culto' } as Record<string, string>)[p]}?`,
@@ -1138,10 +1140,11 @@ export const en: Translations = {
   pred_soltar: 'Drop it here',
   pred_elegir: 'Drop the PowerPoint or choose it',
   pred_convirtiendo: 'Converting…',
-  pred_guardar: c => `Save to ${c}`,
+  pred_guardar: 'Save',
   pred_error: 'Could not convert that PowerPoint (it must be .pptx).',
-  pred_descargas: 'Browser downloads',
-  pred_usar_descargas: 'Use downloads',
+  pred_listo: n => `Ready to project: ${n} slides`,
+  pred_donde: 'Opens on the Desktop with the name filled in: press Save (or choose another folder).',
+  pred_guardado: 'Saved',
   admin_hide_title: n => `Remove ${n} from the list?`,
   admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
   admin_perm_on_title: (n, p) => `Allow ${n} to ${({ ve: 'view services', crear: 'create services', recordar: 'leave reminders for others', proyectar: 'generate the service projection' } as Record<string, string>)[p]}?`,
@@ -1558,10 +1561,11 @@ export const pt: Translations = {
   pred_soltar: 'Solte aqui',
   pred_elegir: 'Arraste o PowerPoint ou escolha',
   pred_convirtiendo: 'Convertendo…',
-  pred_guardar: c => `Salvar em ${c}`,
+  pred_guardar: 'Salvar',
   pred_error: 'Não foi possível converter esse PowerPoint (deve ser .pptx).',
-  pred_descargas: 'Downloads do navegador',
-  pred_usar_descargas: 'Usar downloads',
+  pred_listo: n => `Pronto para projetar: ${n} slides`,
+  pred_donde: 'Abre na Área de Trabalho com o nome preenchido: clique em Salvar (ou escolha outra pasta).',
+  pred_guardado: 'Salvo',
   admin_hide_title: n => `Remover ${n} da lista?`,
   admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
   admin_perm_on_title: (n, p) => `Habilitar ${n} para ${({ ve: 'ver as minutas', crear: 'criar minutas', recordar: 'deixar lembretes para outras pessoas', proyectar: 'gerar a projeção do culto' } as Record<string, string>)[p]}?`,

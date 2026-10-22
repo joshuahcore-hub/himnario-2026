@@ -1,14 +1,16 @@
 // "Añadir PowerPoint" (1.22.0, Josué 22-10-2026): en el computador (el notebook del culto), abajo a la derecha. Se
-// arrastra ahí el PowerPoint que el hermano usa al predicar (fondo negro, con acotaciones) y se guarda solo, listo para
-// proyectar (fondo claro, sin acotaciones; ver src/lib/predicacion.ts). Se DESCARGA al tiro: para que caiga en el
-// Escritorio, Chrome de ese computador descarga en el Escritorio (Configuración → Descargas, una vez). Opcional: otra
-// carpeta propia; si el navegador vuelve a pedir permiso para ella, queda esperando un toque en "Guardar".
+// arrastra ahí el PowerPoint que el hermano usa al predicar (fondo negro, con acotaciones) y queda listo para proyectar
+// (fondo claro, sin acotaciones; ver src/lib/predicacion.ts).
+// (1.22.3, Josué) Guardar: se abre la ventana de GUARDAR ya en el Escritorio, con el nombre puesto; "Guardar" y listo, o
+// se cambia la carpeta (la próxima vez parte en la última usada). Sin tocar la configuración de Chrome. OJO: la ventana
+// de ELEGIR CARPETA no sirve, Chrome no deja el Escritorio ("contiene archivos del sistema"); la de guardar archivo sí.
+// Soltar un archivo no cuenta como toque, por eso la ventana se abre al tocar "Guardar".
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FilePlus2, FolderOpen, Loader2 } from 'lucide-react';
+import { FilePlus2, Loader2, Save } from 'lucide-react';
 import { toast } from '@/lib/aviso';
 import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useI18n } from '@/lib/i18n/index';
-import { carpetaGuardada, elegirCarpeta, guardarArchivo, olvidarCarpeta, permisoCarpeta, permisoYaDado, puedeElegirCarpeta, type Carpeta } from '@/lib/proyeccion';
+import { guardarArchivo } from '@/lib/proyeccion';
 
 const MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
@@ -17,12 +19,10 @@ export default function BotonPredicacion() {
   const [abierto, setAbierto] = useState(false);
   const [arrastrando, setArrastrando] = useState(false);
   const [trabajando, setTrabajando] = useState(false);
-  const [pendiente, setPendiente] = useState<{ blob: Blob; nombre: string } | null>(null);
-  const [carpeta, setCarpeta] = useState<Carpeta | null>(null);
-  useEffect(() => { carpetaGuardada('predicacion').then(setCarpeta); }, []);
+  const [listo, setListo] = useState<{ blob: Blob; nombre: string; diapos: number } | null>(null);
   const caja = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  useAlTocarFuera(caja, abierto && !pendiente, useCallback(() => setAbierto(false), []));
+  useAlTocarFuera(caja, abierto, useCallback(() => setAbierto(false), []));
 
   // Al arrastrar un archivo sobre la ventana aparece la zona para soltarlo; soltarlo en otro lado no abre el archivo
   // en el navegador.
@@ -45,39 +45,52 @@ export default function BotonPredicacion() {
     };
   }, []);
 
-  const listo = (donde: string | null, nombre: string) =>
-    toast.success(donde ? `${t.proy_guardado(donde)}: ${nombre}` : `${t.proy_listo}: ${nombre}`);
-
   const procesar = async (f: File | undefined) => {
     if (!f || trabajando) return;
     if (!/\.pptx$/i.test(f.name)) { toast.error(t.pred_error); return; }
     setTrabajando(true);
+    setListo(null);
+    setAbierto(true);
     try {
       const [{ default: JSZip }, { convertirPredicacion }] = await Promise.all([import('jszip'), import('@/lib/predicacion')]);
       const zip = await JSZip.loadAsync(await f.arrayBuffer());
-      await convertirPredicacion(zip);
+      const diapos = await convertirPredicacion(zip);
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 }, mimeType: MIME });
-      const nombre = `${f.name.replace(/\.pptx$/i, '')} (proyectar).pptx`;
-      // Sin carpeta propia: descarga al tiro (Chrome NO deja escribir directo en el Escritorio: "contiene archivos del
-      // sistema", foto de Josué 22-10-2026; el Escritorio se logra con la carpeta de descargas de Chrome en el Escritorio).
-      // Con carpeta propia que volvió a pedir permiso: soltar no cuenta como toque, se espera el toque en "Guardar".
-      if (carpeta && !(await permisoYaDado(carpeta))) { setPendiente({ blob, nombre }); setAbierto(true); return; }
-      listo(await guardarArchivo(blob, nombre, carpeta), nombre);
-      setAbierto(false);
+      setListo({ blob, nombre: `${f.name.replace(/\.pptx$/i, '')} (proyectar).pptx`, diapos });
     } catch {
       toast.error(t.pred_error);
+      setAbierto(false);
     } finally {
       setTrabajando(false);
       if (input.current) input.current.value = '';
     }
   };
 
-  const guardarPendiente = async () => {
-    if (!pendiente) return;
-    const destino = carpeta && (await permisoCarpeta(carpeta)) ? carpeta : null;
-    listo(await guardarArchivo(pendiente.blob, pendiente.nombre, destino), pendiente.nombre);
-    setPendiente(null);
-    setAbierto(false);
+  const guardar = async () => {
+    if (!listo) return;
+    const ventana = (window as any).showSaveFilePicker;
+    if (!ventana) { // navegador sin ventana de guardar: descarga normal
+      await guardarArchivo(listo.blob, listo.nombre, null);
+      toast.success(`${t.proy_listo}: ${listo.nombre}`);
+      setListo(null); setAbierto(false);
+      return;
+    }
+    try {
+      const archivo = await ventana({
+        id: 'predicacion', startIn: 'desktop', suggestedName: listo.nombre,
+        types: [{ description: 'PowerPoint', accept: { [MIME]: ['.pptx'] } }],
+      });
+      const w = await archivo.createWritable();
+      await w.write(listo.blob);
+      await w.close();
+      toast.success(`${t.pred_guardado}: ${archivo.name}`);
+      setListo(null); setAbierto(false);
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return; // canceló la ventana: sigue listo para guardar
+      await guardarArchivo(listo.blob, listo.nombre, null);
+      toast.success(`${t.proy_listo}: ${listo.nombre}`);
+      setListo(null); setAbierto(false);
+    }
   };
 
   const soltar = (e: React.DragEvent) => {
@@ -109,30 +122,27 @@ export default function BotonPredicacion() {
       {abierto && !arrastrando && (
         <div className="absolute right-0 bottom-full mb-3 w-80 z-[60] rounded-2xl border border-border bg-card p-4 shadow-xl space-y-3 animate-in fade-in zoom-in-95 duration-150">
           <p className="text-sm font-semibold text-foreground">{t.pred_boton}</p>
-          <p className="text-xs text-muted-foreground leading-relaxed">{t.pred_texto}</p>
-          {pendiente ? (
-            <button type="button" onClick={guardarPendiente}
-                    className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold">
-              {t.pred_guardar(carpeta?.name ?? t.pred_descargas)}
-            </button>
+          {listo ? (
+            <>
+              <div className="rounded-xl bg-muted px-3 py-2">
+                <p className="text-sm font-medium text-foreground break-words">{listo.nombre}</p>
+                <p className="text-[11px] text-muted-foreground">{t.pred_listo(listo.diapos)}</p>
+              </div>
+              <button type="button" onClick={guardar}
+                      className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-1.5">
+                <Save size={15} />{t.pred_guardar}
+              </button>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{t.pred_donde}</p>
+            </>
           ) : (
-            <button type="button" {...recibir} onClick={() => input.current?.click()} disabled={trabajando}
-                    className="w-full h-20 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center gap-1.5">
-              {trabajando ? <Loader2 size={15} className="animate-spin" /> : <FilePlus2 size={15} />}{t.pred_elegir}
-            </button>
-          )}
-          {puedeElegirCarpeta() && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <FolderOpen size={14} className="shrink-0" />
-              <span>{t.proy_guardar_en}</span>
-              <span className="font-semibold text-foreground truncate">{carpeta?.name ?? t.pred_descargas}</span>
-              {/* Otra carpeta (no puede ser el Escritorio mismo, sí una carpeta dentro de él); o volver a las descargas. */}
-              <button type="button" onClick={async () => {
-                        if (carpeta) { await olvidarCarpeta('predicacion'); setCarpeta(null); return; }
-                        const c = await elegirCarpeta('predicacion'); if (c) setCarpeta(c);
-                      }}
-                      className="ml-auto shrink-0 underline underline-offset-2 hover:text-foreground">{carpeta ? t.pred_usar_descargas : t.proy_cambiar}</button>
-            </div>
+            <>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t.pred_texto}</p>
+              <button type="button" {...recibir} onClick={() => input.current?.click()} disabled={trabajando}
+                      className="w-full h-20 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center gap-1.5">
+                {trabajando ? <Loader2 size={15} className="animate-spin" /> : <FilePlus2 size={15} />}
+                {trabajando ? t.pred_convirtiendo : t.pred_elegir}
+              </button>
+            </>
           )}
         </div>
       )}

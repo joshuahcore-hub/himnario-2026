@@ -44,8 +44,10 @@ const ANCHOS: Record<string, number> = {
 };
 function anchoTexto(t: string, sz: number) {
   let w = 0;
-  for (const ch of t) w += ANCHOS[ch] ?? ANCHOS[ch.normalize('NFD')[0]] ?? (/\d/.test(ch) ? 507 : 500);
-  return (w / 1000) * (sz / 100) * 0.97; // puntos (0,97: medido contra los renglones reales de salida.pptx)
+  // Las MAYÚSCULAS (citas) ocupan algo más que en la tabla.
+  for (const ch of t) w += (ANCHOS[ch] ?? ANCHOS[ch.normalize('NFD')[0]] ?? (/\d/.test(ch) ? 507 : 500)) * (/\p{Lu}/u.test(ch) ? 1.07 : 1);
+  // Puntos. Factor medido con PowerPoint sobre el ejemplo (ninguna diapositiva se pasa).
+  return (w / 1000) * (sz / 100) * 1.03;
 }
 /** Renglones que ocupa un párrafo en un ancho dado (corta por palabras, como PowerPoint). */
 function renglones(t: string, sz: number, ancho: number) {
@@ -60,18 +62,41 @@ function renglones(t: string, sz: number, ancho: number) {
 
 interface Medidas { ancho: number; alto: number } // puntos
 const medidasDe = (cx: number, cy: number): Medidas => ({ ancho: cx / 12700, alto: cy / 12700 });
-// Cuadro: todo el ancho, márgenes internos de 7,2 pt; los párrafos con sangría de 27 pt (como el hermano). El hermano
-// llena hasta el borde: a 44 pt caben 9 renglones bajo la cita (el espacio entre párrafos no se cuenta).
-const SANGRIA = 27, MARGEN = 7.2;
+// Cuadro: todo el ancho, márgenes internos de 7,2 pt; los párrafos con sangría de 27 pt (como el hermano).
+// (1.22.3, Josué) El ÚLTIMO renglón queda LIBRE (en el culto el data corta abajo): a 44 pt, 8 renglones bajo la cita,
+// contando el espacio entre párrafos. Lo que no cabe sigue en la diapositiva siguiente (la letra no se achica).
+const SANGRIA = 27, MARGEN = 7.2, ESPACIO_PARRAFO = 0.2;
 function cabe(enc: string | undefined, parrafos: string[], sz: number, m: Medidas) {
-  const libre = m.alto - (enc ? (SZ_ENC / 100) * 1.2 * renglones(enc, SZ_ENC, m.ancho - 2 * MARGEN) : 0);
-  const caben = Math.floor(libre / ((sz / 100) * 1.2) + 0.2);
-  return parrafos.reduce((n, p) => n + renglones(p, sz, m.ancho - 2 * MARGEN - SANGRIA), 0) <= caben;
+  const renglon = (sz / 100) * 1.2;
+  const libre = m.alto - MARGEN - renglon - (enc ? (SZ_ENC / 100) * 1.2 * renglones(enc, SZ_ENC, m.ancho - 2 * MARGEN) : 0);
+  const usado = parrafos.reduce((n, p) => n + renglon * renglones(p, sz, m.ancho - 2 * MARGEN - SANGRIA) + (sz / 100) * ESPACIO_PARRAFO, 0);
+  return usado <= libre;
 }
-function diapo(enc: string | undefined, parrafos: string[], m: Medidas): DiapoPredicacion {
-  let sz = SZ_TEXTO;
-  while (sz > SZ_MIN && !cabe(enc, parrafos, sz, m)) sz -= 200;
-  return { encabezado: enc, parrafos, sz };
+const diapo = (enc: string | undefined, parrafos: string[]): DiapoPredicacion => ({ encabezado: enc, parrafos, sz: SZ_TEXTO });
+
+/** Parte un texto que no cabe solo en una diapositiva: por oraciones, luego por comas, luego por palabras. Los trozos
+ *  siguientes llevan `prefijo` ("29 … " en los libros). */
+function trozos(texto: string, enc: string | undefined, m: Medidas, prefijo: string): string[] {
+  if (cabe(enc, [texto], SZ_TEXTO, m)) return [texto];
+  // El corte de oración pide una letra antes del punto: así "106 … Los" (número + puntos suspensivos) no se separa.
+  for (const corte of [/(?<=\p{L}[.!?…»”"]+)\s+(?=[¡¿«“"—…\p{Lu}])/u, /(?<=\p{L}[,;:)]+)\s+/u, /\s+/]) {
+    const partes = texto.split(corte);
+    // Nunca un trozo que sea solo el número ("106 …"): se junta con lo que sigue.
+    for (let i = partes.length - 2; i >= 0; i--) if (!/\p{L}/u.test(partes[i])) partes.splice(i, 2, `${partes[i]} ${partes[i + 1]}`);
+    if (partes.length < 2) continue;
+    const out: string[] = [];
+    let actual = '';
+    for (const p of partes) {
+      const prueba = actual ? `${actual} ${p}` : p;
+      if (!actual || cabe(enc, [prueba], SZ_TEXTO, m)) { actual = prueba; continue; }
+      out.push(actual);
+      actual = prefijo + p.replace(/^[—–…-]\s*/, '');
+    }
+    out.push(actual);
+    if (out.length < 2) continue; // no se logró partir a este nivel: probar uno más fino
+    return out.flatMap(t => trozos(t, enc, m, prefijo));
+  }
+  return [texto];
 }
 
 // ---- Lectura del archivo del hermano
@@ -132,7 +157,14 @@ function convertirSeccion(s: Seccion, m: Medidas): DiapoPredicacion[] {
       return `${limpiar(cita[1])} ${cita[2]}:${a}${b !== a ? `-${b}` : ''}`;
     };
     let grupo: Seccion['unidades'] = [];
-    const cerrar = () => { if (grupo.length) out.push(diapo(encDe(grupo), grupo.map(u => u.texto), m)); grupo = []; };
+    const cerrar = () => {
+      if (grupo.length === 1) {
+        // Un versículo que no cabe solo sigue en la diapositiva siguiente (misma cita).
+        const enc = encDe(grupo);
+        for (const t of trozos(grupo[0].texto, enc, m, '')) out.push(diapo(enc, [t]));
+      } else if (grupo.length) out.push(diapo(encDe(grupo), grupo.map(u => u.texto)));
+      grupo = [];
+    };
     for (const u of s.unidades) {
       const prueba = [...grupo, u];
       const seguido = grupo.length && +u.num === +grupo[grupo.length - 1].num + 1;
@@ -144,16 +176,7 @@ function convertirSeccion(s: Seccion, m: Medidas): DiapoPredicacion[] {
   }
   // Libro: cada párrafo solo; si no cabe, por oraciones.
   for (const u of s.unidades) {
-    if (cabe(s.enc, [u.texto], SZ_TEXTO, m)) { out.push(diapo(s.enc, [u.texto], m)); continue; }
-    const oraciones = u.texto.split(/(?<=[.!?…»”"])\s+(?=[¡¿«“"—…A-ZÁÉÍÓÚÑ])/);
-    let actual = '';
-    const prefijo = u.num ? `${u.num} … ` : '';
-    for (const o of oraciones) {
-      const prueba = actual ? `${actual} ${o}` : o;
-      if (actual && !cabe(s.enc, [prueba], SZ_TEXTO, m)) { out.push(diapo(s.enc, [actual], m)); actual = prefijo + o.replace(/^[—–…-]\s*/, ''); }
-      else actual = prueba;
-    }
-    if (actual) out.push(diapo(s.enc, [actual], m));
+    for (const t of trozos(u.texto, s.enc, m, u.num ? `${u.num} … ` : '')) out.push(diapo(s.enc, [t]));
   }
   return out;
 }

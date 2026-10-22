@@ -122,26 +122,25 @@ function baseCarpeta(): Promise<IDBDatabase> {
     r.onerror = () => mal(r.error);
   });
 }
-/** clave: 'destino' (proyección) o 'predicacion' (1.22.0: el PowerPoint del hermano convertido). */
-export async function carpetaGuardada(clave = 'destino'): Promise<Carpeta | null> {
+export async function carpetaGuardada(): Promise<Carpeta | null> {
   if (!puedeElegirCarpeta()) return null;
   try {
     const db = await baseCarpeta();
     return await new Promise(ok => {
-      const r = db.transaction('carpeta').objectStore('carpeta').get(clave);
+      const r = db.transaction('carpeta').objectStore('carpeta').get('destino');
       r.onsuccess = () => ok((r.result as Carpeta) ?? null);
       r.onerror = () => ok(null);
     });
   } catch { return null; }
 }
 /** Abre el selector de carpetas (empieza en el Escritorio) y la recuerda. null si se canceló. */
-export async function elegirCarpeta(clave = 'destino'): Promise<Carpeta | null> {
+export async function elegirCarpeta(): Promise<Carpeta | null> {
   try {
-    const c: Carpeta = await (window as any).showDirectoryPicker({ id: clave === 'destino' ? 'proyeccion' : clave, mode: 'readwrite', startIn: 'desktop' });
+    const c: Carpeta = await (window as any).showDirectoryPicker({ id: 'proyeccion', mode: 'readwrite', startIn: 'desktop' });
     const db = await baseCarpeta();
     await new Promise<void>((ok, mal) => {
       const tx = db.transaction('carpeta', 'readwrite');
-      tx.objectStore('carpeta').put(c, clave);
+      tx.objectStore('carpeta').put(c, 'destino');
       tx.oncomplete = () => ok();
       tx.onerror = () => mal(tx.error);
     });
@@ -154,23 +153,6 @@ export async function permisoCarpeta(c: Carpeta): Promise<boolean> {
     if ((await c.queryPermission({ mode: 'readwrite' })) === 'granted') return true;
     return (await c.requestPermission({ mode: 'readwrite' })) === 'granted';
   } catch { return false; }
-}
-
-export async function olvidarCarpeta(clave: string): Promise<void> {
-  try {
-    const db = await baseCarpeta();
-    await new Promise<void>(ok => {
-      const tx = db.transaction('carpeta', 'readwrite');
-      tx.objectStore('carpeta').delete(clave);
-      tx.oncomplete = () => ok();
-      tx.onerror = () => ok();
-    });
-  } catch { /* nada */ }
-}
-
-/** ¿Ya se puede escribir en la carpeta sin preguntar? (No pide nada: sirve fuera de un toque, p. ej. al soltar.) */
-export async function permisoYaDado(c: Carpeta): Promise<boolean> {
-  try { return (await c.queryPermission({ mode: 'readwrite' })) === 'granted'; } catch { return false; }
 }
 
 /** (1.22.0) Guarda el archivo en la carpeta (con permiso ya dado) o, si no se puede, lo descarga. Devuelve la carpeta o null. */
