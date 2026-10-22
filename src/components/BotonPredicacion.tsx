@@ -10,16 +10,49 @@ import { FilePlus2, Loader2, Save } from 'lucide-react';
 import { toast } from '@/lib/aviso';
 import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useI18n } from '@/lib/i18n/index';
-import { guardarArchivo } from '@/lib/proyeccion';
+import { guardarArchivo, leerBiblia } from '@/lib/proyeccion';
+import type { DiapoPredicacion } from '@/lib/predicacion';
 
 const MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+/** Miniatura (ícono en Windows) de la primera diapositiva: fondo claro y letra negra, como queda. */
+async function miniatura(d: DiapoPredicacion): Promise<Uint8Array> {
+  const W = 256, H = 192, k = W / 720; // puntos → píxeles (diapositiva 4:3 de 720 pt)
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#EEECE1'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#000';
+  const lineas = (texto: string, ancho: number) => {
+    const out: string[] = []; let l = '';
+    for (const p of texto.split(' ')) { const t = l ? `${l} ${p}` : p; if (l && g.measureText(t).width > ancho) { out.push(l); l = p; } else l = t; }
+    if (l) out.push(l);
+    return out;
+  };
+  if (d.titulo !== undefined) {
+    const px = (d.sz / 100) * k;
+    g.font = `bold ${px}px Calibri, Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const ls = lineas(d.titulo, W - 40);
+    ls.forEach((l, i) => g.fillText(l, W / 2, H / 2 + (i - (ls.length - 1) / 2) * px * 1.2));
+  } else {
+    let y = 4;
+    if (d.encabezado) {
+      const px = 48 * k; g.font = `italic bold ${px}px Calibri, Arial, sans-serif`; g.textBaseline = 'top';
+      for (const l of lineas(d.encabezado, W - 8)) { g.fillText(l, 4, y); y += px * 1.2; }
+    }
+    const px = (d.sz / 100) * k; g.font = `italic bold ${px}px Calibri, Arial, sans-serif`;
+    for (const p of d.parrafos) for (const l of lineas(p, W - 20)) { if (y < H) g.fillText(l, 14, y); y += px * 1.2; }
+  }
+  const blob: Blob = await new Promise(ok => c.toBlob(b => ok(b!), 'image/jpeg', 0.9));
+  return new Uint8Array(await blob.arrayBuffer());
+}
 
 export default function BotonPredicacion() {
   const { t } = useI18n();
   const [abierto, setAbierto] = useState(false);
   const [arrastrando, setArrastrando] = useState(false);
   const [trabajando, setTrabajando] = useState(false);
-  const [listo, setListo] = useState<{ blob: Blob; nombre: string; diapos: number } | null>(null);
+  const [listo, setListo] = useState<{ blob: Blob; nombre: string; diapos: number; correcciones: string[] } | null>(null);
   const caja = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   useAlTocarFuera(caja, abierto, useCallback(() => setAbierto(false), []));
@@ -52,11 +85,14 @@ export default function BotonPredicacion() {
     setListo(null);
     setAbierto(true);
     try {
-      const [{ default: JSZip }, { convertirPredicacion }] = await Promise.all([import('jszip'), import('@/lib/predicacion')]);
+      const [{ default: JSZip }, { convertirPredicacion, ponerMiniatura, nombreSalida }] = await Promise.all([import('jszip'), import('@/lib/predicacion')]);
       const zip = await JSZip.loadAsync(await f.arrayBuffer());
-      const diapos = await convertirPredicacion(zip);
+      // (1.22.5) Con la Biblia de la app se corrigen los errores del archivo; sin ella (sin internet la 1.ª vez), igual se convierte.
+      const biblia = await leerBiblia().catch(() => undefined);
+      const r = await convertirPredicacion(zip, biblia);
+      await ponerMiniatura(zip, await miniatura(r.primera)).catch(() => {});
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 }, mimeType: MIME });
-      setListo({ blob, nombre: `${f.name.replace(/\.pptx$/i, '')} (proyectar).pptx`, diapos });
+      setListo({ blob, nombre: nombreSalida(f.name), diapos: r.diapos, correcciones: r.correcciones });
     } catch {
       toast.error(t.pred_error);
       setAbierto(false);
@@ -128,6 +164,14 @@ export default function BotonPredicacion() {
                 <p className="text-sm font-medium text-foreground break-words">{listo.nombre}</p>
                 <p className="text-[11px] text-muted-foreground">{t.pred_listo(listo.diapos)}</p>
               </div>
+              {listo.correcciones.length > 0 && (
+                <div className="text-[11px] text-muted-foreground">
+                  <p className="font-semibold text-foreground">{t.pred_corregido(listo.correcciones.length)}</p>
+                  <ul className="mt-1 max-h-24 overflow-y-auto space-y-0.5">
+                    {listo.correcciones.map((c, i) => <li key={i}>· {c}</li>)}
+                  </ul>
+                </div>
+              )}
               <button type="button" onClick={guardar}
                       className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-1.5">
                 <Save size={15} />{t.pred_guardar}

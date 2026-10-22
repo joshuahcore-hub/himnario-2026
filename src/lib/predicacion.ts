@@ -125,7 +125,8 @@ function leerDiapositiva(xml: string, encAnterior: string): { secciones: Seccion
   for (const sp of xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) ?? []) {
     if (/<p:ph\b[^>]*type="(sldNum|dt|ftr)"/.test(sp)) continue;
     for (const p of sp.match(/<a:p>[\s\S]*?<\/a:p>/g) ?? []) {
-      const runs = runsDe(p).filter(r => !COLOR_ACOTACION.has(r.color));
+      // La acotación se cambia por un espacio: quitarla no puede pegar dos palabras ("resplandeceráncomo", Dn 12:3).
+      const runs = runsDe(p).map(r => (COLOR_ACOTACION.has(r.color) ? { t: ' ', color: '' } : r));
       const texto = limpiar(runs.map(r => r.t).join(''));
       if (!texto) continue;
       todo.push(texto);
@@ -147,14 +148,63 @@ function leerDiapositiva(xml: string, encAnterior: string): { secciones: Seccion
   return { secciones: secciones.filter(s => s.unidades.length), texto: todo.join(' ') };
 }
 
-function convertirSeccion(s: Seccion, m: Medidas): DiapoPredicacion[] {
+// ---- (1.22.5, Josué) Errores del archivo del hermano, corregidos con la Biblia de la app (RVR1960): el número de un
+// versículo que no corresponde a su texto, faltas en el texto de un versículo completo y el nombre del libro
+// ("GALATAS" → "GÁLATAS"). La cita de arriba ya se rehace con los versículos que de verdad están abajo. Los trozos de
+// versículo ("9 … habiéndoos despojado…") se respetan tal cual.
+export interface BibliaPred { libros: { n: string; c: string[][] }[] }
+const sinTildes = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+const claveLibro = (s: string) => sinTildes(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+const palabras = (s: string) => sinTildes(s).toLowerCase().match(/[a-zñ]+/g) ?? [];
+/** comun: palabras de `a` que están en `b`; da cuánto de `a` está en `b` y cuánto se parecen en total. */
+function parecido(a: string, b: string) {
+  const pa = palabras(a), pb = palabras(b);
+  if (!pa.length || !pb.length) return { cubre: 0, total: 0 };
+  const cuenta = new Map<string, number>();
+  for (const w of pb) cuenta.set(w, (cuenta.get(w) ?? 0) + 1);
+  let c = 0;
+  for (const w of pa) { const n = cuenta.get(w); if (n) { c++; cuenta.set(w, n - 1); } }
+  return { cubre: c / pa.length, total: c / Math.max(pa.length, pb.length) };
+}
+function corregirConBiblia(s: Seccion, cita: RegExpMatchArray, biblia: BibliaPred, log: string[]): string {
+  const escrito = limpiar(cita[1]);
+  const libro = biblia.libros.find(l => claveLibro(l.n) === claveLibro(escrito));
+  const versos = libro?.c[+cita[2] - 1];
+  if (!libro || !versos) return escrito;
+  const nombre = libro.n.toLocaleUpperCase('es');
+  if (nombre !== escrito && !log.includes(`${escrito} → ${nombre}`)) log.push(`${escrito} → ${nombre}`);
+  for (const u of s.unidades) {
+    if (!u.num) continue;
+    const cuerpo = u.texto.replace(/^\d+\s*/, '');
+    if (palabras(cuerpo).length < 4) continue;
+    let n = +u.num;
+    // Número equivocado: el texto es claramente de otro versículo del capítulo.
+    if (parecido(cuerpo, versos[n - 1] ?? '').cubre < 0.5) {
+      let mejor = 0, cual = 0;
+      versos.forEach((v, i) => { const p = parecido(cuerpo, v).cubre; if (p > mejor) { mejor = p; cual = i + 1; } });
+      if (mejor >= 0.8 && cual !== n) { log.push(`${nombre} ${cita[2]}: versículo ${n} → ${cual}`); n = cual; u.num = String(n); }
+    }
+    // Faltas en un versículo completo: se deja el texto de la Biblia.
+    const biblico = versos[n - 1];
+    if (!biblico || /^[…—-]/.test(cuerpo)) { u.texto = `${n} ${cuerpo}`; continue; }
+    const p = parecido(cuerpo, biblico);
+    if (p.total >= 0.8 && limpiar(cuerpo).replace(/[\s.,;:]+$/, '') !== limpiar(biblico).replace(/[\s.,;:]+$/, '')) {
+      if (p.total < 1) log.push(`${nombre} ${cita[2]}:${n}: texto corregido`);
+      u.texto = `${n} ${limpiar(biblico)}`;
+    } else u.texto = `${n} ${cuerpo}`;
+  }
+  return nombre;
+}
+
+function convertirSeccion(s: Seccion, m: Medidas, biblia?: BibliaPred, log: string[] = []): DiapoPredicacion[] {
   const out: DiapoPredicacion[] = [];
   const cita = s.enc.match(RE_CITA);
   if (cita) {
+    const libro = biblia ? corregirConBiblia(s, cita, biblia, log) : limpiar(cita[1]);
     const encDe = (u: Seccion['unidades']) => {
       const a = u[0].num, b = u[u.length - 1].num;
       if (!a || !b) return s.enc;
-      return `${limpiar(cita[1])} ${cita[2]}:${a}${b !== a ? `-${b}` : ''}`;
+      return `${libro} ${cita[2]}:${a}${b !== a ? `-${b}` : ''}`;
     };
     let grupo: Seccion['unidades'] = [];
     const cerrar = () => {
@@ -182,7 +232,7 @@ function convertirSeccion(s: Seccion, m: Medidas): DiapoPredicacion[] {
 }
 
 /** Lee el PowerPoint del hermano y dice en qué queda cada una de sus diapositivas (cx, cy: tamaño de destino). */
-export async function leerPredicacion(zip: JSZip, cx = 9144000, cy = 6858000): Promise<OriginalPredicacion[]> {
+export async function leerPredicacion(zip: JSZip, cx = 9144000, cy = 6858000, biblia?: BibliaPred, log: string[] = []): Promise<OriginalPredicacion[]> {
   const leer = async (p: string) => (await zip.file(p)?.async('string')) ?? '';
   const pres = await leer('ppt/presentation.xml');
   const rels = await leer('ppt/_rels/presentation.xml.rels');
@@ -203,21 +253,23 @@ export async function leerPredicacion(zip: JSZip, cx = 9144000, cy = 6858000): P
       continue;
     }
     if (secciones.length) enc = secciones[secciones.length - 1].enc;
-    const salida = secciones.flatMap(s => convertirSeccion(s, m));
+    const salida = secciones.flatMap(s => convertirSeccion(s, m, biblia, log));
     out.push({ n: i + 1, resumen: secciones.map(s => s.enc).filter(Boolean).join(' · ') || texto.slice(0, 40) || '—', salida });
   }
   return out;
 }
 
 /** (1.22.0, Josué) Convierte el archivo del hermano EN SU LUGAR: quedan solo las diapositivas para proyectar (con un
- *  diseño suyo, cuyos gráficos no se muestran). Devuelve cuántas quedaron. */
-export async function convertirPredicacion(zip: JSZip): Promise<number> {
+ *  diseño suyo, cuyos gráficos no se muestran). Con la Biblia, corrige sus errores (ver corregirConBiblia). */
+export async function convertirPredicacion(zip: JSZip, biblia?: BibliaPred):
+  Promise<{ diapos: number; primera: DiapoPredicacion; correcciones: string[] }> {
   const leer = async (p: string) => (await zip.file(p)?.async('string')) ?? '';
   let pres = await leer('ppt/presentation.xml');
   let presRels = await leer('ppt/_rels/presentation.xml.rels');
   let tipos = await leer('[Content_Types].xml');
   const cx = +(pres.match(/<p:sldSz\b[^>]*\bcx="(\d+)"/)?.[1] ?? 9144000), cy = +(pres.match(/<p:sldSz\b[^>]*\bcy="(\d+)"/)?.[1] ?? 6858000);
-  const diapos = (await leerPredicacion(zip, cx, cy)).flatMap(o => o.salida);
+  const correcciones: string[] = [];
+  const diapos = (await leerPredicacion(zip, cx, cy, biblia, correcciones)).flatMap(o => o.salida);
   if (!diapos.length) throw new Error('Sin texto para proyectar.');
 
   // Diseño: el de la primera diapositiva del hermano.
@@ -255,7 +307,35 @@ export async function convertirPredicacion(zip: JSZip): Promise<number> {
   zip.file('ppt/_rels/presentation.xml.rels', presRels);
   zip.file('[Content_Types].xml', tipos);
   await quitarSinUso(zip);
-  return diapos.length;
+  return { diapos: diapos.length, primera: diapos[0], correcciones };
+}
+
+/** (1.22.5, Josué) Ícono en el Escritorio: Windows muestra la miniatura que trae el archivo (docProps/thumbnail.jpeg), así
+ *  el claro se distingue del original del hermano (que muestra la "P" de PowerPoint). */
+export async function ponerMiniatura(zip: JSZip, jpeg: Uint8Array) {
+  const leer = async (p: string) => (await zip.file(p)?.async('string')) ?? '';
+  const TIPO = 'http://schemas.openxmlformats.org/package/2006/relationships/metadata/thumbnail';
+  let rels = await leer('_rels/.rels');
+  const viejo = rels.match(new RegExp(`<Relationship\\b[^>]*Type="${TIPO.replace(/[./]/g, '\\$&')}"[^>]*/>`))?.[0];
+  if (viejo) {
+    const t = viejo.match(/\bTarget="\/?([^"]*)"/)?.[1];
+    if (t) zip.remove(t);
+    rels = rels.replace(viejo, '');
+  }
+  zip.file('docProps/thumbnail.jpeg', jpeg);
+  zip.file('_rels/.rels', rels.replace('</Relationships>', `<Relationship Id="rIdMiniatura" Type="${TIPO}" Target="docProps/thumbnail.jpeg"/></Relationships>`));
+  let tipos = await leer('[Content_Types].xml');
+  if (!/<Default Extension="jpeg"/i.test(tipos)) tipos = tipos.replace(/(<Types\b[^>]*>)/, '$1<Default Extension="jpeg" ContentType="image/jpeg"/>');
+  zip.file('[Content_Types].xml', tipos);
+}
+
+/** (1.22.5, Josué) Nombre de salida: "B y N" después de "PREDICA" (así lo pone el hermano Mauri: blanco y negro).
+ *  "35 - PREDICA - La manifestación…" → "35 - PREDICA B y N - La manifestación…". */
+export function nombreSalida(original: string): string {
+  const base = original.replace(/\.pptx$/i, '');
+  if (/\bB y N\b/.test(base)) return `${base}.pptx`;
+  const conBN = base.replace(/(pr[eé]dica)/i, '$1 B y N');
+  return `${conBN === base ? `${base} B y N` : conBN}.pptx`;
 }
 
 // ---- Escritura de las diapositivas convertidas
