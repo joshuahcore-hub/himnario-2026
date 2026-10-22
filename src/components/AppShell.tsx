@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, BookOpen, Music, Settings } from 'lucide-react';
 
@@ -8,6 +8,8 @@ import { intentarSalir } from '@/lib/guardiaSalida';
 import { usePendientes } from '@/hooks/usePendientes';
 import { useToque } from '@/hooks/useToque';
 import { mantenerSuscripcion } from '@/lib/notificaciones';
+import { esComputador } from '@/lib/proyeccion';
+import BotonPredicacion from '@/components/BotonPredicacion';
 
 /** Pestaña de abajo. Se activa al soltar el dedo (useToque): tras mover una lista, el navegador a veces no generaba
  *  el click del primer toque (Josué, 1.7.4). Toda su franja recibe el toque (flex-1, alto completo). */
@@ -47,7 +49,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { puedeEditar, puedeVerMinutas, registrado } = useAcceso();
+  const { puedeEditar, puedeVerMinutas, registrado, puedeProyectar } = useAcceso();
+  const [enComputador] = useState(esComputador);
   const pendientes = usePendientes();
   useEffect(() => { if (esDelHimnario(location.pathname)) ultimaDelHimnario = location.pathname + location.search; }, [location]);
   const irA = (path: string) => {
@@ -96,6 +99,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
                      aviso={tab.path === '/settings' && pendientes > 0} onTocar={() => intentarSalir(() => irA(tab.path))} />
           ))}
         </div>
+        {/* (1.22.0, Josué) Computador con permiso de proyección: "Añadir PowerPoint" (predicación), abajo a la derecha. */}
+        {enComputador && puedeProyectar && <BotonPredicacion />}
       </nav>
     </div>
   );

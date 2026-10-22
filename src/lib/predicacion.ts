@@ -1,4 +1,4 @@
-// Predicación en la proyección (1.22.0, Josué 22-10-2026): se sube el PowerPoint que el hermano usa al predicar (fondo
+// Predicación (1.22.0, Josué 22-10-2026; botón "Añadir PowerPoint", components/BotonPredicacion): el PowerPoint que el hermano usa al predicar (fondo
 // oscuro, letra blanca, lo que subraya en naranjo y sus acotaciones en verde) y queda como él lo deja para proyectar
 // (ejemplos en ../proyeccion/predicacion-ejemplos: origen.pptx → salida.pptx):
 // - fondo claro (EEECE1) y letra negra, Calibri negrita cursiva; título de la cita 48 pt subrayado, texto 44 pt;
@@ -10,6 +10,7 @@
 // - la primera diapositiva es el título de la predicación (72 pt, centrado).
 // Solo manipula texto XML (sin DOM), igual que armarProyeccion.
 import type JSZip from 'jszip';
+import { quitarSinUso } from '@/lib/armarProyeccion';
 
 /** Una diapositiva ya convertida. */
 export interface DiapoPredicacion { titulo?: string; encabezado?: string; parrafos: string[]; sz: number }
@@ -183,6 +184,55 @@ export async function leerPredicacion(zip: JSZip, cx = 9144000, cy = 6858000): P
     out.push({ n: i + 1, resumen: secciones.map(s => s.enc).filter(Boolean).join(' · ') || texto.slice(0, 40) || '—', salida });
   }
   return out;
+}
+
+/** (1.22.0, Josué) Convierte el archivo del hermano EN SU LUGAR: quedan solo las diapositivas para proyectar (con un
+ *  diseño suyo, cuyos gráficos no se muestran). Devuelve cuántas quedaron. */
+export async function convertirPredicacion(zip: JSZip): Promise<number> {
+  const leer = async (p: string) => (await zip.file(p)?.async('string')) ?? '';
+  let pres = await leer('ppt/presentation.xml');
+  let presRels = await leer('ppt/_rels/presentation.xml.rels');
+  let tipos = await leer('[Content_Types].xml');
+  const cx = +(pres.match(/<p:sldSz\b[^>]*\bcx="(\d+)"/)?.[1] ?? 9144000), cy = +(pres.match(/<p:sldSz\b[^>]*\bcy="(\d+)"/)?.[1] ?? 6858000);
+  const diapos = (await leerPredicacion(zip, cx, cy)).flatMap(o => o.salida);
+  if (!diapos.length) throw new Error('Sin texto para proyectar.');
+
+  // Diseño: el de la primera diapositiva del hermano.
+  const rels = [...presRels.matchAll(/<Relationship\b[^>]*\/>/g)].map(m => m[0]);
+  const deSlide = rels.filter(r => /\/relationships\/slide"/.test(r));
+  const primera = resolver('ppt/presentation.xml', deSlide[0]?.match(/\bTarget="([^"]*)"/)?.[1] ?? '');
+  const relsPrimera = await leer(primera.replace(/slides\/([^/]+)$/, 'slides/_rels/$1.rels'));
+  const layout = relsPrimera.match(/<Relationship\b[^>]*\/slideLayout"[^>]*\/>/)?.[0].match(/\bTarget="([^"]*)"/)?.[1];
+  if (!layout) throw new Error('El PowerPoint no tiene diseño.');
+
+  // Fuera todas sus diapositivas (y lo que solo ellas usan: notas, imágenes…).
+  for (const r of deSlide) presRels = presRels.replace(r, '');
+  for (const f of Object.keys(zip.files)) {
+    if (!/^ppt\/slides\/(_rels\/)?slide\d+\.xml(\.rels)?$/.test(f)) continue;
+    zip.remove(f);
+    tipos = tipos.replace(new RegExp(`<Override PartName="/${f.replace(/\./g, '\\.')}"[^>]*/>`), '');
+  }
+  let maxRid = Math.max(0, ...rels.map(r => +(r.match(/\bId="rId(\d+)"/)?.[1] ?? 0)));
+  const ids: string[] = [];
+  diapos.forEach((d, i) => {
+    const parte = `ppt/slides/slide${i + 1}.xml`, rid = `rId${++maxRid}`;
+    zip.file(parte, xmlDiapoPredicacion(d, cx, cy));
+    zip.file(`ppt/slides/_rels/slide${i + 1}.xml.rels`, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" '
+      + `Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="${layout}"/></Relationships>`);
+    presRels = presRels.replace('</Relationships>', `<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i + 1}.xml"/></Relationships>`);
+    tipos = tipos.replace('</Types>', `<Override PartName="/${parte}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
+    ids.push(`<p:sldId id="${256 + i}" r:id="${rid}"/>`);
+  });
+  pres = pres.replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>|<p:sldIdLst\/>/, `<p:sldIdLst>${ids.join('')}</p:sldIdLst>`)
+    // Secciones y presentaciones personalizadas nombran diapositivas que ya no están.
+    .replace(/<p:ext uri="\{521415D9-36F7-43E2-AB2F-B90AF26B5E84\}">[\s\S]*?<\/p:ext>/, '')
+    .replace(/<p:custShowLst>[\s\S]*?<\/p:custShowLst>/, '');
+  zip.file('ppt/presentation.xml', pres);
+  zip.file('ppt/_rels/presentation.xml.rels', presRels);
+  zip.file('[Content_Types].xml', tipos);
+  await quitarSinUso(zip);
+  return diapos.length;
 }
 
 // ---- Escritura de las diapositivas convertidas

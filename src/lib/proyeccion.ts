@@ -108,7 +108,7 @@ export const nombreArchivo = (fecha: string) => `PPT Culto ${formatearFecha(fech
 // ---- Carpeta donde se guarda (1.13.4, Josué: "elegirla una vez y que la recuerde", p. ej. el Escritorio del PC del
 // culto). Con la API de archivos del navegador (Chrome/Edge); el permiso de la carpeta queda guardado en IndexedDB.
 // Si el navegador no la tiene, se descarga como antes (carpeta de Descargas).
-type Carpeta = FileSystemDirectoryHandle & {
+export type Carpeta = FileSystemDirectoryHandle & {
   queryPermission(o: { mode: 'readwrite' }): Promise<PermissionState>;
   requestPermission(o: { mode: 'readwrite' }): Promise<PermissionState>;
 };
@@ -122,25 +122,26 @@ function baseCarpeta(): Promise<IDBDatabase> {
     r.onerror = () => mal(r.error);
   });
 }
-export async function carpetaGuardada(): Promise<Carpeta | null> {
+/** clave: 'destino' (proyección) o 'predicacion' (1.22.0: el PowerPoint del hermano convertido). */
+export async function carpetaGuardada(clave = 'destino'): Promise<Carpeta | null> {
   if (!puedeElegirCarpeta()) return null;
   try {
     const db = await baseCarpeta();
     return await new Promise(ok => {
-      const r = db.transaction('carpeta').objectStore('carpeta').get('destino');
+      const r = db.transaction('carpeta').objectStore('carpeta').get(clave);
       r.onsuccess = () => ok((r.result as Carpeta) ?? null);
       r.onerror = () => ok(null);
     });
   } catch { return null; }
 }
 /** Abre el selector de carpetas (empieza en el Escritorio) y la recuerda. null si se canceló. */
-export async function elegirCarpeta(): Promise<Carpeta | null> {
+export async function elegirCarpeta(clave = 'destino'): Promise<Carpeta | null> {
   try {
-    const c: Carpeta = await (window as any).showDirectoryPicker({ id: 'proyeccion', mode: 'readwrite', startIn: 'desktop' });
+    const c: Carpeta = await (window as any).showDirectoryPicker({ id: clave === 'destino' ? 'proyeccion' : clave, mode: 'readwrite', startIn: 'desktop' });
     const db = await baseCarpeta();
     await new Promise<void>((ok, mal) => {
       const tx = db.transaction('carpeta', 'readwrite');
-      tx.objectStore('carpeta').put(c, 'destino');
+      tx.objectStore('carpeta').put(c, clave);
       tx.oncomplete = () => ok();
       tx.onerror = () => mal(tx.error);
     });
@@ -155,28 +156,45 @@ export async function permisoCarpeta(c: Carpeta): Promise<boolean> {
   } catch { return false; }
 }
 
+/** ¿Ya se puede escribir en la carpeta sin preguntar? (No pide nada: sirve fuera de un toque, p. ej. al soltar.) */
+export async function permisoYaDado(c: Carpeta): Promise<boolean> {
+  try { return (await c.queryPermission({ mode: 'readwrite' })) === 'granted'; } catch { return false; }
+}
+
+/** (1.22.0) Guarda el archivo en la carpeta (con permiso ya dado) o, si no se puede, lo descarga. Devuelve la carpeta o null. */
+export async function guardarArchivo(blob: Blob, nombre: string, carpeta: Carpeta | null): Promise<string | null> {
+  if (carpeta) {
+    try {
+      const archivo = await carpeta.getFileHandle(nombre, { create: true });
+      const w = await (archivo as any).createWritable();
+      await w.write(blob);
+      await w.close();
+      return carpeta.name;
+    } catch { /* sin permiso o carpeta movida: se descarga */ }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return null;
+}
+
 /** Arma el PowerPoint y lo guarda en la carpeta elegida (o lo descarga). Devuelve dónde quedó. */
 export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fecha'> & { id?: string },
   portada: { versiculo: string; referencia: string },
   onEstado: (e: { etapa: 'bajando' | 'armando'; progreso?: number }) => void,
-  carpeta: Carpeta | null = null,
-  predicacion: { archivo: ArrayBuffer; desde: number; hasta: number } | null = null): Promise<{ carpeta: string | null }> {
+  carpeta: Carpeta | null = null): Promise<{ carpeta: string | null }> {
   const meta = await leerMeta();
   onEstado({ etapa: 'bajando', progreso: 0 });
   const maestro = await bajarMaestro(meta, p => onEstado({ etapa: 'bajando', progreso: p }));
   onEstado({ etapa: 'armando' });
-  const [{ default: JSZip }, { armarProyeccion }, { leerPredicacion }] = await Promise.all([
-    import('jszip'), import('@/lib/armarProyeccion'), import('@/lib/predicacion')]);
+  const [{ default: JSZip }, { armarProyeccion }] = await Promise.all([import('jszip'), import('@/lib/armarProyeccion')]);
   const zip = await JSZip.loadAsync(maestro);
-  // (1.22.0) La predicación se convierte al tamaño de diapositiva del maestro.
-  let diapos: Awaited<ReturnType<typeof leerPredicacion>> = [];
-  if (predicacion) {
-    const pres = (await zip.file('ppt/presentation.xml')?.async('string')) ?? '';
-    const cx = +(pres.match(/<p:sldSz\b[^>]*\bcx="(\d+)"/)?.[1] ?? 9144000), cy = +(pres.match(/<p:sldSz\b[^>]*\bcy="(\d+)"/)?.[1] ?? 6858000);
-    diapos = (await leerPredicacion(await JSZip.loadAsync(predicacion.archivo), cx, cy))
-      .filter(o => o.n >= predicacion.desde && o.n <= predicacion.hasta);
-  }
-  await armarProyeccion(zip, meta.indice, clavesDeMinuta(minuta).map(x => x.clave), portada, diapos.flatMap(o => o.salida));
+  await armarProyeccion(zip, meta.indice, clavesDeMinuta(minuta).map(x => x.clave), portada);
   const blob = await zip.generateAsync({
     type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 },
     mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',

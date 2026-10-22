@@ -291,11 +291,14 @@ export interface Translations {
   proy_elegir_carpeta: string;
   proy_cambiar: string;
   proy_guardado: (carpeta: string) => string;
-  proy_subir_pred: string;
-  proy_pred_desde: string;
-  proy_pred_info: (n: number) => string;
-  proy_quitar: string;
-  proy_pred_error: string;
+  pred_boton: string;
+  pred_texto: string;
+  pred_soltar: string;
+  pred_elegir: string;
+  pred_convirtiendo: string;
+  pred_guardar: (carpeta: string) => string;
+  pred_error: string;
+  pred_escritorio: string;
   admin_hide_title: (nombre: string) => string;
   admin_hide_text: string;
   /** (1.20.21) Confirmar cada cambio de permiso. p = 've' | 'crear' | 'recordar' | 'proyectar'. */
@@ -709,11 +712,14 @@ export const es: Translations = {
   proy_elegir_carpeta: 'Elegir carpeta',
   proy_cambiar: 'Cambiar',
   proy_guardado: c => `Guardado en «${c}»`,
-  proy_subir_pred: 'Subir predicación (PowerPoint del hermano)',
-  proy_pred_desde: 'Desde',
-  proy_pred_info: n => `Predicación: ${n} diapositivas, antes de la última alabanza`,
-  proy_quitar: 'Quitar',
-  proy_pred_error: 'No se pudo leer ese PowerPoint (tiene que ser .pptx).',
+  pred_boton: 'Añadir PowerPoint',
+  pred_texto: 'Arrastra aquí el PowerPoint de la predicación (fondo negro). Se guarda listo para proyectar: fondo claro, letra negra y sin acotaciones.',
+  pred_soltar: 'Suéltalo aquí',
+  pred_elegir: 'Arrastra el PowerPoint o elígelo',
+  pred_convirtiendo: 'Convirtiendo…',
+  pred_guardar: c => `Guardar en ${c}`,
+  pred_error: 'No se pudo convertir ese PowerPoint (tiene que ser .pptx).',
+  pred_escritorio: 'el Escritorio',
   admin_hide_title: n => `¿Quitar a ${n} de la lista?`,
   admin_hide_text: 'No se borra nada: sus minutas y recordatorios se mantienen.',
   admin_perm_on_title: (n, p) => `¿Habilitar a ${n} para ${({ ve: 'ver las minutas', crear: 'crear minutas', recordar: 'dejar recordatorios a otras personas', proyectar: 'generar la proyección del culto' } as Record<string, string>)[p]}?`,
@@ -1125,11 +1131,14 @@ export const en: Translations = {
   proy_elegir_carpeta: 'Choose folder',
   proy_cambiar: 'Change',
   proy_guardado: c => `Saved to “${c}”`,
-  proy_subir_pred: 'Upload sermon (PowerPoint)',
-  proy_pred_desde: 'From',
-  proy_pred_info: n => `Sermon: ${n} slides, before the last song`,
-  proy_quitar: 'Remove',
-  proy_pred_error: 'Could not read that PowerPoint (it must be .pptx).',
+  pred_boton: 'Add PowerPoint',
+  pred_texto: 'Drop the sermon PowerPoint (black background) here. It is saved ready to project: light background, black text, no notes.',
+  pred_soltar: 'Drop it here',
+  pred_elegir: 'Drop the PowerPoint or choose it',
+  pred_convirtiendo: 'Converting…',
+  pred_guardar: c => `Save to ${c}`,
+  pred_error: 'Could not convert that PowerPoint (it must be .pptx).',
+  pred_escritorio: 'the Desktop',
   admin_hide_title: n => `Remove ${n} from the list?`,
   admin_hide_text: 'Nothing is deleted: their services and reminders stay.',
   admin_perm_on_title: (n, p) => `Allow ${n} to ${({ ve: 'view services', crear: 'create services', recordar: 'leave reminders for others', proyectar: 'generate the service projection' } as Record<string, string>)[p]}?`,
@@ -1541,11 +1550,14 @@ export const pt: Translations = {
   proy_elegir_carpeta: 'Escolher pasta',
   proy_cambiar: 'Mudar',
   proy_guardado: c => `Salvo em «${c}»`,
-  proy_subir_pred: 'Enviar pregação (PowerPoint)',
-  proy_pred_desde: 'De',
-  proy_pred_info: n => `Pregação: ${n} slides, antes do último louvor`,
-  proy_quitar: 'Remover',
-  proy_pred_error: 'Não foi possível ler esse PowerPoint (deve ser .pptx).',
+  pred_boton: 'Adicionar PowerPoint',
+  pred_texto: 'Arraste aqui o PowerPoint da pregação (fundo preto). É salvo pronto para projetar: fundo claro, letra preta e sem anotações.',
+  pred_soltar: 'Solte aqui',
+  pred_elegir: 'Arraste o PowerPoint ou escolha',
+  pred_convirtiendo: 'Convertendo…',
+  pred_guardar: c => `Salvar em ${c}`,
+  pred_error: 'Não foi possível converter esse PowerPoint (deve ser .pptx).',
+  pred_escritorio: 'a Área de Trabalho',
   admin_hide_title: n => `Remover ${n} da lista?`,
   admin_hide_text: 'Nada é apagado: as minutas e lembretes continuam.',
   admin_perm_on_title: (n, p) => `Habilitar ${n} para ${({ ve: 'ver as minutas', crear: 'criar minutas', recordar: 'deixar lembretes para outras pessoas', proyectar: 'gerar a projeção do culto' } as Record<string, string>)[p]}?`,
