@@ -212,9 +212,13 @@ def main():
                 a = arriba[0]
                 for c in arriba[1:]:
                     a |= c
-                # sin margen arriba: el título ya trae su espacio y en el himno 1 el encabezado de la página termina
-                # justo donde empieza el título (se colaba un pedacito de "Himnario para músicos")
-                trozos.append((indice, a + (-4, 1, 4, 0)))
+                # poco margen arriba: el título ya trae su espacio y en el himno 1 el encabezado de la página termina
+                # justo donde empieza el título (se colaba un pedacito de "Himnario para músicos").
+                # (1.22.8, Josué) La tilde de una mayúscula ("Él", "Árbol") sobresale de la caja del título: subir
+                # 2 pt, pero nunca hasta tocar lo que haya encima en la página.
+                encima = [b[3] for b in doc[indice].get_text("blocks") if b[3] <= a.y0 + 1 and b[2] > a.x0 and b[0] < a.x1]
+                tope = max(a.y0 - 2, max(encima) + 0.5) if encima else a.y0 - 2
+                trozos.append((indice, pymupdf.Rect(a.x0 - 4, tope, a.x1 + 4, a.y1)))
                 if abajo:
                     b = abajo[0]
                     for c in abajo[1:]:
