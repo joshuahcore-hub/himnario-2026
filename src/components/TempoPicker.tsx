@@ -33,11 +33,12 @@ export default function TempoPicker({ value, onChange }: TempoPickerProps) {
     eje: 'x',
   });
 
-  const linea = 'linear-gradient(to right, transparent 0%, hsl(var(--foreground) / 0.18) 25%, hsl(var(--foreground) / 0.18) 75%, transparent 100%)';
+  // Línea fina, tenue y de color sólido (termina en seco, sin degradado): 1px escalado a 0.5px.
+  const linea = { background: 'hsl(var(--foreground) / 0.14)', transform: 'scaleY(0.5)' };
 
   return (
     <div ref={contenedor} className="relative w-full overflow-hidden select-none" style={{ touchAction: 'pan-y' }} {...manejadores}>
-      <div className="h-px" style={{ background: linea }} />
+      <div className="h-px" style={linea} />
       <div
         className="flex items-center"
         style={{
@@ -58,7 +59,7 @@ export default function TempoPicker({ value, onChange }: TempoPickerProps) {
           </button>
         ))}
       </div>
-      <div className="h-px" style={{ background: linea }} />
+      <div className="h-px" style={linea} />
     </div>
   );
 }

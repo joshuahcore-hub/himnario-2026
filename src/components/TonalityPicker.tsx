@@ -129,7 +129,8 @@ export default function TonalityPicker({ selectedKey, onChange }: TonalityPicker
             top: 0,
             bottom: 0,
             width: '1px',
-            background: 'linear-gradient(to bottom, transparent 0%, hsl(var(--foreground) / 0.18) 25%, hsl(var(--foreground) / 0.18) 75%, transparent 100%)',
+            background: 'hsl(var(--foreground) / 0.14)',
+            transform: 'scaleX(0.5)',
             zIndex: 10,
             pointerEvents: 'none' as const,
           });
