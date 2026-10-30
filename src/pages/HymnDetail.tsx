@@ -84,6 +84,9 @@ function BarraHimnos({ total, indice, etiqueta, onVistaPrevia, onElegir }: {
   );
 }
 
+// (1.22.12) Alto que ocupan abajo el contador y la barra de himnos con el celular girado.
+const ALTO_BARRA_GIRADO = '4rem';
+
 export default function HymnDetail() {
   const { number } = useParams<{ number: string }>();
   const navigate = useNavigate();
@@ -351,11 +354,12 @@ export default function HymnDetail() {
       return (
         // Solo la franja con letra (sin el fondo vacío del lienzo); si cabe queda centrada, si no se recorre.
         // (1.20.12, Josué) Con la misma barrita del Himnario para recorrerla (la del sistema se oculta).
+        // (1.22.12, Josué) Abajo queda la barra de himnos: la letra deja ese espacio al final y la barrita termina encima.
         <div key={num} className="absolute inset-0" style={{ transform: `translateX(${offset * 100}%)` }}>
-        <ConBarra arriba="3.5rem">{ref => (
+        <ConBarra arriba="3.5rem" abajo={ALTO_BARRA_GIRADO}>{ref => (
         <div ref={ref} data-pagina className="absolute inset-0 flex overflow-y-auto overflow-x-hidden scrollbar-hide"
              style={{ overscrollBehavior: 'contain',
-                      padding: '3.25rem env(safe-area-inset-right, 0px) 1rem env(safe-area-inset-left, 0px)' }}>
+                      padding: `3.25rem env(safe-area-inset-right, 0px) ${ALTO_BARRA_GIRADO} env(safe-area-inset-left, 0px)` }}>
           <Zoomable className="w-full m-auto" reiniciarCon={num} onAmpliado={a => setAmpliadoNum(a ? num : null)}>
             {/* Girado = solo para ver (1.9.10, Josué): los post-it de la letra en su lugar; los de arriba del título,
                 como acotación pequeña arriba del título. Ninguno se edita ni se mueve. */}
@@ -456,12 +460,15 @@ export default function HymnDetail() {
         );
       })}
       {/* Contador y, debajo, la barra para saltar a cualquier himno; todo encima de la barra de pestañas (h-16, z-50).
-          En horizontal no se muestran: tapaban la letra. */}
-      {!sinBarras && <>
-      <div data-tapa-postit className="absolute left-0 right-0 text-center pointer-events-none" style={{ bottom: 'calc(var(--barra) + 2.75rem)' }}>
+          (1.22.12, Josué) También en horizontal: pegados abajo (ahí no hay barra de pestañas), sobre un degradado del
+          fondo para que la letra que pasa por detrás no se mezcle. En pantalla completa vertical siguen ocultos. */}
+      {(horizontal || !completa) && <>
+      {horizontal && <div className="absolute left-0 right-0 bottom-0 z-10 pointer-events-none"
+                          style={{ height: ALTO_BARRA_GIRADO, background: 'linear-gradient(to top, hsl(var(--background)) 55%, hsl(var(--background) / 0))' }} />}
+      <div data-tapa-postit className="absolute left-0 right-0 z-20 text-center pointer-events-none" style={{ bottom: horizontal ? 'calc(env(safe-area-inset-bottom, 0px) + 2.5rem)' : 'calc(var(--barra) + 2.75rem)' }}>
         <p className="text-muted-foreground/40 text-xs">{(vistaPrevia ?? indiceDestino ?? currentIndex) + 1} / {navNumbers.length}</p>
       </div>
-      <div data-tapa-postit className="absolute left-0 right-0 z-20" style={{ bottom: 'calc(var(--barra) + 0.25rem)' }}>
+      <div data-tapa-postit className="absolute left-0 right-0 z-20" style={{ bottom: horizontal ? 'env(safe-area-inset-bottom, 0px)' : 'calc(var(--barra) + 0.25rem)' }}>
         <BarraHimnos
           total={navNumbers.length}
           indice={indiceDestino ?? currentIndex}

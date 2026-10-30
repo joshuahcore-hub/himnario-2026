@@ -10,13 +10,14 @@ const TRANSICION = 'width 120ms ease-out, background-color 120ms ease-out';
 /** (1.20.12) La misma barra para una zona que se crea dentro de un .map o una función de dibujo (sin hooks allí):
  *  `<ConBarra>{ref => <div ref={ref} className="… overflow-y-auto scrollbar-hide">…</div>}</ConBarra>`.
  *  Va dentro de un contenedor posicionado del mismo tamaño que la zona. */
-export function ConBarra({ children, arriba }: { children: (ref: React.RefObject<HTMLDivElement>) => React.ReactNode; arriba?: string }) {
+export function ConBarra({ children, arriba, abajo }: { children: (ref: React.RefObject<HTMLDivElement>) => React.ReactNode; arriba?: string; abajo?: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  return <><BarraDesplazamiento lista={ref} arriba={arriba} />{children(ref)}</>;
+  return <><BarraDesplazamiento lista={ref} arriba={arriba} abajo={abajo} />{children(ref)}</>;
 }
 
-/** `arriba`: dónde empieza la barra (p. ej. debajo de los botones de un lector). */
-export default function BarraDesplazamiento({ lista, arriba }: { lista: React.RefObject<HTMLElement>; arriba?: string }) {
+/** `arriba`: dónde empieza la barra (p. ej. debajo de los botones de un lector); `abajo`: dónde termina (1.22.12: sobre
+ *  la barra de himnos del himno girado). */
+export default function BarraDesplazamiento({ lista, arriba, abajo }: { lista: React.RefObject<HTMLElement>; arriba?: string; abajo?: string }) {
   const zona = useRef<HTMLDivElement>(null);
   const pildora = useRef<HTMLDivElement>(null);
   const arrastre = useRef<{ y: number; top: number } | null>(null);
@@ -87,7 +88,7 @@ export default function BarraDesplazamiento({ lista, arriba }: { lista: React.Re
   return (
     <div ref={zona} aria-hidden
          className="absolute top-2 bottom-2 right-0 w-7 z-20 transition-opacity duration-300"
-         style={{ opacity: 0, pointerEvents: 'none', touchAction: 'none', ...(arriba && { top: arriba }) }}
+         style={{ opacity: 0, pointerEvents: 'none', touchAction: 'none', ...(arriba && { top: arriba }), ...(abajo && { bottom: abajo }) }}
          onPointerDown={e => {
            const p = pildora.current;
            if (!p) return;
