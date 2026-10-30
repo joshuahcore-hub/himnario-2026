@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Maximize, Minimize, RotateCwSquare } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Maximize, Minimize, RotateCwSquare, Search } from 'lucide-react';
 import { getHymns, precargarHimno, getThemedHymnImageUrl, getHymnHdUrl, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { getFilteredNumbers, marcarUltimoHimno } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
@@ -17,6 +17,7 @@ import HimnoRecortado, { proporcionLetra, vistaRecortada } from '@/components/Hi
 import { esComputador } from '@/lib/proyeccion';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
 import { ConBarra } from '@/components/BarraDesplazamiento';
+import BuscadorHimno from '@/components/BuscadorHimno';
 /**
  * Barra para saltar a cualquier himno sin pasar uno por uno (pedido de Josué): se arrastra el círculo (o se toca un
  * punto de la barra) y, al soltar, se salta a ese himno. Mientras se arrastra, una burbuja muestra número y título.
@@ -180,6 +181,9 @@ export default function HymnDetail() {
   const [indiceDestino, setIndiceDestino] = useState<number | null>(null);
   // Himno que se está eligiendo en la barra (el contador lo muestra mientras se arrastra).
   const [vistaPrevia, setVistaPrevia] = useState<number | null>(null);
+  // (1.23.0, Josué) Buscador dentro del himno abierto: lleva directo al himno elegido.
+  const [buscando, setBuscando] = useState(false);
+  const toqueBuscar = useToque(() => setBuscando(true));
   const tituloDe = useMemo(() => new Map(initial.hymns.map(h => [h.hymn_number, h.title])), [initial]);
 
   // Girado (touch-action pan-y): en cuanto el gesto es lateral se bloquea el desplazamiento nativo hacia abajo; si no,
@@ -428,6 +432,10 @@ export default function HymnDetail() {
       </div>
       {/* Arriba a la derecha (1.17.0, simétrico con la izquierda): pantalla completa y girar (1.6.1). */}
       <div data-tapa-postit className="absolute top-3 right-3 z-20 flex gap-2">
+        <button {...toqueBuscar} aria-label={t.hymnal_search_placeholder} title={t.hymnal_search_placeholder} style={{ touchAction: 'none' }}
+                className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
+          <Search size={20} />
+        </button>
         <button {...toqueCompleta} aria-label={t.pantalla_completa} title={t.pantalla_completa} style={{ touchAction: 'none' }}
                 className="tap-btn-overlay p-2 rounded-full bg-card/95 border border-border text-foreground">
           {completa ? <Minimize size={20} /> : <Maximize size={20} />}
@@ -439,6 +447,27 @@ export default function HymnDetail() {
           </button>
         )}
       </div>
+      {buscando && (
+        <BuscadorHimno actual={currentNum} onCerrar={() => setBuscando(false)} onElegir={num => {
+          const saltar = () => {
+            if (terminarPaso.current) terminarPaso.current();
+            const i = navNumbers.indexOf(num);
+            if (i >= 0) { if (i !== currentIndex) goTo(i); return; }
+            // Con filtros, el himno buscado puede no estar en la lista filtrada: se vuelve a recorrer el himnario entero.
+            setNavNumbers(initial.hymns.map(h => h.hymn_number));
+            navigate(`/hymnal/${num}`, { replace: true });
+          };
+          // Primero se cierra el panel y se espera a que quite su entrada del historial (useAtrasCierra hace
+          // history.back); si se salta antes, el replace pisa esa entrada y "atrás" volvía al himno anterior.
+          flushSync(() => setBuscando(false));
+          const desde = performance.now();
+          const esperar = () => {
+            const enPanel = (history.state as { panelAtras?: number } | null)?.panelAtras !== undefined;
+            if (!enPanel || performance.now() - desde > 600) saltar(); else requestAnimationFrame(esperar);
+          };
+          esperar();
+        }} />
+      )}
       <PanelRecordatorio abierto={panelAbierto} onCerrar={() => setPanelAbierto(false)} himno={currentNum} anterior={notaEditada}
                          enviados={notasDe(currentNum, 'enviados')} />
       <div ref={areaRef} className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onWheel={alRueda} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
