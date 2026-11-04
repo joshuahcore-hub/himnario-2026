@@ -35,6 +35,10 @@ def es_negrita(linea) -> bool:
 def titulo_de(linea):
     return TITULO.match(linea["texto"]) or (es_negrita(linea) and TITULO_SIN_GUION.match(linea["texto"]))
 ENCABEZADO = re.compile(r"himnario para m", re.I)
+# (1.25.0, Josué) Pulso "(58 bpm)" en el borde derecho de la línea del título. No es dato del himno ni cuenta para el
+# ancho: en la imagen se pega aparte, en el borde derecho del lienzo (igual que en el Word), sin achicar el himno.
+BPM = re.compile(r"^\s*\(\d{2,3}\s*bpm\)\s*$", re.I)
+AIRE_BPM = 14                                          # pt mínimos entre el autor y el pulso
 # Una nota verde a esta distancia (pt) o menos sobre un título es indicación de ese himno; más lejos, del anterior.
 SEPARACION_NOTA_TITULO = 12
 
@@ -77,7 +81,7 @@ def numero_impreso(lineas):
 
 def limpiar_titulo(resto: str):
     """'Las Aguas del río Jordán (solo bautismos)' -> título, autor, notas."""
-    partes = re.findall(r"\(([^)]*)\)", resto)
+    partes = [p for p in re.findall(r"\(([^)]*)\)", resto) if not BPM.match(f"({p})")]
     titulo = re.sub(r"\s*\([^)]*\)", "", resto).strip()
     autor, notas = None, []
     for p in partes:
@@ -88,6 +92,26 @@ def limpiar_titulo(resto: str):
         else:
             notas.append(p.strip())
     return titulo, autor, notas
+
+
+def zoom_del_titulo(h, zoom, izquierda):
+    """Si el título con su autor y el pulso no caben en el lienzo, se achica SOLO la línea del título: la letra y los
+    acordes quedan del mismo tamaño que sin pulso (achicar todo el himno se notaba hasta 15 % en el celular)."""
+    if "bpm" not in h:
+        return zoom
+    fin_titulo = h["lineas"][0]["spans"][-1]["bbox"][2]
+    return min(zoom, (ANCHO - 2 * MARGEN) / (fin_titulo - izquierda + AIRE_BPM + h["bpm"][1].width))
+
+
+def pegar_bpm(doc, lienzo, h, zoom, y_de_pagina):
+    """Pega el pulso con el borde derecho en el margen del lienzo. y_de_pagina: de pt de la página a px del lienzo."""
+    if "bpm" not in h:
+        return
+    indice, caja = h["bpm"]
+    clip = caja + (-1, -1, 1, 1)
+    pix = doc[indice].get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip, alpha=False)
+    pix.set_origin(ANCHO - MARGEN - pix.width, int(round(y_de_pagina(clip.y0))))
+    lienzo.copy(pix, pix.irect)
 
 
 def imagen_acomodada(doc, n, h, cfg, salida):
@@ -102,20 +126,27 @@ def imagen_acomodada(doc, n, h, cfg, salida):
     if sin_usar:
         print(f"  {n}: cortes no encontrados: {list(sin_usar)}")
     ancho_pt = max(x1 + dx for r in renglones for x0, x1, dx in r["piezas"]) - (izq - 4)
+    centro_titulo = (h["lineas"][0]["caja"].y0 + h["lineas"][0]["caja"].y1) / 2
+    fila_titulo = next(r for r in renglones if r["y0"] <= centro_titulo <= r["y1"])
     alto_pt = sum(r["espacio"] + (r["y1"] - r["y0"]) for r in renglones) + 6
     zoom = min((ANCHO - 2 * MARGEN) / ancho_pt, (ALTO - 2 * MARGEN) / alto_pt)
     lienzo = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, ANCHO, ALTO), False)
     lienzo.set_rect(lienzo.irect, (255, 255, 255))
     y = (ALTO - alto_pt * zoom) / 2 + 3 * zoom
+    zoom_t = zoom_del_titulo(h, zoom, izq - 4)
     for r in renglones:
         y += r["espacio"] * zoom
+        z = zoom_t if r is fila_titulo else zoom
+        y_r = y + (r["y1"] - r["y0"]) * (zoom - z)   # título achicado: misma línea de base
         for x0, x1, dx in r["piezas"]:
             if x1 - x0 < 0.5:
                 continue
             clip = pymupdf.Rect(x0, r["y0"], x1, r["y1"])
-            pix = doc[indice].get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip, alpha=False)
-            pix.set_origin(int(round(MARGEN + (x0 + dx - (izq - 4)) * zoom)), int(round(y)))
+            pix = doc[indice].get_pixmap(matrix=pymupdf.Matrix(z, z), clip=clip, alpha=False)
+            pix.set_origin(int(round(MARGEN + (x0 + dx - (izq - 4)) * z)), int(round(y_r)))
             lienzo.copy(pix, pix.irect)
+        if r is fila_titulo:
+            pegar_bpm(doc, lienzo, h, z, lambda yp, y=y_r, r=r: y + (yp - r["y0"]) * z)
         y += (r["y1"] - r["y0"]) * zoom
     lienzo.save(os.path.join(salida, "claro", f"{n}.png"))
     print(f"  {n}: acomodado ({len(renglones)} renglones, zoom {zoom:.2f})")
@@ -136,6 +167,10 @@ def main():
         for l in lineas:
             if ENCABEZADO.search(l["texto"]) or re.fullmatch(r"\s*\d{1,3}\s*", l["texto"]):
                 continue  # encabezado "Himnario para músicos" y número de página
+            if BPM.match(l["texto"]):
+                if actual is not None:
+                    actual["bpm"] = (indice, pymupdf.Rect(l["spans"][0]["bbox"]))
+                continue
             if es_nota_verde(l):
                 notas_pendientes.append(l)
                 continue
@@ -202,6 +237,7 @@ def main():
             continue
         trozos = []
         caja_titulo = h["lineas"][0]["caja"] if h["lineas"] else None
+        rect_titulo = None
         for indice, cajas in sorted(h["trozos"].items()):
             caja = pymupdf.Rect(cajas[0])
             for c in cajas[1:]:
@@ -218,7 +254,8 @@ def main():
                 # 2 pt, pero nunca hasta tocar lo que haya encima en la página.
                 encima = [b[3] for b in doc[indice].get_text("blocks") if b[3] <= a.y0 + 1 and b[2] > a.x0 and b[0] < a.x1]
                 tope = max(a.y0 - 2, max(encima) + 0.5) if encima else a.y0 - 2
-                trozos.append((indice, pymupdf.Rect(a.x0 - 4, tope, a.x1 + 4, a.y1)))
+                rect_titulo = pymupdf.Rect(a.x0 - 4, tope, a.x1 + 4, a.y1)
+                trozos.append((indice, rect_titulo))
                 if abajo:
                     b = abajo[0]
                     for c in abajo[1:]:
@@ -243,9 +280,19 @@ def main():
                 continue
             # Todos los trozos alineados a la izquierda del margen común de la página.
             clip = pymupdf.Rect(izquierda, caja.y0, izquierda + ancho_pt, caja.y1)
-            pix = doc[indice].get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip, alpha=False)
-            pix.set_origin(x0, y)
+            z, y_pix, alto_normal = zoom, y, None
+            if caja is rect_titulo and "bpm" in h:
+                clip.x1 = min(clip.x1, h["bpm"][1].x0 - 1)   # el pulso de la página no entra aquí: se pega aparte
+                z = zoom_del_titulo(h, zoom, izquierda)
+                alto_normal = int(round(clip.height * zoom))
+                y_pix = y + int(round(clip.height * (zoom - z)))   # título achicado: misma línea de base
+            pix = doc[indice].get_pixmap(matrix=pymupdf.Matrix(z, z), clip=clip, alpha=False)
+            pix.set_origin(x0, y_pix)
             lienzo.copy(pix, pix.irect)
+            if alto_normal is not None:
+                pegar_bpm(doc, lienzo, h, z, lambda yp, y=y_pix, c=clip: y + (yp - c.y0) * z)
+                y += alto_normal
+                continue
             y += pix.height
         lienzo.save(os.path.join(salida, "claro", f"{n}.png"))
 

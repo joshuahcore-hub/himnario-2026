@@ -6,6 +6,8 @@ PDF (vectorial) y permite:
     mueve junto con ella. El acorde que suena solo en el hueco entre frases queda arriba (regla de Josué).
   - verdes_abajo: lo verde (cambio de tono) sale de los renglones y va al final del himno.
 """
+import re
+
 import pymupdf
 
 
@@ -15,6 +17,9 @@ def _renglones(pagina, caja_himno, es_verde):
     for b in pagina.get_text("rawdict")["blocks"]:
         for l in b.get("lines", []):
             r = pymupdf.Rect(l["bbox"])
+            # (1.25.0) el pulso "(58 bpm)" no es un renglón: extraer.py lo pega aparte en el borde derecho
+            if re.fullmatch(r"\s*\(\d{2,3}\s*bpm\)\s*", "".join(c["c"] for s in l["spans"] for c in s["chars"]), re.I):
+                continue
             if not r.intersects(caja_himno) or r.y0 < caja_himno.y0 - 1 or r.y1 > caja_himno.y1 + 1:
                 continue
             chars = []
