@@ -24,6 +24,7 @@ import PanelIA, { useEstadoIA } from '@/components/PanelIA';
 import type { LecturaMinuta } from '@/lib/leerMinuta';
 import BotonSeguro from '@/components/BotonSeguro';
 import { ConBarra } from '@/components/BarraDesplazamiento';
+import Zoomable from '@/components/Zoomable';
 
 function hoy(): string {
   const d = new Date();
@@ -49,6 +50,9 @@ export interface BorradorMinuta {
 /** Buscador para añadir cantos: tocar uno lo marca (queda en verde); tocarlo de nuevo lo desmarca y lo quita. */
 /** Duración del cambio a verde al marcar un canto en el buscador (1.18.2, Josué: más ágil; antes 180). */
 const MARCAR_MS = 110;
+
+/** (1.24.0, Josué) La "Z" del buscador queda como se dejó mientras la app está abierta (igual que en el Himnario). */
+let zoomBuscador = false;
 
 /** Círculo + / ✓ del buscador (cambia de color y de ícono en un solo cambio suave). */
 function Circulo({ marcado }: { marcado: boolean }) {
@@ -91,6 +95,8 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
   const { hymns } = getHymns();
   const [q, setQ] = useState('');
   const marcados = new Set(seleccionados);
+  const [zoom, setZoomEstado] = useState(zoomBuscador);
+  const setZoom = (z: boolean) => { setZoomEstado(z); zoomBuscador = z; };
 
   // Sin foco automático: se abre con la lista completa; el teclado aparece solo al tocar la búsqueda.
 
@@ -151,6 +157,13 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
             inputMode="search"
           />
         </div>
+        {/* (1.24.0, Josué) Misma "Z" del Himnario. La cabecera no se amplía, así que no hace falta la Z flotante. */}
+        <BotonSeguro onClick={() => setZoom(!zoom)} aria-label="Zoom" aria-pressed={zoom}
+                     className={`tap-btn h-8 w-8 shrink-0 rounded-full text-[13px] font-bold transition-colors ${
+                       zoom ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                     style={{ transitionDuration: '100ms' }}>
+          Z
+        </BotonSeguro>
         <BotonSeguro onClick={onCancel} className="tap-btn p-2 text-muted-foreground" aria-label={t.minutas_cancel}>
           <X size={20} />
         </BotonSeguro>
@@ -158,6 +171,7 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
       {/* (1.20.12, Josué) Misma barrita del Himnario. */}
       <div className="relative flex-1 min-h-0">
       <ConBarra>{ref => (
+      <Zoomable className="h-full" activo={zoom} reiniciarCon={carpeta}>
       <div ref={ref} className="h-full overflow-y-auto scrollbar-hide px-3 pt-2 pb-28 space-y-0.5">
         {carpeta ? (<>
           {/* Dentro de la subcarpeta: volver, crear otra y las guardadas (se marcan en verde). */}
@@ -229,6 +243,7 @@ function BuscadorCantos({ onAdd, onRemove, onClose, onCancel, seleccionados, onF
         {resultados.length === 0 && extrasCoinciden.length === 0 && <p className="text-muted-foreground text-xs text-center py-8">{t.hymnal_no_results}</p>}
         </>)}
       </div>
+      </Zoomable>
       )}</ConBarra>
       </div>
       {/* "Listo" flotando abajo, al alcance del pulgar */}
