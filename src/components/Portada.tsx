@@ -3,6 +3,14 @@ import type { ParsedSong, Autor } from '@/lib/types';
 import { useI18n } from '@/lib/i18n/index';
 import { cadena, comienzoLetra, esCita, formatearFecha, renumerar } from '@/lib/minutaUtils';
 import { getHymn } from '@/lib/hymnCache';
+import { FAST_HYMNS } from '@/lib/hymnConstants';
+
+/** Tempo de una alabanza: himnos por la lista de rápidos; fuera del himnario, por lo que se eligió al crearla. */
+function tempoDe(s: ParsedSong): 'lenta' | 'rapida' | null {
+  if (s.fuera) return s.tempo ?? null;
+  if (s.hymnNumber && s.found !== false) return FAST_HYMNS.has(s.hymnNumber) ? 'rapida' : 'lenta';
+  return null;
+}
 
 interface PortadaProps {
   date: string;
@@ -14,6 +22,8 @@ interface PortadaProps {
   duplicada?: boolean;
   /** Sin recuadro (bg/borde): escrita directo sobre el fondo, como en el lector de minutas. */
   plano?: boolean;
+  /** (1.26.0, Josué) Franja de color por tempo en el lector: lentas celestes, rápidas moradas (se apaga en Ajustes). */
+  colorTempo?: boolean;
 }
 
 export function ChipAutor({ autor, etiqueta }: { autor: Autor; etiqueta?: string }) {
@@ -28,7 +38,7 @@ export function ChipAutor({ autor, etiqueta }: { autor: Autor; etiqueta?: string
 
 /** (1.18.2, Josué) Corchete de las alabanzas unidas: cada punta apunta al CENTRO de su número (se mide en pantalla,
  *  así sirve con títulos de dos renglones y con grupos de cualquier tamaño), en el color de los números. */
-function Corchete({ children, compact }: { children: React.ReactNode; compact: boolean }) {
+function Corchete({ children, compact, afuera = false }: { children: React.ReactNode; compact: boolean; afuera?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [tramo, setTramo] = useState<{ top: number; alto: number } | null>(null);
   useLayoutEffect(() => {
@@ -49,7 +59,7 @@ function Corchete({ children, compact }: { children: React.ReactNode; compact: b
   return (
     <div ref={ref} className={`relative ${compact ? 'space-y-0.5' : 'space-y-1'}`}>
       {tramo && (
-        <span aria-hidden className="absolute -left-[9px] w-[6px] rounded-l-[3px] border-[1.5px] border-r-0 border-hymn-number/70"
+        <span aria-hidden className={`absolute ${afuera ? '-left-[17px]' : '-left-[9px]'} w-[6px] rounded-l-[3px] border-[1.5px] border-r-0 border-hymn-number/70`}
               style={{ top: tramo.top - 0.75, height: tramo.alto + 1.5 }} />
       )}
       {children}
@@ -105,10 +115,16 @@ function ListaCantos({ compact, children }: { compact: boolean; children: React.
   </>);
 }
 
-export default function Portada({ date, songs, compact = false, creador, editor, duplicada = false, plano = false }: PortadaProps) {
+export default function Portada({ date, songs, compact = false, creador, editor, duplicada = false, plano = false, colorTempo = false }: PortadaProps) {
   const { t } = useI18n();
   const numerados = renumerar(songs);
   const tam = compact ? 'text-xs' : 'text-sm';
+
+  const franja = (s: ParsedSong) => {
+    const tp = colorTempo ? tempoDe(s) : null;
+    if (!tp) return '';
+    return `franja-tempo franja-${tp}`;
+  };
 
   const renderSongLine = (s: ParsedSong, position: number) => {
     // (1.18.2, Josué) Títulos que son una cita (Hebreos 13:8, Salmo 18…): entre paréntesis cómo empieza la letra.
@@ -116,7 +132,7 @@ export default function Portada({ date, songs, compact = false, creador, editor,
     return (
       // items-start (no baseline): todo es del mismo tamaño y así la etiqueta "fuera del himnario" queda centrada en
       // el primer renglón (antes, con baseline, se veía cargada hacia abajo).
-      <div className={`flex items-start gap-1.5 ${tam} ${s.found === false ? 'opacity-50' : ''}`}>
+      <div className={`flex items-start gap-1.5 ${tam} ${s.found === false ? 'opacity-50' : ''} ${franja(s)}`}>
         <span data-num className="text-muted-foreground font-medium shrink-0">{position} -</span>
         {/* Con cita, el título no se parte: lo que se acorta es el paréntesis. */}
         <span className={`text-foreground font-medium ${comienzo ? 'shrink-0' : ''}`}>{s.title}</span>
@@ -159,7 +175,7 @@ export default function Portada({ date, songs, compact = false, creador, editor,
               {/* (1.18.2, Josué) Ofrenda: aviso pequeño en amarillo justo ARRIBA de esa alabanza (no es un renglón más). */}
               {song.ofrenda && <p className={`font-semibold text-ofrenda leading-none mb-1 ${compact ? 'text-[9.5px]' : 'text-[11px]'}`}>{t.ofrenda}</p>}
               {grupo.length > 1 ? (
-                <Corchete compact={compact}>
+                <Corchete compact={compact} afuera={colorTempo}>
                   {grupo.map((x, k) => <div key={k}>{renderSongLine({ ...x, found: x.found ?? true }, song.position + k)}</div>)}
                 </Corchete>
               ) : renderSongLine(song, song.position)}

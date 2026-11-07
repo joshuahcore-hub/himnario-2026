@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { flushSync } from 'react-dom';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
+import { colorTempoActivo } from '@/lib/colorTempo';
 import Zoomable from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, getHymnHdUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
@@ -443,7 +444,7 @@ export default function MinutaReader() {
                     girado, solo para ver (los sin mover, como acotación arriba). */}
                 {horizontal && <div style={{ containerType: 'inline-size' }}><AcotacionesPostit notas={postitDe(null, 0).notas} className="pb-2" /></div>}
                 <div data-marco-letra className="relative">
-                  <Portada date={minuta.fecha} songs={minuta.cantos} plano />
+                  <Portada date={minuta.fecha} songs={minuta.cantos} plano colorTempo={colorTempoActivo()} />
                   {!horizontal && (
                     <NotasRecordatorio notas={postitDe(null, 0).notas} enviados={verEnviados} onTocar={abrirPanel}
                                        className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />

@@ -510,3 +510,9 @@ html.dark.color-salvia {
 
 /* index.html esconde la app hasta que estos estilos cargan (1.11.3). Fuera de @layer: que nunca se purgue. */
 #root { visibility: visible; }
+
+/* (1.26.0, Josué) Franja de color por tempo en la minuta (estilo "Suave"): lentas celestes, rápidas moradas. */
+.franja-tempo { border-radius: 8px; padding: 5px 8px; margin-left: -8px; margin-right: -8px; background: hsl(var(--franja) / 0.16); }
+.franja-lenta { --franja: 199 85% 60%; }
+.franja-rapida { --franja: 265 60% 62%; }
+.dark .franja-tempo { background: hsl(var(--franja) / 0.20); }

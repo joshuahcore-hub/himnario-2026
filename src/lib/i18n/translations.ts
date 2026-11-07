@@ -97,6 +97,8 @@ export interface Translations {
   settings_error_delete: string;
   settings_sign_out: string;
   settings_user: string;
+  minuta_colores_titulo: string;
+  minuta_colores_texto: string;
   offline_title: string;
   offline_ready: string;
   offline_preparing: (hechos: number, total: number) => string;
@@ -523,6 +525,8 @@ export const es: Translations = {
   settings_error_delete: 'Error al eliminar',
   settings_sign_out: 'Cerrar sesión',
   settings_user: 'usuario',
+  minuta_colores_titulo: 'Colores en la minuta',
+  minuta_colores_texto: 'Lentas en celeste y rápidas en morado.',
   offline_title: 'Uso sin internet',
   offline_ready: 'Listo: todos los himnos están guardados en este dispositivo.',
   offline_preparing: (hechos, total) => `Preparando himnos para usar sin internet… ${hechos} / ${total}`,
@@ -947,6 +951,8 @@ export const en: Translations = {
   settings_error_delete: 'Error deleting',
   settings_sign_out: 'Sign out',
   settings_user: 'user',
+  minuta_colores_titulo: 'Colors in the setlist',
+  minuta_colores_texto: 'Slow songs in light blue, fast songs in purple.',
   offline_title: 'Offline use',
   offline_ready: 'Ready: all hymns are saved on this device.',
   offline_preparing: (done, total) => `Saving hymns for offline use… ${done} / ${total}`,
@@ -1371,6 +1377,8 @@ export const pt: Translations = {
   settings_error_delete: 'Erro ao excluir',
   settings_sign_out: 'Sair',
   settings_user: 'usuário',
+  minuta_colores_titulo: 'Cores na minuta',
+  minuta_colores_texto: 'Lentas em azul-claro e rápidas em roxo.',
   offline_title: 'Uso sem internet',
   offline_ready: 'Pronto: todos os hinos estão salvos neste aparelho.',
   offline_preparing: (hechos, total) => `Preparando os hinos para usar sem internet… ${hechos} / ${total}`,

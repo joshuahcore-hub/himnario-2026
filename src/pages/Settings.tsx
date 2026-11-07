@@ -1,4 +1,4 @@
-import { Moon, Sun, Languages, WifiOff, CheckCircle2 } from 'lucide-react';
+import { Moon, Sun, Languages, WifiOff, CheckCircle2, Palette } from 'lucide-react';
 import { ConBarra } from '@/components/BarraDesplazamiento';
 import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
@@ -6,7 +6,9 @@ import { useTheme, applyTheme, applyColor } from '@/hooks/useTheme';
 import { COLORES_TEMA, MUESTRAS, type ColorTema } from '@/lib/colores';
 import Desplegable from '@/components/Desplegable';
 import { useOffline } from '@/lib/offline';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useAcceso } from '@/hooks/useAcceso';
+import { colorTempoActivo, fijarColorTempo } from '@/lib/colorTempo';
 import MenuAcceso, { EVENTO_ACTIVAR_ADMIN } from '@/components/SeccionAcceso';
 import SeccionPdf from '@/components/SeccionPdf';
 
@@ -34,6 +36,9 @@ export default function SettingsPage() {
   );
   const dark = theme === 'dark';
   const offline = useOffline();
+  const { puedeVerMinutas } = useAcceso();
+  const [coloresMinuta, setColoresMinuta] = useState(colorTempoActivo);
+  const cambiarColores = () => { const v = !coloresMinuta; fijarColorTempo(v); setColoresMinuta(v); };
   const toquesVersion = useRef<number[]>([]);
   const tocarVersion = () => {
     const ahora = Date.now();
@@ -126,6 +131,28 @@ export default function SettingsPage() {
           </>
         )}
       </div>
+
+      {/* (1.26.0, Josué) Colores por tempo en la minuta: solo para quien ve minutas. Todo el recuadro se toca. */}
+      {puedeVerMinutas && (
+        <button type="button" role="switch" aria-checked={coloresMinuta} onClick={cambiarColores}
+                className="w-full text-left bg-card rounded-xl border border-border p-4 flex items-center gap-3 [touch-action:manipulation] select-none">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Palette size={14} className="text-muted-foreground" />
+              <span className="text-xs font-medium text-foreground">{t.minuta_colores_titulo}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: 'hsl(199 85% 60%)' }} />
+              <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: 'hsl(265 60% 62%)' }} />
+              <span className="min-w-0">{t.minuta_colores_texto}</span>
+            </p>
+          </div>
+          <span aria-hidden className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-150 ${coloresMinuta ? 'bg-primary' : 'bg-foreground/15'}`}>
+            <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow-sm"
+                  style={{ transform: coloresMinuta ? 'translateX(16px)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+          </span>
+        </button>
+      )}
 
       <SeccionPdf />
 
