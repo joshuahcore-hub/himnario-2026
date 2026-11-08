@@ -4,7 +4,7 @@
 # Uso:
 #   python -I scripts/proyeccion/emparejar.py "G:\Mi unidad\Alabanzas himnario 2026" ..\proyeccion\canciones.json
 #   powershell -ExecutionPolicy Bypass -File scripts\proyeccion\armar_maestro.ps1 `
-#     -Plantilla "D:\Work\Claude Code\PowerPoint culto\originales\PPT_CULTOS.pptx" `
+#     -Plantilla "D:\Work\Claude Code\Trabajos generales\PowerPoint culto\originales\PPT_CULTOS.pptx" `
 #     -Canciones ..\proyeccion\canciones.json -Salida ..\proyeccion\maestro.pptx
 # Deja maestro.pptx y maestro.json (índice). Luego: node scripts/proyeccion/subir-maestro.mjs (lo sube a Cloudflare).
 param([string]$Plantilla, [string]$Canciones, [string]$Salida)
