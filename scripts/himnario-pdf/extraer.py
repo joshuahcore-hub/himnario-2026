@@ -199,6 +199,10 @@ def main():
                 continue  # índice y portada
             actual["trozos"].setdefault(indice, []).append(l["caja"])
             actual["lineas"].append(l)
+        # Verdes al final de la página (el himno que sigue parte en otra): son del himno actual; antes se perdían.
+        if actual is not None:
+            for nota in notas_pendientes:
+                actual["trozos"].setdefault(indice, []).append(nota["caja"])
 
     # 2) Datos de cada himno: primera línea de la letra (texto no rojo) y tono (primer acorde rojo).
     datos = []

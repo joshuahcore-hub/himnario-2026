@@ -4,7 +4,9 @@
 import sharp from 'sharp';
 import { readdirSync, writeFileSync } from 'fs';
 
-const carpeta = 'public/himnos/claro';
+// --compa: lo mismo para las imágenes del modo Compañerismo (src/datos/recortes-compa.json).
+const COMPA = process.argv.includes('--compa');
+const carpeta = COMPA ? 'public/himnos-compa/claro' : 'public/himnos/claro';
 const MARGEN = 24; // px de aire arriba y abajo
 const recortes = {};
 for (const archivo of readdirSync(carpeta).filter(f => f.endsWith('.webp'))) {
@@ -16,5 +18,5 @@ for (const archivo of readdirSync(carpeta).filter(f => f.endsWith('.webp'))) {
   recortes[n] = [meta.width, arriba, alto, meta.height];
   void data;
 }
-writeFileSync('src/datos/recortes.json', JSON.stringify(recortes));
+writeFileSync(COMPA ? 'src/datos/recortes-compa.json' : 'src/datos/recortes.json', JSON.stringify(recortes));
 console.log(Object.keys(recortes).length, 'himnos', JSON.stringify(recortes).slice(0, 200));

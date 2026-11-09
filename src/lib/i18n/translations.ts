@@ -99,6 +99,8 @@ export interface Translations {
   settings_user: string;
   minuta_colores_titulo: string;
   minuta_colores_texto: string;
+  compa_titulo: string;
+  compa_texto: string;
   offline_title: string;
   offline_ready: string;
   offline_preparing: (hechos: number, total: number) => string;
@@ -527,6 +529,8 @@ export const es: Translations = {
   settings_user: 'usuario',
   minuta_colores_titulo: 'Colores en la minuta',
   minuta_colores_texto: 'Lentas en celeste y rápidas en morado.',
+  compa_titulo: 'Compañerismo',
+  compa_texto: 'Muestra las imágenes especiales de ese culto.',
   offline_title: 'Uso sin internet',
   offline_ready: 'Listo: todos los himnos están guardados en este dispositivo.',
   offline_preparing: (hechos, total) => `Preparando himnos para usar sin internet… ${hechos} / ${total}`,
@@ -953,6 +957,8 @@ export const en: Translations = {
   settings_user: 'user',
   minuta_colores_titulo: 'Colors in the setlist',
   minuta_colores_texto: 'Slow songs in light blue, fast songs in purple.',
+  compa_titulo: 'Fellowship',
+  compa_texto: 'Shows the special images for that service.',
   offline_title: 'Offline use',
   offline_ready: 'Ready: all hymns are saved on this device.',
   offline_preparing: (done, total) => `Saving hymns for offline use… ${done} / ${total}`,
@@ -1379,6 +1385,8 @@ export const pt: Translations = {
   settings_user: 'usuário',
   minuta_colores_titulo: 'Cores na minuta',
   minuta_colores_texto: 'Lentas em azul-claro e rápidas em roxo.',
+  compa_titulo: 'Companheirismo',
+  compa_texto: 'Mostra as imagens especiais desse culto.',
   offline_title: 'Uso sem internet',
   offline_ready: 'Pronto: todos os hinos estão salvos neste aparelho.',
   offline_preparing: (hechos, total) => `Preparando os hinos para usar sem internet… ${hechos} / ${total}`,

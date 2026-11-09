@@ -24,6 +24,8 @@ interface PortadaProps {
   plano?: boolean;
   /** (1.26.0, Josué) Franja de color por tempo en el lector: lentas celestes, rápidas moradas (se apaga en Ajustes). */
   colorTempo?: boolean;
+  /** (1.27.0, Josué) En el lector: tocar una alabanza (o Palabra, Oración…) salta a su página (1 = la primera tras la portada). */
+  onIrA?: (pagina: number) => void;
 }
 
 export function ChipAutor({ autor, etiqueta }: { autor: Autor; etiqueta?: string }) {
@@ -94,8 +96,27 @@ function Comienzo({ palabras }: { palabras: string[] }) {
 }
 
 /** Lista de cantos de la portada. En la tarjeta (compact) una minuta muy larga se corta y termina en "⋯" (1.18.2). */
-function ListaCantos({ compact, children }: { compact: boolean; children: React.ReactNode }) {
+function ListaCantos({ compact, children, onIrA }: { compact: boolean; children: React.ReactNode; onIrA?: (pagina: number) => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  // (1.27.0) Un solo escucha para toda la lista: un toque quieto (no deslizar, no pellizcar) sobre un renglón con
+  // data-ir salta a esa página. No corta el evento: el deslizamiento del lector y el zoom siguen igual.
+  const toque = useRef<{ x: number; y: number; t: number; id: number } | null>(null);
+  const dedos = useRef(0);
+  const eventos = onIrA ? {
+    onPointerDown: (e: React.PointerEvent) => {
+      dedos.current = e.isPrimary ? 1 : dedos.current + 1; // el primer dedo reinicia la cuenta
+      toque.current = dedos.current === 1 && (e.pointerType !== 'mouse' || e.button === 0) ? { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId } : null;
+    },
+    onPointerUp: (e: React.PointerEvent) => {
+      dedos.current = Math.max(0, dedos.current - 1);
+      const i = toque.current;
+      toque.current = null;
+      if (!i || i.id !== e.pointerId || Math.hypot(e.clientX - i.x, e.clientY - i.y) > 12 || Date.now() - i.t > 1000) return;
+      const fila = (e.target as Element).closest<HTMLElement>('[data-ir]');
+      if (fila) onIrA(Number(fila.dataset.ir));
+    },
+    onPointerCancel: () => { dedos.current = Math.max(0, dedos.current - 1); toque.current = null; },
+  } : {};
   const [cortada, setCortada] = useState(false);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -107,7 +128,7 @@ function ListaCantos({ compact, children }: { compact: boolean; children: React.
     return () => ro.disconnect();
   }, [compact]);
   return (<>
-    <div ref={ref} className={`pl-2.5 ${compact ? 'space-y-1 max-h-[min(calc(23dvh+96px),460px)] overflow-hidden' : 'space-y-2'}`}
+    <div ref={ref} {...eventos} className={`pl-2.5 ${onIrA ? 'cursor-pointer select-none ' : ''}${compact ? 'space-y-1 max-h-[min(calc(23dvh+96px),460px)] overflow-hidden' : 'space-y-2'}`}
          style={cortada ? { maskImage: 'linear-gradient(to bottom, black calc(100% - 28px), transparent)', WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 28px), transparent)' } : undefined}>
       {children}
     </div>
@@ -115,7 +136,7 @@ function ListaCantos({ compact, children }: { compact: boolean; children: React.
   </>);
 }
 
-export default function Portada({ date, songs, compact = false, creador, editor, duplicada = false, plano = false, colorTempo = false }: PortadaProps) {
+export default function Portada({ date, songs, compact = false, creador, editor, duplicada = false, plano = false, colorTempo = false, onIrA }: PortadaProps) {
   const { t } = useI18n();
   const numerados = renumerar(songs);
   const tam = compact ? 'text-xs' : 'text-sm';
@@ -126,13 +147,13 @@ export default function Portada({ date, songs, compact = false, creador, editor,
     return `franja-tempo franja-${tp}`;
   };
 
-  const renderSongLine = (s: ParsedSong, position: number) => {
+  const renderSongLine = (s: ParsedSong, position: number, pagina: number) => {
     // (1.18.2, Josué) Títulos que son una cita (Hebreos 13:8, Salmo 18…): entre paréntesis cómo empieza la letra.
     const comienzo = s.hymnNumber && esCita(s.title) ? comienzoLetra(s.firstLine ?? getHymn(s.hymnNumber)?.first_line) : null;
     return (
       // items-start (no baseline): todo es del mismo tamaño y así la etiqueta "fuera del himnario" queda centrada en
       // el primer renglón (antes, con baseline, se veía cargada hacia abajo).
-      <div className={`flex items-start gap-1.5 ${tam} ${s.found === false ? 'opacity-50' : ''} ${franja(s)}`}>
+      <div data-ir={onIrA ? pagina : undefined} className={`flex items-start gap-1.5 ${tam} ${s.found === false ? 'opacity-50' : ''} ${franja(s)}`}>
         <span data-num className="text-muted-foreground font-medium shrink-0">{position} -</span>
         {/* Con cita, el título no se parte: lo que se acorta es el paréntesis. */}
         <span className={`text-foreground font-medium ${comienzo ? 'shrink-0' : ''}`}>{s.title}</span>
@@ -148,9 +169,9 @@ export default function Portada({ date, songs, compact = false, creador, editor,
   // (1.18.2, Josué) Palabra, Oración, Especial y Texto quedan a la MISMA distancia de la alabanza de arriba y de la de
   // abajo: el tamaño de letra va en el renglón (antes iba solo en el texto y el renglón tomaba el alto de la letra
   // normal, que dejaba más espacio arriba). El relleno es el promedio de los dos espacios que había.
-  const marcador = (key: string, contenido: React.ReactNode) => (
+  const marcador = (key: string, contenido: React.ReactNode, pagina: number) => (
     // (1.19.4, Josué) Un poco menos de espacio (antes py-2 / py-2.5): sigue parejo arriba y abajo.
-    <div key={key} className={`${tam} ${compact ? 'py-1' : 'py-1.5'}`}>{contenido}</div>
+    <div key={key} data-ir={onIrA ? pagina : undefined} className={`${tam} ${compact ? 'py-1' : 'py-1.5'}`}>{contenido}</div>
   );
 
   return (
@@ -161,14 +182,16 @@ export default function Portada({ date, songs, compact = false, creador, editor,
         <span className={`font-medium text-muted-foreground ${compact ? 'text-xs' : 'text-sm'}`}>{formatearFecha(date)}</span>
       </div>
 
-      <ListaCantos compact={compact}>
+      <ListaCantos compact={compact} onIrA={onIrA}>
         {numerados.map((song, i) => {
-          if (song.isPalabra) return marcador(`palabra-${i}`, <span className="font-semibold text-palabra">{t.portada_palabra}</span>);
-          if (song.isOracion) return marcador(`oracion-${i}`, <span className="font-semibold text-oracion">{t.portada_oracion}</span>);
+          // Página de este renglón en el lector: la misma cuenta que paginasDe (cada alabanza unida es su página).
+          const pagina = 1 + numerados.slice(0, i).reduce((n, x) => n + cadena(x).length, 0);
+          if (song.isPalabra) return marcador(`palabra-${i}`, <span className="font-semibold text-palabra">{t.portada_palabra}</span>, pagina);
+          if (song.isOracion) return marcador(`oracion-${i}`, <span className="font-semibold text-oracion">{t.portada_oracion}</span>, pagina);
           // "Especial Javiera" en celeste, sin número (1.13.0, Josué).
-          if (song.isEspecial) return marcador(`especial-${i}`, <span className="font-semibold text-especial">{t.especial}{song.nombre ? ` ${song.nombre}` : ''}</span>);
+          if (song.isEspecial) return marcador(`especial-${i}`, <span className="font-semibold text-especial">{t.especial}{song.nombre ? ` ${song.nombre}` : ''}</span>, pagina);
           // (1.18.2, Josué) Texto libre, en naranjo suave, tal cual se escribió.
-          if (song.isTexto) return marcador(`texto-${i}`, <span className="font-medium text-nota break-words">{song.texto}</span>);
+          if (song.isTexto) return marcador(`texto-${i}`, <span className="font-medium text-nota break-words">{song.texto}</span>, pagina);
           const grupo = cadena(song);
           return (
             <div key={`${song.position}-${i}`}>
@@ -176,9 +199,9 @@ export default function Portada({ date, songs, compact = false, creador, editor,
               {song.ofrenda && <p className={`font-semibold text-ofrenda leading-none mb-1 ${compact ? 'text-[9.5px]' : 'text-[11px]'}`}>{t.ofrenda}</p>}
               {grupo.length > 1 ? (
                 <Corchete compact={compact} afuera={colorTempo}>
-                  {grupo.map((x, k) => <div key={k}>{renderSongLine({ ...x, found: x.found ?? true }, song.position + k)}</div>)}
+                  {grupo.map((x, k) => <div key={k}>{renderSongLine({ ...x, found: x.found ?? true }, song.position + k, pagina + k)}</div>)}
                 </Corchete>
-              ) : renderSongLine(song, song.position)}
+              ) : renderSongLine(song, song.position, pagina)}
             </div>
           );
         })}

@@ -81,7 +81,7 @@ export default defineConfig({
         // (también el PDF del himnario, para poder descargarlo sin internet)
         globPatterns: ["**/*.{js,css,html,png,svg,woff2,webp,pdf}"],
         // Las pantallas de apertura de iPhone las pide el sistema al instalar; no hace falta guardarlas.
-        globIgnores: ["apertura/**", "himnos-hd/**"],
+        globIgnores: ["apertura/**", "himnos-hd/**", "himnos-compa-hd/**"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
@@ -97,6 +97,9 @@ export default defineConfig({
           // Himnos NÍTIDOS para el zoom (1.17.2): no se bajan al instalar; se guardan la primera vez que se amplía cada uno.
           { urlPattern: ({ url }) => url.pathname.startsWith("/himnos-hd/"), handler: "CacheFirst",
             options: { cacheName: "himnos-hd", expiration: { maxEntries: 400 } } },
+          // Nítidas del modo Compañerismo: igual que las anteriores.
+          { urlPattern: ({ url }) => url.pathname.startsWith("/himnos-compa-hd/"), handler: "CacheFirst",
+            options: { cacheName: "himnos-compa-hd", expiration: { maxEntries: 60 } } },
           { urlPattern: ({ url }) => url.pathname.startsWith("/api/"), handler: "NetworkOnly" },
         ],
       },

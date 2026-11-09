@@ -11,8 +11,10 @@ import sharp from 'sharp';
 // `python -I scripts/himnario-pdf/extraer.py <pdf> <carpeta> --escala 2` + oscuro.mjs). Va a public/himnos-hd y NO se
 // guarda al instalar: el celular la baja solo al ampliar un himno (y la conserva).
 const HD = process.argv.includes('--hd');
-const ORIGEN = path.resolve('..', HD ? 'imagenes-originales-hd' : 'imagenes-originales');
-const DESTINO = path.resolve('public', HD ? 'himnos-hd' : 'himnos');
+// --compa: imágenes alternativas del modo Compañerismo (../companerismo/img o img-hd → public/himnos-compa o himnos-compa-hd).
+const COMPA = process.argv.includes('--compa');
+const ORIGEN = COMPA ? path.resolve('..', 'companerismo', HD ? 'img-hd' : 'img') : path.resolve('..', HD ? 'imagenes-originales-hd' : 'imagenes-originales');
+const DESTINO = path.resolve('public', COMPA ? (HD ? 'himnos-compa-hd' : 'himnos-compa') : (HD ? 'himnos-hd' : 'himnos'));
 const ANCHO_MAX = HD ? 2800 : 1400;
 // WebP SIN PÉRDIDA (11-10-2026): con pérdida (calidad 82) el fondo quedaba 1–2 tonos corrido y con manchitas por
 // bloques, y se notaba una franja entre la imagen y la pantalla (Josué). Sin pérdida el fondo es EXACTO y, como

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 // Los himnos vienen incluidos en la app (src/datos/himnos.json): no se piden a ningún servidor,
 // así la lista y la búsqueda funcionan siempre sin internet.
 import datos from '@/datos/himnos.json';
+import { guardarCompa, HIMNOS_COMPA, usaCompa } from '@/lib/compa';
 
 export interface CachedHymn {
   id: string;
@@ -47,11 +48,11 @@ export function getHymnNumbers(): number[] {
 }
 
 export function getHymnImageUrl(hymnNumber: number): string {
-  return `/himnos/claro/${hymnNumber}.webp`;
+  return `/${usaCompa(hymnNumber) ? 'himnos-compa' : 'himnos'}/claro/${hymnNumber}.webp`;
 }
 
 export function getHymnDarkImageUrl(hymnNumber: number): string {
-  return `/himnos/oscuro/${hymnNumber}.webp`;
+  return `/${usaCompa(hymnNumber) ? 'himnos-compa' : 'himnos'}/oscuro/${hymnNumber}.webp`;
 }
 
 export function getThemedHymnImageUrl(hymnNumber: number, theme: 'light' | 'dark'): string {
@@ -60,7 +61,7 @@ export function getThemedHymnImageUrl(hymnNumber: number, theme: 'light' | 'dark
 
 /** (1.17.2) Versión nítida (el doble de resolución) para cuando se amplía el himno. */
 export function getHymnHdUrl(hymnNumber: number, theme: 'light' | 'dark'): string {
-  return `/himnos-hd/${theme === 'dark' ? 'oscuro' : 'claro'}/${hymnNumber}.webp`;
+  return `/${usaCompa(hymnNumber) ? 'himnos-compa-hd' : 'himnos-hd'}/${theme === 'dark' ? 'oscuro' : 'claro'}/${hymnNumber}.webp`;
 }
 
 /** Usa la versión nítida cuando la imagen se amplía más de esto. */
@@ -109,6 +110,12 @@ export function preloadHymnImageBoth(n: number): void {
 export function precargarHimno(n: number, theme: 'light' | 'dark'): void {
   if (theme === 'dark') preloadHymnDarkImage(n);
   else preloadHymnImage(n);
+}
+
+/** Enciende o apaga el modo Compañerismo y olvida las precargas de esos himnos (eran de la otra versión). */
+export function fijarCompa(activo: boolean): void {
+  guardarCompa(activo);
+  for (const n of HIMNOS_COMPA) { imageCache.delete(n); imageCacheDark.delete(n); }
 }
 
 export function isImageCached(n: number): boolean {

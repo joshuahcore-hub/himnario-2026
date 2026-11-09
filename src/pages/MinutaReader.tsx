@@ -25,6 +25,7 @@ import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO }
 import { marcarMinutaVista } from '@/lib/notificaciones';
 import { revisarPendientes } from '@/hooks/usePendientes';
 import { ConBarra } from '@/components/BarraDesplazamiento';
+import { useAtrasCierra } from '@/lib/atras';
 function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
   song: ParsedSong;
   /** (1.13.1) Las notas son las que envié (vista "Enviados"). */
@@ -198,11 +199,20 @@ export default function MinutaReader() {
   // (1.17.0, Josué) Pantalla completa sin girar (oculta las barras del sistema).
   const { completa, alternar: alternarCompleta } = usePantallaCompleta();
   const toqueCompleta = useToque(alternarCompleta);
+  /** Salta a una página (completa antes el paso que se esté animando). */
+  function irA(destino: number) {
+    if (terminarPaso.current) terminarPaso.current();
+    saltoRef.current?.(destino);
+  }
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   // Página hacia la que va la animación: el contador y los puntitos cambian en el instante de soltar, no al terminar.
   const [paginaDestino, setPaginaDestino] = useState<number | null>(null);
+  // (1.27.0, Josué) Salto desde la portada a una alabanza (o de vuelta a la portada): la página de destino se pone de
+  // vecina a ese lado y se desliza igual que al pasar una; al terminar queda al centro (mismo nodo, sin parpadeo).
+  const [salto, setSalto] = useState<{ pagina: number; lado: 1 | -1 } | null>(null);
+  const saltoRef = useRef<((destino: number) => void) | null>(null);
   // El deslizamiento mueve la tira DIRECTAMENTE (style), sin estado de React: no se redibujan las páginas en cada
   // movimiento del dedo y se ve fluido (Josué, 1.5.3).
   const carruselRef = useRef<HTMLDivElement>(null);
@@ -276,11 +286,15 @@ export default function MinutaReader() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' && currentPage < totalPages - 1) setCurrentPage(p => p + 1);
       else if (e.key === 'ArrowLeft' && currentPage > 0) setCurrentPage(p => p - 1);
-      else if (e.key === 'Escape') navigate('/minutas');
+      else if (e.key === 'Escape') { if (currentPage > 0) irA(0); else navigate('/minutas'); } // como "atrás" (1.27.0)
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentPage, totalPages, navigate, pantallaCompleta]);
+
+  // (1.27.0, Josué) "Atrás" del celular (o la flecha del computador) desde una alabanza vuelve DIRECTO a la portada,
+  // sin pasar una por una; desde la portada sale a la lista como siempre.
+  useAtrasCierra(currentPage > 0, () => irA(0));
 
   if (!minuta) {
     return (
@@ -326,16 +340,16 @@ export default function MinutaReader() {
     moverCarrusel(dragXRef.current, false);
   };
 
-  const animateSlide = (direction: number) => {
+  const animateSlide = (direction: number, destino = currentPage - direction) => {
     animando.current = true;
     moverCarrusel(direction * window.innerWidth, true);
-    setPaginaDestino(currentPage - direction);
+    setPaginaDestino(destino);
     const terminar = () => {
       terminarPaso.current = null;
       animando.current = false;
       dragXRef.current = 0;
       // La página nueva queda dibujada al centro y la tira vuelve a 0 en el mismo instante (sin parpadeo).
-      flushSync(() => { setPaginaDestino(null); setCurrentPage(p => p - direction); });
+      flushSync(() => { setPaginaDestino(null); setCurrentPage(destino); setSalto(null); });
       moverCarrusel(0, false);
     };
     const timer = setTimeout(terminar, DURACION_DESLIZAR);
@@ -348,6 +362,12 @@ export default function MinutaReader() {
   pasoRef.current = d => {
     if (currentPage + d < 0 || currentPage + d >= totalPages) return;
     animateSlide(-d);
+  };
+  saltoRef.current = destino => {
+    if (destino === currentPage || destino < 0 || destino >= totalPages) return;
+    const lado = destino > currentPage ? 1 : -1;
+    if (Math.abs(destino - currentPage) > 1) flushSync(() => setSalto({ pagina: destino, lado }));
+    animateSlide(-lado, destino);
   };
   const paso = (d: 1 | -1) => {
     if (terminarPaso.current) terminarPaso.current();
@@ -444,7 +464,7 @@ export default function MinutaReader() {
                     girado, solo para ver (los sin mover, como acotación arriba). */}
                 {horizontal && <div style={{ containerType: 'inline-size' }}><AcotacionesPostit notas={postitDe(null, 0).notas} className="pb-2" /></div>}
                 <div data-marco-letra className="relative">
-                  <Portada date={minuta.fecha} songs={minuta.cantos} plano colorTempo={colorTempoActivo()} />
+                  <Portada date={minuta.fecha} songs={minuta.cantos} plano colorTempo={colorTempoActivo()} onIrA={irA} />
                   {!horizontal && (
                     <NotasRecordatorio notas={postitDe(null, 0).notas} enviados={verEnviados} onTocar={abrirPanel}
                                        className="absolute bottom-full left-0 right-0 pb-3 z-10 pointer-events-none" />
@@ -513,9 +533,9 @@ export default function MinutaReader() {
         style={{ touchAction: horizontal || paginaVisible === 0 ? 'pan-y' : 'none' }}
       >
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
-          {renderPage(currentPage - 1, -1)}
+          {renderPage(salto?.lado === -1 ? salto.pagina : currentPage - 1, -1)}
           {renderPage(currentPage, 0)}
-          {renderPage(currentPage + 1, 1)}
+          {renderPage(salto?.lado === 1 ? salto.pagina : currentPage + 1, 1)}
         </div>
         {/* Arriba a la derecha: añadir recordatorio a esta alabanza (1.7.0; solo en páginas de canto) y girar
             (1.6.1). Discretos, para no tapar la letra. */}

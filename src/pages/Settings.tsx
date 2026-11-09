@@ -1,4 +1,6 @@
-import { Moon, Sun, Languages, WifiOff, CheckCircle2, Palette } from 'lucide-react';
+import { Moon, Sun, Languages, WifiOff, CheckCircle2, Palette, Users } from 'lucide-react';
+import { compaActivo } from '@/lib/compa';
+import { fijarCompa } from '@/lib/hymnCache';
 import { ConBarra } from '@/components/BarraDesplazamiento';
 import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
@@ -39,6 +41,8 @@ export default function SettingsPage() {
   const { puedeVerMinutas } = useAcceso();
   const [coloresMinuta, setColoresMinuta] = useState(colorTempoActivo);
   const cambiarColores = () => { const v = !coloresMinuta; fijarColorTempo(v); setColoresMinuta(v); };
+  const [compa, setCompa] = useState(compaActivo);
+  const cambiarCompa = () => { const v = !compa; fijarCompa(v); setCompa(v); };
   const toquesVersion = useRef<number[]>([]);
   const tocarVersion = () => {
     const ahora = Date.now();
@@ -150,6 +154,24 @@ export default function SettingsPage() {
           <span aria-hidden className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-150 ${coloresMinuta ? 'bg-primary' : 'bg-foreground/15'}`}>
             <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow-sm"
                   style={{ transform: coloresMinuta ? 'translateX(16px)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+          </span>
+        </button>
+      )}
+
+      {/* Provisorio (Josué 09-11-2026): imágenes alternativas del culto de compañerismo, en este equipo. */}
+      {puedeVerMinutas && (
+        <button type="button" role="switch" aria-checked={compa} onClick={cambiarCompa}
+                className="w-full text-left bg-card rounded-xl border border-border p-4 flex items-center gap-3 [touch-action:manipulation] select-none">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Users size={14} className="text-muted-foreground" />
+              <span className="text-xs font-medium text-foreground">{t.compa_titulo}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">{t.compa_texto}</p>
+          </div>
+          <span aria-hidden className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-150 ${compa ? 'bg-primary' : 'bg-foreground/15'}`}>
+            <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow-sm"
+                  style={{ transform: compa ? 'translateX(16px)' : 'none', transition: 'transform 150ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
           </span>
         </button>
       )}

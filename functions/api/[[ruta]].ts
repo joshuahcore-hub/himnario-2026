@@ -110,7 +110,10 @@ function exigirAdmin(d: Dispositivo | null): Dispositivo {
 async function leerJson(request: Request, maximo = 100_000): Promise<any> {
   const texto = await request.text();
   if (texto.length > maximo) throw new ErrorApi(413, 'Datos demasiado grandes.');
-  try { return texto ? JSON.parse(texto) : {}; } catch { throw new ErrorApi(400, 'Datos inválidos.'); }
+  let datos: any;
+  try { datos = texto ? JSON.parse(texto) : {}; } catch { throw new ErrorApi(400, 'Datos inválidos.'); }
+  if (datos === null || typeof datos !== 'object' || Array.isArray(datos)) throw new ErrorApi(400, 'Datos inválidos.');
+  return datos;
 }
 
 /** Para fotos (la app las achica antes de enviarlas; aquí se acepta hasta ~6 MB). */
@@ -406,7 +409,7 @@ async function rutasAcceso(request: Request, env: Env, partes: string[], ip: str
     const llave = llaveDe(request);
     if (!llave) throw new ErrorApi(400, 'Falta la llave del dispositivo.');
     const hash = await sha256(llave);
-    const existente = await env.DB.prepare('SELECT id, rol, estado, crea_minutas, recordatorios_otros, ve_minutas FROM dispositivos WHERE llave_hash = ?')
+    const existente = await env.DB.prepare('SELECT id, rol, estado, crea_minutas, recordatorios_otros, ve_minutas, proyeccion FROM dispositivos WHERE llave_hash = ?')
       .bind(hash).first<Dispositivo>();
     if (existente) {
       if (existente.estado === 'deshabilitado') throw new ErrorApi(403, 'Este dispositivo fue deshabilitado por el administrador.');
@@ -1367,10 +1370,11 @@ async function rutasCancionesExtra(request: Request, env: Env, partes: string[])
     const yo = exigirEditor(await dispositivoActual(request, env));
     const { titulo, tonalidad, tempo, imagen } = leerDatos(await leerJson(request));
     const t = ahora();
-    // Misma canción (mismo título) = se actualiza; la imagen solo se reemplaza si viene una nueva.
+    // Misma canción (mismo título) = se actualiza; tonalidad, tempo e imagen solo se reemplazan si vienen nuevos
+    // (escribirla de nuevo sin tono no le borra el tono guardado). Quitárselos a propósito es PATCH.
     await env.DB.prepare(`INSERT INTO canciones_extra (id, clave, titulo, tonalidad, tempo, imagen, creada_por, creado, actualizado)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                          ON CONFLICT (clave) DO UPDATE SET titulo = excluded.titulo, tonalidad = excluded.tonalidad,
+                          ON CONFLICT (clave) DO UPDATE SET titulo = excluded.titulo, tonalidad = COALESCE(excluded.tonalidad, canciones_extra.tonalidad),
                             tempo = COALESCE(excluded.tempo, canciones_extra.tempo),
                             imagen = COALESCE(excluded.imagen, canciones_extra.imagen), actualizado = excluded.actualizado`)
       .bind(crypto.randomUUID(), claveTitulo(titulo), titulo, tonalidad, tempo, imagen, yo.id, t, t).run();

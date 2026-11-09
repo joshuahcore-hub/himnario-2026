@@ -2,8 +2,11 @@
 // vacío de arriba y abajo del lienzo. Los límites los calcula scripts/recortes.mjs (src/datos/recortes.json).
 import recortes from '@/datos/recortes.json';
 import CapaNitida from '@/components/CapaNitida';
+import { recorteCompa } from '@/lib/compa';
 
 const tabla = recortes as unknown as Record<string, [number, number, number, number]>; // [ancho, arriba, alto, altoTotal] en px
+/** El recorte de la imagen que se está mostrando (la alternativa, si el modo Compañerismo está encendido). */
+const recorteDe = (num: number) => recorteCompa(num) ?? tabla[String(num)];
 
 /**
  * Para una <img> normal (con zoom propio): muestra solo la franja con letra usando object-view-box (Chrome/Android).
@@ -11,12 +14,12 @@ const tabla = recortes as unknown as Record<string, [number, number, number, num
  */
 /** Alto ÷ ancho de la franja con letra (para darle a cada himno el ancho que cabe de alto). */
 export function proporcionLetra(num: number): number {
-  const r = tabla[String(num)];
+  const r = recorteDe(num);
   return r ? r[2] / r[0] : 1980 / 1400;
 }
 
 export function vistaRecortada(num: number): React.CSSProperties {
-  const r = tabla[String(num)];
+  const r = recorteDe(num);
   if (!r) return {};
   const [, arriba, alto, total] = r;
   // En % del tamaño de la imagen (1.17.2): vale igual para la normal y la nítida (el doble de píxeles).
@@ -37,7 +40,7 @@ export default function HimnoRecortado({ num, src: srcNormal, alt, onError, chil
   ajustarAlto?: boolean;
 }) {
   const src = srcNormal;
-  const r = tabla[String(num)];
+  const r = recorteDe(num);
   if (!r) {
     return (
       <div data-marco-letra className="relative w-full">
