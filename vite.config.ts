@@ -10,9 +10,9 @@ import { COLORES_TEMA, FONDOS, archivoManifiesto } from "./src/lib/colores";
 // y la app enlaza el que corresponde al tema elegido (ver index.html y src/hooks/useTheme.ts).
 const manifiesto: Partial<ManifestOptions> = {
   id: "/",
-  name: "Himnario 2026",
-  short_name: "Himnario 2026",
-  description: "Himnario 2026 — himnos y minutas, también sin internet",
+  name: "Himnario NC",
+  short_name: "Himnario NC",
+  description: "Himnario NC — himnos y minutas, también sin internet",
   lang: "es",
   start_url: "/",
   scope: "/",
