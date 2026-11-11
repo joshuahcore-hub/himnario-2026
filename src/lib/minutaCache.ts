@@ -15,7 +15,9 @@ function leerLocal(): MinutaData[] {
   if (memoria) return memoria;
   try {
     const raw = localStorage.getItem(CACHE_KEY);
-    memoria = raw ? JSON.parse(raw) : [];
+    const g = raw ? JSON.parse(raw) : [];
+    // (1.28.1) Si quedó guardado "null", Minutas salía negra y Publicar fallaba ('some' de null).
+    memoria = Array.isArray(g) ? g : [];
   } catch {
     memoria = [];
   }
@@ -23,6 +25,7 @@ function leerLocal(): MinutaData[] {
 }
 
 function guardar(minutas: MinutaData[]) {
+  if (!Array.isArray(minutas)) minutas = [];
   memoria = minutas;
   try { localStorage.setItem(CACHE_KEY, JSON.stringify(minutas)); } catch {}
   oyentes.forEach(f => f(minutas));
