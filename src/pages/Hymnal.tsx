@@ -18,6 +18,7 @@ import TempoPicker from '@/components/TempoPicker';
 import BotonSeguro from '@/components/BotonSeguro';
 import BarraDesplazamiento from '@/components/BarraDesplazamiento';
 import Zoomable, { type EstadoZoom } from '@/components/Zoomable';
+import { useRuedaRecargar, recargarApp } from '@/hooks/useRuedaRecargar';
 
 // (1.21.1, Josué) El zoom de la lista se conserva al abrir un himno y volver (vive mientras la app está abierta).
 let zoomGuardado: { activo: boolean } & EstadoZoom = { activo: false, escala: 1, x: 0, y: 0 };
@@ -64,6 +65,8 @@ export default function HymnalPage() {
     try { localStorage.setItem('himnario_orden', o); } catch { /* da igual */ }
   };
   const [zoom, setZoomEstado] = useState(zoomGuardado.activo);
+  // (1.29.0, Josué) Deslizar hacia abajo desde arriba = recargar con la ruedita (no con el zoom puesto: ahí se mueve la lista).
+  const { toques: toquesRecargar, rueda } = useRuedaRecargar(recargarApp, !zoom);
   const setZoom = (z: boolean) => { setZoomEstado(z); zoomGuardado = { activo: z, escala: 1, x: 0, y: 0 }; };
   const filtered = useMemo(() => {
     let list = hymns;
@@ -163,6 +166,7 @@ export default function HymnalPage() {
     // bajaba hasta quedar escondida detrás de la barra de abajo).
     <div className="relative" style={{ height: 'calc(100% - var(--barra))' }}>
     <BarraDesplazamiento lista={scrollRef} />
+    {rueda}
     {/* (1.21.0, Josué) Botón "Z": activa pellizcar/doble toque para ampliar la lista; el "Z" flotante lo apaga. */}
     {zoom && (
       <BotonSeguro onClick={() => setZoom(false)} aria-label="Zoom"
@@ -175,6 +179,7 @@ export default function HymnalPage() {
               onCambio={e => { if (zoomGuardado.activo) zoomGuardado = { activo: true, ...e }; }}>
     <div
       ref={scrollRef}
+      {...toquesRecargar}
       onScroll={e => saveScrollTop(e.currentTarget.scrollTop)}
       className="px-5 pt-4 pb-4 overflow-y-auto scrollbar-hide h-full"
     >

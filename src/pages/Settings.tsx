@@ -13,6 +13,7 @@ import { useAcceso } from '@/hooks/useAcceso';
 import { colorTempoActivo, fijarColorTempo } from '@/lib/colorTempo';
 import MenuAcceso, { EVENTO_ACTIVAR_ADMIN } from '@/components/SeccionAcceso';
 import SeccionPdf from '@/components/SeccionPdf';
+import { useRuedaRecargar, recargarApp } from '@/hooks/useRuedaRecargar';
 
 const LANGUAGES: { code: Locale; label: string }[] = [
   { code: 'es', label: 'Español' },
@@ -43,6 +44,7 @@ export default function SettingsPage() {
   const cambiarColores = () => { const v = !coloresMinuta; fijarColorTempo(v); setColoresMinuta(v); };
   const [compa, setCompa] = useState(compaActivo);
   const cambiarCompa = () => { const v = !compa; fijarCompa(v); setCompa(v); };
+  const { toques: toquesRecargar, rueda } = useRuedaRecargar(recargarApp);
   const toquesVersion = useRef<number[]>([]);
   const tocarVersion = () => {
     const ahora = Date.now();
@@ -59,8 +61,9 @@ export default function SettingsPage() {
     // desplazable sin tener nada más abajo.
     // (1.20.12, Josué) Misma barrita del Himnario; alto real de <main> (no 100dvh).
     <div className="relative w-full max-w-lg mx-auto" style={{ height: 'calc(100% - var(--barra))' }}>
+    {rueda}
     <ConBarra arriba="3.5rem">{ref => (
-    <div ref={ref} className="h-full px-5 pt-4 pb-6 space-y-5 overflow-y-auto scrollbar-hide">
+    <div ref={ref} {...toquesRecargar} className="h-full px-5 pt-4 pb-6 space-y-5 overflow-y-auto scrollbar-hide">
       {/* Título y, a la derecha, el menú ⋮ con las opciones avanzadas (creador, perfil, administración). */}
       {/* relative z-30: el menú desplegado queda por encima de las tarjetas de abajo. */}
       <div className="relative z-30 [&:has([data-menu-abierto])]:z-[60] flex items-center justify-between">

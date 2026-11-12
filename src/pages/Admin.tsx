@@ -9,6 +9,7 @@ import { api, ErrorDeRed } from '@/lib/api';
 import { useI18n } from '@/lib/i18n/index';
 import { useAcceso } from '@/hooks/useAcceso';
 import { revisarPendientes } from '@/hooks/usePendientes';
+import { useRuedaRecargar } from '@/hooks/useRuedaRecargar';
 import { marcarTiposVistos } from '@/lib/notificaciones';
 import { ConBarra } from '@/components/BarraDesplazamiento';
 import { Input } from '@/components/ui/input';
@@ -90,6 +91,7 @@ export default function Admin() {
   }, [t]);
 
   useEffect(() => { if (esAdmin) cargar(); }, [esAdmin, cargar]);
+  const { toques: toquesRecargar, rueda } = useRuedaRecargar(cargar);
   // (1.20.2, Josué) Entrar a Administración = ya se vieron los avisos de "alguien se registró": se apaga el punto rojo.
   useEffect(() => { if (esAdmin) marcarTiposVistos(['registro']).then(() => revisarPendientes()); }, [esAdmin]);
   // Quitar a una persona de la lista (1.11.0, Josué: registros repetidos). Mantener presionada su tarjeta → confirmar.
@@ -254,10 +256,11 @@ export default function Admin() {
         </button>
       </div>
 
+      {rueda}
       {/* (1.20.12, Josué) Misma barrita del Himnario. */}
       <div className="relative flex-1 min-h-0">
       <ConBarra>{ref => (
-      <div ref={ref} className="h-full overflow-y-auto scrollbar-hide px-5 pb-6 space-y-2">
+      <div ref={ref} {...toquesRecargar} className="h-full overflow-y-auto scrollbar-hide px-5 pb-6 space-y-2">
         <SeccionEspacios />
         {iaCreadores !== null && (
           <button
