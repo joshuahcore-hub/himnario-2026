@@ -207,6 +207,8 @@ export default function MinutaReader() {
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  // (1.29.1, Josué) Al pasar a otra página (adelante o atrás) se apaga "Enviados": vale solo para la página donde se activó.
+  useEffect(() => { setVerEnviados(false); }, [currentPage, id]);
   // Página hacia la que va la animación: el contador y los puntitos cambian en el instante de soltar, no al terminar.
   const [paginaDestino, setPaginaDestino] = useState<number | null>(null);
   // (1.27.0, Josué) Salto desde la portada a una alabanza (o de vuelta a la portada): la página de destino se pone de

@@ -102,6 +102,8 @@ export default function HymnDetail() {
   // Vista "Enviados" (1.13.1, Josué): en vez de los míos, los que dejé a otras personas (se ocultan los míos).
   const [verEnviados, setVerEnviados] = useState(false);
   const notasVista = (n: number) => (verEnviados ? notasDe(n, 'enviados') : notasDe(n));
+  // (1.29.1, Josué) Al pasar a otra alabanza se apaga "Enviados": vale solo para la página donde se activó.
+  useEffect(() => { setVerEnviados(false); }, [number]);
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [notaEditada, setNotaEditada] = useState<Recordatorio | null>(null);
   const abrirPanel = (r: Recordatorio | null) => { setNotaEditada(r); setPanelAbierto(true); };
