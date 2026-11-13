@@ -137,11 +137,21 @@ def componer(doc, indice, caja_himno, caja_titulo, cfg, es_verde, espacio_titulo
                 queda_algo = ren is salida[-1] or any(c["x1"] <= cx for c in ren["fila"]["chars"] if c["c"].strip())
                 ren["piezas"] = [(x0, cx, 0.0)] if queda_algo else []
                 abajo.append({"y0": ren["y0"], "y1": ren["y1"], "piezas": [(cx, x1, dx)],
-                              "espacio": ren["espacio"] if n else (bloque[0]["espacio"] if bloque[0]["espacio"] > 0 else 2)})
+                              "espacio": ren["espacio"] if n else None})  # None = espacio normal entre renglones (abajo)
             salida[:] = [x for x in salida if x["piezas"]]
             salida.extend(abajo)
             del cortes[clave]
         grupo = []
+    # 13-11-2026 (Josué: «hay un espacio innecesario» bajo «Hoy me entrego…» y «No me entregues…»): la frase que baja
+    # copiaba el espacio de ANTES de la estrofa (grande) cuando el corte era en su primer renglón. Ahora usa el espacio
+    # normal entre una letra y los acordes de abajo dentro de la estrofa (el más común del himno).
+    normales = sorted(round(salida[k]["espacio"], 1) for k in range(1, len(salida))
+                      if salida[k]["espacio"] is not None and salida[k - 1].get("fila", {}).get("letra")
+                      and not salida[k].get("fila", {}).get("letra") and 0 < salida[k]["espacio"] < 8)
+    normal = normales[len(normales) // 2] if normales else 2
+    for ren in salida:
+        if ren["espacio"] is None:
+            ren["espacio"] = normal
     if verdes:
         primero = True
         for y0, y1, x0, x1 in verdes:
