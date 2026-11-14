@@ -495,7 +495,8 @@ export default function MinutaReader() {
           <Zoomable className="w-full h-full" reiniciarCon={minuta.id}>
             {/* (1.18.2, Josué) Una minuta muy larga se ve completa: la portada se desplaza hacia abajo (desde 1.9.4 el
                 gesto vertical ya no sale del lector). Deslizar al lado sigue llevando a la primera canción. */}
-            <div ref={refPortada} className="h-full w-full flex overflow-y-auto scrollbar-hide p-5"
+            {/* (1.32.4, Josué) pt-16: en una minuta larga (empieza arriba) los botones de arriba tapaban "Minuta" y la fecha. */}
+            <div ref={refPortada} className="h-full w-full flex overflow-y-auto scrollbar-hide px-5 pb-5 pt-16"
                  style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}>
               <div className="w-full max-w-sm m-auto">
                 {/* (1.17.11, Josué) Post-it también en la portada: pegados donde se sueltan, como en las alabanzas;
