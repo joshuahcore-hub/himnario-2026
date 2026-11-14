@@ -92,6 +92,16 @@ export function useRuedaRecargar(accion: () => unknown, activo = true) {
     onTouchCancel: fin,
   };
 
+  /** Para pantallas que ya manejan sus propios toques (himno, minuta; 1.31.0): `arrastrar(dy)` con lo que bajó el dedo
+   *  desde que el gesto se reconoció vertical hacia abajo, y `soltar()` al levantar el dedo. */
+  const arrastrar = (dy: number) => {
+    if (!activo || ocupado.current) return;
+    const d = Math.max(0, Math.min(120, dy * 0.5));
+    gesto.current = { x: 0, y: 0, vertical: true, d };
+    mover(d, false);
+  };
+  const soltar = () => { if (gesto.current) fin(); };
+
   const elemento = (
     <div ref={rueda} aria-hidden
          className="pointer-events-none fixed left-1/2 -ml-5 z-[70] w-10 h-10 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-primary"
@@ -104,5 +114,5 @@ export function useRuedaRecargar(accion: () => unknown, activo = true) {
     </div>
   );
 
-  return { toques, rueda: elemento, girando };
+  return { toques, rueda: elemento, girando, arrastrar, soltar };
 }

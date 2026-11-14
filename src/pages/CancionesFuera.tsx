@@ -88,7 +88,13 @@ export function CancionFuera() {
   // (1.18.2, Josué) Deslizar al lado = la anterior / la siguiente de la carpeta (en el mismo orden alfabético). La
   // página sigue al dedo directo (style, sin estado de React) y al soltar sale por ese lado; la nueva entra por el otro.
   const pagina = useRef<HTMLDivElement>(null);
-  const toque = useRef<{ x: number; y: number; lateral: boolean | null } | null>(null);
+  const toque = useRef<{ x: number; y: number; lateral: boolean | null; recarga?: boolean } | null>(null);
+  // (1.31.0, Josué: recargar también dentro) Deslizar hacia ABAJO con la página arriba del todo = la ruedita.
+  const { rueda: ruedaRecargar, arrastrar: arrastrarRecarga, soltar: soltarRecarga } = useRuedaRecargar(recargarApp);
+  const arribaDelTodo = (el: HTMLElement | null, hasta: HTMLElement) => {
+    for (let n = el; n && n !== hasta; n = n.parentElement) if (n.scrollTop > 0) return false;
+    return true;
+  };
   const mover = (px: number, animar: boolean) => {
     const el = pagina.current;
     if (!el) return;
@@ -121,7 +127,17 @@ export function CancionFuera() {
     const t0 = toque.current;
     if (!t0) return;
     const dx = e.touches[0].clientX - t0.x, dy = e.touches[0].clientY - t0.y;
-    if (t0.lateral === null) t0.lateral = direccionFirme(dx, dy);
+    if (t0.lateral === null) {
+      t0.lateral = direccionFirme(dx, dy);
+      if (t0.lateral === false && dy > 0 && e.touches.length === 1 && arribaDelTodo(e.target as HTMLElement, e.currentTarget as HTMLElement)) {
+        t0.recarga = true;
+        t0.y = e.touches[0].clientY; // la rueda parte desde 0, sin salto
+      }
+    }
+    if (t0.recarga) {
+      if (e.touches.length > 1) { t0.recarga = false; arrastrarRecarga(0); soltarRecarga(); return; }
+      arrastrarRecarga(Math.max(0, e.touches[0].clientY - t0.y)); return;
+    }
     if (!t0.lateral) return;
     // En la primera o la última, cede poco (tope elástico).
     const hay = dx < 0 ? pos < lista.length - 1 : pos > 0;
@@ -130,6 +146,7 @@ export function CancionFuera() {
   const alSoltar = (e: React.TouchEvent) => {
     const t0 = toque.current;
     toque.current = null;
+    if (t0?.recarga) { soltarRecarga(); return; }
     if (!t0?.lateral) return;
     const dx = e.changedTouches[0].clientX - t0.x;
     if (Math.abs(dx) > 60) ir(dx < 0 ? 1 : -1);
@@ -142,6 +159,7 @@ export function CancionFuera() {
   return (
     <div className="relative flex flex-col w-full max-w-3xl mx-auto overflow-clip" style={{ height: 'calc(100dvh - var(--barra))', touchAction: 'pan-y' }}
          onTouchStart={alTocar} onTouchMove={alMover} onTouchEnd={alSoltar} onTouchCancel={alSoltar}>
+      {ruedaRecargar}
       <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))} aria-label={t.tab_hymnal}
               className="tap-btn absolute top-3 left-3 z-10 p-2 rounded-full text-foreground"><ArrowLeft size={20} /></button>
       {/* (1.18.2) Solo creadores: lápiz arriba a la derecha → el mismo panel que en el editor de minutas. */}

@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { espacioActual, useEspacios } from '@/lib/espacios';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/lib/aviso';
-import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
+import { ArrowLeft, ArrowLeftRight, Check, ChevronLeft, ChevronRight, FolderOpen, Globe, Link2, Loader2, Plus, Search, Unlink, X, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -525,7 +525,16 @@ export default function EditorMinuta() {
     // min-h-0 en la zona flex-1: sin eso crece con su contenido y empuja la pantalla completa.
     <div className="flex flex-col overflow-hidden w-full max-w-lg mx-auto" style={{ height: 'calc(100% - var(--barra))', overscrollBehavior: 'none' }}>
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        <h1 className="text-xl font-bold text-foreground">{id ? t.editor_title_edit : t.create_title}</h1>
+        {/* (1.31.0, Josué) Editando: flecha para volver arriba a la izquierda (el iPhone no tiene "atrás" abajo); antes era
+            una X a la derecha. Hace lo mismo: si hay cambios, pregunta. */}
+        <div className="flex items-center gap-1 min-w-0">
+          {id && (
+            <BotonSeguro onClick={salida.intentarVolver} className="-ml-2 p-1.5 rounded-full text-foreground" aria-label={t.minutas_cancel}>
+              <ArrowLeft size={20} />
+            </BotonSeguro>
+          )}
+          <h1 className="text-xl font-bold text-foreground">{id ? t.editor_title_edit : t.create_title}</h1>
+        </div>
         {/* (1.17.3, Josué) En qué espacio se crea: pequeño, a la derecha del título; tocarlo cambia de espacio. Es el
             MISMO que se ve en Minutas (cambiar uno cambia el otro). */}
         {!id && espacios.length > 1 && (
@@ -534,11 +543,6 @@ export default function EditorMinuta() {
             {/* (1.20.18, Josué) Sin desvanecido: el nombre cambia directo. */}
             <span>{espacio.nombre}</span>
             <ArrowLeftRight size={12} className="text-muted-foreground" />
-          </BotonSeguro>
-        )}
-        {id && (
-          <BotonSeguro onClick={salida.intentarVolver} className="text-muted-foreground p-1.5" aria-label={t.minutas_cancel}>
-            <X size={20} />
           </BotonSeguro>
         )}
       </div>

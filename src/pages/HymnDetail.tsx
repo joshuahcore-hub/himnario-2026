@@ -18,6 +18,7 @@ import { esComputador } from '@/lib/proyeccion';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
 import { ConBarra } from '@/components/BarraDesplazamiento';
 import BuscadorHimno from '@/components/BuscadorHimno';
+import { useRuedaRecargar, recargarApp } from '@/hooks/useRuedaRecargar';
 /**
  * Barra para saltar a cualquier himno sin pasar uno por uno (pedido de Josué): se arrastra el círculo (o se toca un
  * punto de la barra) y, al soltar, se salta a ese himno. Mientras se arrastra, una burbuja muestra número y título.
@@ -131,6 +132,10 @@ export default function HymnDetail() {
   const ruedaRef = useRef({ acum: 0, ultimo: 0, paso: 0 });
   // (1.17.2) Himno girado que está ampliado (usa la imagen nítida).
   const [ampliadoNum, setAmpliadoNum] = useState<number | null>(null);
+  // (1.31.0, Josué: recargar también dentro) Deslizar hacia ABAJO = la ruedita de recargar, como en las listas;
+  // hacia ARRIBA sigue cerrando el himno. Con zoom o girado no recarga (ahí el gesto vertical es para mirar la letra).
+  const { rueda: ruedaRecargar, arrastrar: arrastrarRecarga, soltar: soltarRecarga } = useRuedaRecargar(recargarApp, ampliadoNum === null && !horizontal);
+  const recargaRef = useRef(false);
   const pasoRef = useRef<((d: 1 | -1) => void) | null>(null);
 
   const initial = getHymns();
@@ -257,6 +262,7 @@ export default function HymnDetail() {
     touchStartRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
     isHorizontalRef.current = null;
+    recargaRef.current = false;
     arrastrando.current = true;
     dragXRef.current = 0;
     dragYRef.current = 0;
@@ -274,12 +280,19 @@ export default function HymnDetail() {
         if (dir === null) return;
         isHorizontalRef.current = dir;
         touchStartRef.current += Math.sign(dx) * UMBRAL_LADO; // arranca desde 0, sin salto
-      } else if (Math.abs(dx) > 8 || Math.abs(dy) > 8) isHorizontalRef.current = Math.abs(dx) > Math.abs(dy);
+      } else if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        isHorizontalRef.current = Math.abs(dx) > Math.abs(dy);
+        recargaRef.current = !isHorizontalRef.current && dy > 0 && ampliadoNum === null && e.touches.length === 1;
+      }
       return;
     }
     // Vertical: hacia abajo o hacia arriba, la imagen sigue al dedo y al soltar sale (vuelve al himnario).
     // En horizontal el gesto vertical recorre la letra (desplazamiento nativo).
     if (!isHorizontalRef.current && horizontal) return;
+    if (recargaRef.current) {
+      if (e.touches.length > 1) { recargaRef.current = false; arrastrarRecarga(0); soltarRecarga(); return; }
+      arrastrarRecarga(Math.max(0, dy)); return;
+    }
     if (!isHorizontalRef.current) { dragYRef.current = dy; moverVertical(dy, 'arrastre'); return; }
     e.preventDefault();
     const atEdge = (dx > 0 && currentIndex === 0) || (dx < 0 && currentIndex === navNumbers.length - 1);
@@ -290,6 +303,7 @@ export default function HymnDetail() {
   const handleTouchEnd = () => {
     if (!arrastrando.current) return;
     arrastrando.current = false;
+    if (recargaRef.current) { recargaRef.current = false; soltarRecarga(); return; }
     const dragX = dragXRef.current, dragY = dragYRef.current;
     if (Math.abs(dragY) > 80) { saliendo.current = true; moverVertical(dragY, 'salir'); setTimeout(() => navigate('/hymnal'), 280); return; }
     if (dragY !== 0) { dragYRef.current = 0; moverVertical(0, 'volver'); return; }
@@ -423,6 +437,7 @@ export default function HymnDetail() {
     <div ref={exteriorRef} className={`fixed inset-0 ${sinBarras ? 'z-[55]' : 'z-40'} bg-background`} style={{ overflow: 'clip', willChange: 'transform' }}>
       {/* overflow CLIP (no hidden): con hidden el navegador podía desplazarlo solo (al abrir un panel quedaba corrido
           113 px mostrando el himno vecino). clip recorta igual y no se puede desplazar (1.7.0). */}
+      {ruedaRecargar}
       {/* Arriba a la izquierda (1.13.1, Josué: simétrico): volver y los dos de post-it (crear y ver los enviados).
           Girado = solo para ver: sin los de post-it. */}
       <div data-tapa-postit className="absolute top-3 left-3 z-20 flex gap-2">

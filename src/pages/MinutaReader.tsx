@@ -26,6 +26,7 @@ import { marcarMinutaVista } from '@/lib/notificaciones';
 import { revisarPendientes } from '@/hooks/usePendientes';
 import { ConBarra } from '@/components/BarraDesplazamiento';
 import { useAtrasCierra } from '@/lib/atras';
+import { useRuedaRecargar, recargarApp } from '@/hooks/useRuedaRecargar';
 function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
   song: ParsedSong;
   /** (1.13.1) Las notas son las que envié (vista "Enviados"). */
@@ -206,7 +207,14 @@ export default function MinutaReader() {
   }
   const [minuta, setMinuta] = useState<MinutaData | null>(() => (id ? getMinuta(id) ?? null : null));
   const [noEncontrada, setNoEncontrada] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
+  // (1.31.0) Tras recargar deslizando hacia abajo se vuelve a la misma página (se guarda justo antes de recargar).
+  const [currentPage, setCurrentPage] = useState(() => {
+    try {
+      const k = `minuta-pagina-${id}`, v = sessionStorage.getItem(k);
+      sessionStorage.removeItem(k);
+      return v ? Math.max(0, Number(v) || 0) : 0;
+    } catch { return 0; }
+  });
   // (1.29.1, Josué) Al pasar a otra página (adelante o atrás) se apaga "Enviados": vale solo para la página donde se activó.
   useEffect(() => { setVerEnviados(false); }, [currentPage, id]);
   // Página hacia la que va la animación: el contador y los puntitos cambian en el instante de soltar, no al terminar.
@@ -279,6 +287,21 @@ export default function MinutaReader() {
 
   const swipeItems = minuta ? paginasDe(minuta.cantos) : [];
   const totalPages = swipeItems.length + 1;
+  // (1.31.0) La página guardada al recargar puede no existir si la minuta cambió: queda en la última.
+  useEffect(() => { if (minuta && currentPage >= totalPages) setCurrentPage(totalPages - 1); }, [minuta, currentPage, totalPages]);
+  const recargaRef = useRef(false);
+  const paginaRef = useRef(currentPage);
+  paginaRef.current = currentPage;
+  const { rueda: ruedaRecargar, arrastrar: arrastrarRecarga, soltar: soltarRecarga } = useRuedaRecargar(() => {
+    try { sessionStorage.setItem(`minuta-pagina-${id}`, String(paginaRef.current)); } catch { /* vuelve a la portada */ }
+    return recargarApp();
+  }, !horizontal);
+  /** ¿Nada de lo que hay bajo el dedo está desplazado hacia abajo? (la portada larga se recorre; ahí no recarga). */
+  const arribaDelTodo = (el: HTMLElement | null) => {
+    for (let n = el; n && n !== areaRef.current; n = n.parentElement) if (n.scrollTop > 0) return false;
+    return true;
+  };
+
 
   useEffect(() => {
     swipeItems.forEach(s => { if (s.hymnNumber) precargarHimno(s.hymnNumber, temaLector); }); // solo el tema en uso (1.7.2)
@@ -319,6 +342,7 @@ export default function MinutaReader() {
     touchStartRef.current = e.touches[0].clientX;
     touchStartYRef.current = e.touches[0].clientY;
     lateralRef.current = null;
+    recargaRef.current = false;
     arrastrando.current = true;
     dragXRef.current = 0;
   };
@@ -331,11 +355,22 @@ export default function MinutaReader() {
       const dir = direccionFirme(dx, e.touches[0].clientY - touchStartYRef.current);
       if (dir === null) return;
       lateralRef.current = dir;
+      // (1.31.0, Josué: recargar también dentro) Vertical hacia ABAJO = la ruedita de recargar (de pie, sin zoom, con
+      // la página arriba del todo). Sigue sin salir de la minuta con el gesto vertical (1.9.4).
+      const dy0 = e.touches[0].clientY - touchStartYRef.current;
+      if (!dir && dy0 > 0 && !horizontal && e.touches.length === 1 && arribaDelTodo(e.target as HTMLElement)) {
+        recargaRef.current = true;
+        touchStartYRef.current = e.touches[0].clientY; // la rueda parte desde 0, sin salto
+      }
       touchStartRef.current += Math.sign(dx) * UMBRAL_LADO; // arranca desde 0, sin salto
       dx = e.touches[0].clientX - touchStartRef.current;
     }
     // Vertical: NO sale de la minuta (1.9.4, Josué: se salía sin querer al pasar a llevar; solo con "atrás" del
     // celular). Con el celular girado, el gesto vertical recorre la letra (nativo).
+    if (recargaRef.current) {
+      if (e.touches.length > 1) { recargaRef.current = false; arrastrarRecarga(0); soltarRecarga(); return; }
+      arrastrarRecarga(Math.max(0, e.touches[0].clientY - touchStartYRef.current)); return;
+    }
     if (!lateralRef.current) return;
     const atEdge = (dx > 0 && currentPage === 0) || (dx < 0 && currentPage === totalPages - 1);
     dragXRef.current = atEdge ? dx * 0.3 : dx;
@@ -384,6 +419,7 @@ export default function MinutaReader() {
   const handleTouchEnd = () => {
     if (!arrastrando.current) return;
     arrastrando.current = false;
+    if (recargaRef.current) { recargaRef.current = false; soltarRecarga(); return; }
     const dragY = dragYRef.current;
     if (Math.abs(dragY) > 80) { saliendo.current = true; moverVertical(dragY, 'salir'); setTimeout(() => navigate('/minutas'), 280); return; }
     if (dragY !== 0) { dragYRef.current = 0; moverVertical(0, 'volver'); return; }
@@ -522,6 +558,7 @@ export default function MinutaReader() {
     // página quedaba corrida mostrando la vecina. clip recorta igual y no se desplaza (1.7.0).
     <div ref={exteriorRef} className="h-[100dvh] bg-background text-foreground flex flex-col overflow-clip" style={{ willChange: 'transform' }}>
       <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+      {ruedaRecargar}
 
       <div
         ref={areaRef}
@@ -543,7 +580,8 @@ export default function MinutaReader() {
             (1.6.1). Discretos, para no tapar la letra. */}
         {/* Arriba a la izquierda (1.13.1, Josué: simétrico): los dos de post-it, solo en páginas de canto y de pie. */}
         <div className="absolute top-2 left-2 z-20 flex gap-2">
-          {enComputador && (
+          {/* (1.31.0, Josué) Volver SIEMPRE visible (antes solo en computador): el iPhone no tiene "atrás" abajo. */}
+          {(
             <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/minutas'))} aria-label={t.minutas_title} title={t.minutas_title}
                     className="tap-btn-overlay p-2 rounded-full bg-card/90 border border-border text-foreground/80">
               <ArrowLeft size={18} />
