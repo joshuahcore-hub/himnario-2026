@@ -49,9 +49,14 @@ export function claveTitulo(titulo: string): string {
   return 't:' + t.replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-/** predicacion: XML de las diapositivas de la predicación (B y N, ver predicacion.ts), que van antes de la última alabanza. */
+/** (1.32.0, Josué) Letra de un Especial: 'frase' = una diapositiva por frase (como subtítulos, lo que pidió por ahora);
+ *  'todo' = toda la letra en una sola diapositiva (si un día lo pide, basta cambiar esto). */
+export const LETRA_ESPECIAL: 'frase' | 'todo' = 'frase';
+
+/** predicacion: XML de las diapositivas de la predicación (B y N, ver predicacion.ts), que van antes de la última alabanza.
+ *  letras: por posición en claves, la letra (frases) de cada Especial que la tenga (se pone tras "ESPECIAL <NOMBRE>"). */
 export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves: string[], portada: Portada,
-  predicacion: string[] = []): Promise<JSZip> {
+  predicacion: string[] = [], letras: Record<number, string[]> = {}): Promise<JSZip> {
   const leer = async (p: string) => (await zip.file(p)?.async('string')) ?? '';
   let pres = await leer('ppt/presentation.xml');
   const presRelsPath = 'ppt/_rels/presentation.xml.rels';
@@ -70,12 +75,18 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
   // Orden pedido: portada, alabanzas (las que existen), imágenes fijas. (1.13.4, Josué) Un Especial ("e:" + nombre)
   // es una copia de la portada que dice "ESPECIAL <NOMBRE>".
   // (1.22.6, Josué) La predicación (si se añadió) va antes de la última alabanza; con una sola, después de ella.
-  const orden: { pos: number; especial?: string; predicacion?: true }[] = [{ pos: indice.portada }];
+  const orden: { pos: number; especial?: string; frases?: string[]; predicacion?: true }[] = [{ pos: indice.portada }];
   const cantos = claves.map((n, i) => (!n.startsWith('e:') && indice.himnos[n] ? i : -1)).filter(i => i >= 0);
   const antesDe = !predicacion.length ? -1 : cantos.length > 1 ? cantos[cantos.length - 1] : claves.length;
   claves.forEach((n, i) => {
     if (i === antesDe) orden.push({ pos: 0, predicacion: true });
-    if (n.startsWith('e:')) { orden.push({ pos: indice.portada, especial: n.slice(2) }); return; }
+    if (n.startsWith('e:')) {
+      orden.push({ pos: indice.portada, especial: n.slice(2) });
+      // (1.32.0) Su letra (foto subida, leída por la IA): diapositivas blancas tras la del nombre.
+      const l = (letras[i] ?? []).filter(x => x.trim());
+      if (l.length) for (const f of LETRA_ESPECIAL === 'frase' ? l.map(x => [x]) : [l]) orden.push({ pos: indice.portada, frases: f });
+      return;
+    }
     const r = indice.himnos[n];
     if (r) for (let j = r[0]; j <= r[1]; j++) orden.push({ pos: j });
   });
@@ -87,14 +98,14 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
   let maxParte = Math.max(...slides.map(s => +(s.parte.match(/slide(\d+)\.xml$/)?.[1] ?? 0)));
   const usadas = new Set<number>();
   const nuevas: { id: string; rid: string; parte: string }[] = [];
-  const especiales: { parte: string; nombre: string }[] = [];
+  const especiales: { parte: string; nombre?: string; frases?: string[] }[] = [];
   const agregar = (parte: string) => {
     const rid = `rId${++maxRid}`;
     presRels = presRels.replace('</Relationships>', `<Relationship Id="${rid}" Type="${REL_SLIDE}" Target="${parte.replace('ppt/', '')}"/></Relationships>`);
     tipos = tipos.replace('</Types>', `<Override PartName="/${parte}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
     nuevas.push({ id: String(++maxId), rid, parte });
   };
-  for (const { pos, especial, predicacion: esPred } of orden) {
+  for (const { pos, especial, frases, predicacion: esPred } of orden) {
     if (esPred) {
       // Diapositivas nuevas con el diseño de la primera alabanza (no se ven sus gráficos: traen fondo propio).
       const base = slides[(orden.find(o => o.pos && o.pos !== indice.portada)?.pos ?? indice.portada) - 1];
@@ -116,7 +127,7 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
     const r = (await leer(relsDe(s.parte))).replace(/<Relationship\b[^>]*notesSlide[^>]*\/>/g, '');
     zip.file(relsDe(parte), r);
     agregar(parte);
-    if (especial !== undefined) especiales.push({ parte, nombre: especial });
+    if (especial !== undefined || frases) especiales.push({ parte, nombre: especial, frases });
   }
   pres = pres.replace(/<p:sldIdLst>[\s\S]*?<\/p:sldIdLst>/,
     `<p:sldIdLst>${nuevas.map(s => `<p:sldId id="${s.id}" r:id="${s.rid}"/>`).join('')}</p:sldIdLst>`);
@@ -151,7 +162,9 @@ export async function armarProyeccion(zip: JSZip, indice: IndiceMaestro, claves:
   // el otro, la referencia. Se conserva el formato de su primer trozo de texto.
   const portadaParte = nuevas[0].parte;
   zip.file(portadaParte, cambiarPortada(await leer(portadaParte), portada, pres));
-  for (const e of especiales) zip.file(e.parte, cambiarEspecial(await leer(e.parte), e.nombre, pres));
+  for (const e of especiales) {
+    zip.file(e.parte, e.frases ? diapositivaBlanca(await leer(e.parte), e.frases, pres) : cambiarEspecial(await leer(e.parte), e.nombre ?? '', pres));
+  }
 
   zip.file('ppt/presentation.xml', pres);
   zip.file(presRelsPath, presRels);
@@ -191,14 +204,15 @@ function textoDe(sp: string) {
   return [...sp.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m => m[1]).join('');
 }
 
-function cambiarPortada(xml: string, portada: Portada, pres: string): string {
+/** parrafos: en vez del versículo en MAYÚSCULAS, estos renglones tal cual (letra de un Especial, 1.32.0). */
+function cambiarPortada(xml: string, portada: Portada, pres: string, parrafos?: string[]): string {
   const alto = +(pres.match(/<p:sldSz\b[^>]*\bcy="(\d+)"/)?.[1] ?? 6858000);
   const cuadros = [...xml.matchAll(/<p:sp>[\s\S]*?<\/p:sp>/g)].map(m => m[0]).filter(sp => textoDe(sp).trim());
   cuadros.sort((a, b) => textoDe(b).length - textoDe(a).length);
   const [versiculo, referencia] = cuadros;
   if (versiculo) {
-    const texto = portada.versiculo.toLocaleUpperCase('es');
-    let sp = reemplazarTexto(versiculo, texto, tamañoVersiculo(texto, versiculo));
+    const texto = parrafos ?? portada.versiculo.toLocaleUpperCase('es');
+    let sp = reemplazarTexto(versiculo, texto, parrafos ? tamañoRenglones(parrafos, versiculo) : tamañoVersiculo(String(texto), versiculo));
     // Centrado de arriba a abajo (pedido de Josué): el cuadro ocupa todo el alto y el texto va al medio.
     sp = sp.replace(/(<a:xfrm>\s*<a:off\b[^>]*\by=")\d+(")/, `$1${0}$2`)
       .replace(/(<a:xfrm>[\s\S]*?<a:ext\b[^>]*\bcy=")\d+(")/, `$1${alto}$2`)
@@ -212,11 +226,17 @@ function cambiarPortada(xml: string, portada: Portada, pres: string): string {
 
 /** Especial: en el cuadro del versículo "ESPECIAL <NOMBRE>" (centrado), sin la referencia. */
 function cambiarEspecial(xml: string, nombre: string, pres: string): string {
+  return diapositivaBlanca(xml, null, pres, `ESPECIAL ${nombre}`.trim());
+}
+
+/** Diapositiva blanca (fondo blanco, letra negra Calibri) a partir de la portada: con el título del Especial
+ *  (MAYÚSCULAS) o con frases de su letra (tal cual, un renglón cada una). */
+function diapositivaBlanca(xml: string, frases: string[] | null, pres: string, titulo = ''): string {
   const cuadros = [...xml.matchAll(/<p:sp>[\s\S]*?<\/p:sp>/g)].map(m => m[0]).filter(sp => textoDe(sp).trim());
   cuadros.sort((a, b) => textoDe(b).length - textoDe(a).length);
   const referencia = cuadros[1];
   if (referencia) xml = xml.replace(referencia, '');
-  xml = cambiarPortada(xml, { versiculo: `ESPECIAL ${nombre}`.trim(), referencia: '' }, pres);
+  xml = cambiarPortada(xml, { versiculo: titulo, referencia: '' }, pres, frases ?? undefined);
   // (1.14.1, Josué) Diapositiva BLANCA como las de las alabanzas: sin la imagen de fondo de la portada, fondo blanco y
   // letra negra.
   const negro = '<a:solidFill><a:srgbClr val="000000"/></a:solidFill>';
@@ -239,14 +259,28 @@ function tamañoVersiculo(texto: string, sp: string): number | null {
   return Math.max(2400, Math.round((sz * Math.sqrt(cabe / texto.length)) / 100) * 100);
 }
 
+/** (1.32.0) Letra de un Especial (uno o varios renglones): se achica hasta que todo quepa. Medido en PowerPoint: a
+ *  58 pt caben ~28 letras por renglón y ~7 renglones (se usa 6,5 por margen); ambos crecen al achicar la letra. */
+function tamañoRenglones(renglones: string[], sp: string): number | null {
+  const sz = +(sp.match(/<a:rPr\b[^>]*\bsz="(\d+)"/)?.[1] ?? 0);
+  if (!sz) return null;
+  for (let s = sz; s > 1400; s -= 200) {
+    const f = s / 5800;
+    const filas = renglones.reduce((n, r) => n + Math.max(1, Math.ceil((r.length * f) / 28)), 0);
+    if (filas <= 6.5 / f) return s === sz ? null : s;
+  }
+  return 1400;
+}
+
 /** Deja un solo párrafo con un solo trozo de texto, con el formato del primero (pPr y rPr). */
-function reemplazarTexto(sp: string, texto: string, sz: number | null = null): string {
+function reemplazarTexto(sp: string, texto: string | string[], sz: number | null = null): string {
   return sp.replace(/(<p:txBody>[\s\S]*?<a:lstStyle\s*\/>|<p:txBody>[\s\S]*?<\/a:lstStyle>)([\s\S]*?)(<\/p:txBody>)/, (_, ini, cuerpo, fin) => {
     // pPr: o se cierra solo (<a:pPr .../>) o tiene hijos hasta </a:pPr> (OJO: sus hijos también terminan en "/>").
     const pPr = cuerpo.match(/<a:pPr\b[^>]*\/>|<a:pPr\b[^>]*>[\s\S]*?<\/a:pPr>/)?.[0] ?? '';
     let rPr = cuerpo.match(/<a:rPr\b[^>]*\/>|<a:rPr\b[\s\S]*?<\/a:rPr>/)?.[0] ?? '<a:rPr lang="es-ES"/>';
     if (sz) rPr = rPr.replace(/\bsz="\d+"/, `sz="${sz}"`);
     const end = cuerpo.match(/<a:endParaRPr\b[^>]*\/>|<a:endParaRPr\b[\s\S]*?<\/a:endParaRPr>/)?.[0] ?? '';
-    return `${ini}<a:p>${pPr}<a:r>${rPr}<a:t>${esc(texto)}</a:t></a:r>${end}</a:p>${fin}`;
+    const parrafos = (Array.isArray(texto) ? texto : [texto]).map(t => `<a:p>${pPr}<a:r>${rPr}<a:t>${esc(t)}</a:t></a:r>${end}</a:p>`);
+    return `${ini}${parrafos.join('')}${fin}`;
   });
 }

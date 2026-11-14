@@ -595,6 +595,30 @@ Incluye las palabras Palabra, Predicación u Oración si aparecen, y la fecha o 
 Si hay una raya o línea horizontal dibujada entre cantos (un separador), escribe en su lugar un renglón con solo: ---
 No agregues explicaciones, títulos ni comentarios: solo el texto.`;
 
+const INSTRUCCION_LETRA = `Esta imagen tiene la letra de una canción (puede traer acordes encima del texto).
+Transcribe SOLO la letra que se canta, en el mismo orden, para proyectarla como subtítulos: una frase por renglón.
+Cada renglón de la letra es una frase; si un renglón es muy largo (más de unas 10 palabras), córtalo en dos donde haya una pausa natural.
+NO incluyas acordes (como C, G7, Am, F#m, D/F#), título, autor, números, ni nombres de partes (Coro, Estrofa, Intro, Puente, Final), ni indicaciones como x2, bis o (2 veces).
+Si algo está encerrado o marcado a mano, transcríbelo igual, en su lugar. Si una palabra queda cortada en el borde, complétala si es obvia.
+Respeta tildes, mayúsculas y signos tal como están. No agregues explicaciones ni comentarios: solo la letra.
+Si la imagen no tiene letra de canción, responde solo: SIN LETRA`;
+
+/** Letra de Gemini → un renglón por frase, sin renglones vacíos ni restos de acordes o partes. */
+function limpiarLetra(texto: string): string {
+  const acorde = /^[A-G](#|b)?(m|maj|min|dim|aug|sus|add|M)?\d*(\/[A-G](#|b)?)?$/;
+  if (/^\s*SIN LETRA\s*$/i.test(texto)) return '';
+  return texto.replace(/```[a-z]*|```/g, '').split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim())
+    .filter(l => l && !l.split(' ').every(p => acorde.test(p)) && !/^\(?(coro|estrofa|intro|puente|final|x\s?\d|bis)\)?:?$/i.test(l))
+    .join('\n');
+}
+
+function aBase64(buf: ArrayBuffer): string {
+  const b = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
 async function leerConfig(env: Env, clave: string): Promise<string | null> {
   const f = await env.DB.prepare('SELECT valor FROM config WHERE clave = ?').bind(clave).first<{ valor: string }>();
   return f?.valor ?? null;
@@ -631,7 +655,7 @@ class ErrorGemini extends Error {
   constructor(public motivo: 'cupo' | 'saturado' | 'otro', detalle: string) { super(detalle); }
 }
 
-async function ocrGemini(env: Env, imagen: string, mime: string): Promise<string> {
+async function ocrGemini(env: Env, imagen: string, mime: string, instruccion = INSTRUCCION_OCR): Promise<string> {
   const modelos = env.GEMINI_MODELO ? [env.GEMINI_MODELO] : MODELOS_GEMINI;
   const detalles: string[] = [];
   let saturado = false;
@@ -644,7 +668,7 @@ async function ocrGemini(env: Env, imagen: string, mime: string): Promise<string
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY! },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: INSTRUCCION_OCR }, { inline_data: { mime_type: mime, data: imagen } }] }],
+            contents: [{ parts: [{ text: instruccion }, { inline_data: { mime_type: mime, data: imagen } }] }],
             generationConfig: { temperature: 0 },
           }),
         });
@@ -1316,6 +1340,38 @@ async function rutasProyeccion(request: Request, env: Env, partes: string[]): Pr
       : null;
     avisar(env, { tipo: 'proyeccion', autorId: yo.id, autor: yo.nombre, minutaId: m?.id, titulo: m ? tituloAviso(m.titulo, m.fecha) : 'Minuta' });
     return json({ ok: true });
+  }
+  // (1.32.0, Josué) Letra de un ESPECIAL: la foto subida (imagen con la letra) la transcribe Gemini UNA vez por imagen
+  // (los ids no cambian nunca: queda guardada en KV "letra-<id>"); la app hace una diapositiva por frase.
+  if (accion === 'letra' && request.method === 'POST') {
+    const body = await leerJson(request);
+    const ids = Array.isArray(body.ids) ? body.ids.filter((x: unknown) => typeof x === 'string' && /^[\w-]{10,60}$/.test(x)).slice(0, 10) : [];
+    if (!ids.length) throw new ErrorApi(400, 'Faltan las imágenes.');
+    const lineas: string[] = [];
+    let fallos = 0;
+    for (const id of ids as string[]) {
+      let texto = await env.PROYECCION.get(`letra-${id}`);
+      if (texto === null) {
+        const v = await env.PROYECCION.getWithMetadata<{ tipo: string }>(`img-${id}`, 'arrayBuffer');
+        if (!v.value) continue;
+        if (!env.GEMINI_API_KEY) throw new ErrorApi(503, 'La IA no está configurada en el servidor.');
+        try {
+          texto = limpiarLetra(await ocrGemini(env, aBase64(v.value), v.metadata?.tipo || 'image/webp', INSTRUCCION_LETRA));
+        } catch (e) {
+          const motivo = e instanceof ErrorGemini ? e.motivo : 'otro';
+          // Foto sin letra (p. ej. una captura negra): no hay texto y se sigue con las demás fotos.
+          if (motivo === 'otro' && /sin texto/.test(String((e as Error).message))) texto = '';
+          else if (motivo === 'otro' && ids.length > 1) { fallos++; continue; }
+          else throw new ErrorApi(503, motivo === 'cupo'
+            ? 'Se acabó por ahora el cupo gratis de la IA para leer la letra del especial.'
+            : 'La IA no pudo leer la letra del especial. Intenta de nuevo en un par de minutos.');
+        }
+        await env.PROYECCION.put(`letra-${id}`, texto);
+      }
+      lineas.push(...texto.split('\n').filter(Boolean));
+    }
+    if (!lineas.length && fallos) throw new ErrorApi(503, 'La IA no pudo leer la letra del especial. Intenta de nuevo en un par de minutos.');
+    return json({ lineas });
   }
   if (request.method !== 'GET') throw new ErrorApi(405, 'Operación no permitida.');
   if (accion === 'meta') {

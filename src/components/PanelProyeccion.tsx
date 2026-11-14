@@ -10,7 +10,7 @@ import { useAlTocarFuera } from '@/hooks/useAlTocarFuera';
 import { useI18n } from '@/lib/i18n/index';
 import { ErrorDeRed } from '@/lib/api';
 import type { MinutaData } from '@/lib/types';
-import { carpetaGuardada, clavesDeMinuta, elegirCarpeta, generarProyeccion, leerBiblia, leerMeta, nombreArchivo, permisoCarpeta, puedeElegirCarpeta,
+import { carpetaGuardada, clavesDeMinuta, elegirCarpeta, especialesConLetra, generarProyeccion, leerBiblia, leerMeta, letraEspecial, nombreArchivo, permisoCarpeta, puedeElegirCarpeta,
   type Biblia, type MetaProyeccion } from '@/lib/proyeccion';
 
 /** (1.13.4, Josué) Largo máximo de la escritura: lo que cabe bien en la portada (≈3–4 versículos). */
@@ -91,7 +91,9 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
     Promise.all([leerBiblia(), leerMeta()])
       .then(([b, m]) => { setBiblia(b); setMeta(m); })
       .catch(e => setError(e instanceof ErrorDeRed ? t.editor_needs_internet : e.message));
-  }, [abierto, t]);
+    // (1.32.0) La letra de los Especiales con foto se pide al abrir: al tocar Generar ya está lista.
+    for (const e of especialesConLetra(minuta)) letraEspecial(e.imagen).catch(() => {});
+  }, [abierto, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const libros = biblia?.libros ?? [];
   const capitulos = libros[libro]?.c ?? [];
@@ -132,6 +134,7 @@ export default function PanelProyeccion({ abierto, onCerrar, minuta }: {
     try {
       const r = await generarProyeccion(minuta, { versiculo: texto, referencia }, setEstado, destino, pred?.archivo.slice(0) ?? null);
       toast.success(r.carpeta ? `${t.proy_guardado(r.carpeta)}: ${nombreArchivo(minuta.fecha)}` : `${t.proy_listo}: ${nombreArchivo(minuta.fecha)}`);
+      if (r.sinLetra.length) toast.error(t.proy_sin_letra(r.sinLetra.join(', ')));
       onCerrar();
     } catch (e: any) {
       toast.error(e instanceof ErrorDeRed ? t.editor_needs_internet : (e.message || t.proy_error));

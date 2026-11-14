@@ -103,6 +103,33 @@ export function clavesDeMinuta(m: Pick<MinutaData, 'cantos'>): { clave: string; 
   return out;
 }
 
+/** (1.32.0, Josué) Letra de un Especial a partir de sus fotos subidas (ids separados por coma): el servidor la lee con
+ *  la IA una sola vez por imagen y la guarda. Una frase por elemento. Se recuerda en memoria (abrir el panel la pide
+ *  antes, así al tocar Generar ya está). */
+const letrasPedidas = new Map<string, Promise<string[]>>();
+export function letraEspecial(imagen: string): Promise<string[]> {
+  const ids = imagen.split(',').map(x => x.trim()).filter(Boolean);
+  const k = ids.join(',');
+  if (!letrasPedidas.has(k)) {
+    letrasPedidas.set(k, (async () => {
+      let r: Response;
+      try {
+        r = await fetch('/api/proyeccion/letra', {
+          method: 'POST', headers: { ...cabeceras(), 'content-type': 'application/json' }, body: JSON.stringify({ ids }),
+        });
+      } catch { throw new ErrorDeRed('Sin conexión a internet.'); }
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.error || `Error ${r.status}`);
+      return ((await r.json()).lineas ?? []) as string[];
+    })().catch(e => { letrasPedidas.delete(k); throw e; }));
+  }
+  return letrasPedidas.get(k)!;
+}
+
+/** Especiales de la minuta con foto de la letra: posición en clavesDeMinuta → ids de imagen. */
+export const especialesConLetra = (m: Pick<MinutaData, 'cantos'>) =>
+  clavesDeMinuta(m).map((x, i) => ({ i, nombre: x.canto.nombre ?? '', imagen: x.clave.startsWith('e:') ? x.canto.imagen ?? '' : '' }))
+    .filter(x => x.imagen);
+
 export const nombreArchivo = (fecha: string) => `PPT Culto ${formatearFecha(fecha)}.pptx`;
 
 // ---- Carpeta donde se guarda (1.13.4, Josué: "elegirla una vez y que la recuerde", p. ej. el Escritorio del PC del
@@ -182,8 +209,14 @@ export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fec
   portada: { versiculo: string; referencia: string },
   onEstado: (e: { etapa: 'bajando' | 'armando'; progreso?: number }) => void,
   carpeta: Carpeta | null = null,
-  predicacion: ArrayBuffer | null = null): Promise<{ carpeta: string | null }> {
+  predicacion: ArrayBuffer | null = null): Promise<{ carpeta: string | null; sinLetra: string[] }> {
   const meta = await leerMeta();
+  // (1.32.0) Letra de los Especiales con foto (en paralelo con la bajada del maestro). Si la IA falla, la proyección
+  // sale igual (solo con "ESPECIAL <NOMBRE>") y se avisa cuáles quedaron sin letra.
+  const sinLetra: string[] = [];
+  const letrasP = Promise.all(especialesConLetra(minuta).map(async e => {
+    try { return [e.i, await letraEspecial(e.imagen)] as const; } catch { sinLetra.push(e.nombre); return [e.i, []] as const; }
+  })).then(l => Object.fromEntries(l) as Record<number, string[]>);
   onEstado({ etapa: 'bajando', progreso: 0 });
   const maestro = await bajarMaestro(meta, p => onEstado({ etapa: 'bajando', progreso: p }));
   onEstado({ etapa: 'armando' });
@@ -197,7 +230,7 @@ export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fec
     const cx = +(pres.match(/<p:sldSz\b[^>]*\bcx="(\d+)"/)?.[1] ?? 9144000), cy = +(pres.match(/<p:sldSz\b[^>]*\bcy="(\d+)"/)?.[1] ?? 6858000);
     pred = await diapositivasParaProyeccion(await JSZip.loadAsync(predicacion), cx, cy, await leerBiblia().catch(() => undefined));
   }
-  await armarProyeccion(zip, meta.indice, clavesDeMinuta(minuta).map(x => x.clave), portada, pred);
+  await armarProyeccion(zip, meta.indice, clavesDeMinuta(minuta).map(x => x.clave), portada, pred, await letrasP);
   const blob = await zip.generateAsync({
     type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 },
     mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -212,7 +245,7 @@ export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fec
       const w = await (archivo as any).createWritable();
       await w.write(blob);
       await w.close();
-      return { carpeta: carpeta.name };
+      return { carpeta: carpeta.name, sinLetra };
     } catch { /* sin permiso o carpeta movida: se descarga */ }
   }
   const url = URL.createObjectURL(blob);
@@ -223,7 +256,7 @@ export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fec
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return { carpeta: null };
+  return { carpeta: null, sinLetra };
 }
 
 /** Computador: mouse y pantalla ancha (en el celular la opción no aparece). */

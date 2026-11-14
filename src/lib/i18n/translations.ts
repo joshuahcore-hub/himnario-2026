@@ -295,6 +295,7 @@ export interface Translations {
   proy_elegir_carpeta: string;
   proy_cambiar: string;
   proy_guardado: (carpeta: string) => string;
+  proy_sin_letra: (nombres: string) => string;
   pred_boton: string;
   pred_texto: string;
   pred_soltar: string;
@@ -725,6 +726,7 @@ export const es: Translations = {
   proy_elegir_carpeta: 'Elegir carpeta',
   proy_cambiar: 'Cambiar',
   proy_guardado: c => `Guardado en «${c}»`,
+  proy_sin_letra: n => `No se pudo leer la letra de: ESPECIAL ${n} (quedó solo su nombre)`,
   pred_boton: 'Añadir PowerPoint',
   pred_texto: 'Arrastra aquí el PowerPoint de la predicación (fondo negro). Se guarda listo para proyectar: fondo claro, letra negra y sin acotaciones.',
   pred_soltar: 'Suéltalo aquí',
@@ -1153,6 +1155,7 @@ export const en: Translations = {
   proy_elegir_carpeta: 'Choose folder',
   proy_cambiar: 'Change',
   proy_guardado: c => `Saved to “${c}”`,
+  proy_sin_letra: n => `Could not read the lyrics of: ESPECIAL ${n} (only its name was added)`,
   pred_boton: 'Add PowerPoint',
   pred_texto: 'Drop the sermon PowerPoint (black background) here. It is saved ready to project: light background, black text, no notes.',
   pred_soltar: 'Drop it here',
@@ -1581,6 +1584,7 @@ export const pt: Translations = {
   proy_elegir_carpeta: 'Escolher pasta',
   proy_cambiar: 'Mudar',
   proy_guardado: c => `Salvo em «${c}»`,
+  proy_sin_letra: n => `Não foi possível ler a letra de: ESPECIAL ${n} (ficou só o nome)`,
   pred_boton: 'Adicionar PowerPoint',
   pred_texto: 'Arraste aqui o PowerPoint da pregação (fundo preto). É salvo pronto para projetar: fundo claro, letra preta e sem anotações.',
   pred_soltar: 'Solte aqui',
