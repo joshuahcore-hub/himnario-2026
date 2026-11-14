@@ -203,12 +203,46 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
     }
   }
 
-  return new Promise((ok, mal) => lienzo.toBlob(b => (b ? ok(b) : mal(new Error('No se pudo crear la imagen'))), 'image/png'));
+  // (1.31.13) JPEG casi sin pérdida: va dentro de un PDF (ver compartirImagen).
+  return new Promise((ok, mal) => lienzo.toBlob(b => (b ? ok(b) : mal(new Error('No se pudo crear la imagen'))), 'image/jpeg', 0.97));
+}
+
+/** (1.31.13, Josué: "que esté HD al tiro") PDF de una página con la imagen adentro. WhatsApp no deja que otra app le
+ *  active el HD a una foto (la achica); un PDF lo manda como documento, intacto, y sirve directo para imprimir.
+ *  PDF mínimo escrito a mano: la imagen va tal cual (JPEG = DCTDecode), sin librerías. */
+export async function pdfDeImagen(jpeg: Blob): Promise<Blob> {
+  const datos = new Uint8Array(await jpeg.arrayBuffer());
+  const bmp = await createImageBitmap(jpeg);
+  const w = bmp.width, h = bmp.height;
+  bmp.close();
+  const anchoPt = 595.28, altoPt = (anchoPt * h) / w; // ancho de una hoja A4; el alto, el de la minuta
+  const enc = new TextEncoder();
+  const partes: Uint8Array[] = [];
+  const offsets: number[] = [];
+  let largo = 0;
+  const poner = (x: string | Uint8Array) => { const b = typeof x === 'string' ? enc.encode(x) : x; partes.push(b); largo += b.length; };
+  const NL = '\n';
+  const contenido = `q ${anchoPt.toFixed(2)} 0 0 ${altoPt.toFixed(2)} 0 0 cm /Im0 Do Q`;
+  poner('%PDF-1.4' + NL);
+  const obj = (n: number, cuerpo: () => void) => { offsets[n] = largo; poner(`${n} 0 obj${NL}`); cuerpo(); poner(`${NL}endobj${NL}`); };
+  obj(1, () => poner('<< /Type /Catalog /Pages 2 0 R >>'));
+  obj(2, () => poner('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'));
+  obj(3, () => poner(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${anchoPt.toFixed(2)} ${altoPt.toFixed(2)}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`));
+  obj(4, () => {
+    poner(`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${datos.length} >>${NL}stream${NL}`);
+    poner(datos);
+    poner(`${NL}endstream`);
+  });
+  obj(5, () => poner(`<< /Length ${contenido.length} >>${NL}stream${NL}${contenido}${NL}endstream`));
+  const xref = largo;
+  const filas = [1, 2, 3, 4, 5].map(n => `${String(offsets[n]).padStart(10, '0')} 00000 n ${NL}`).join('');
+  poner(`xref${NL}0 6${NL}0000000000 65535 f ${NL}${filas}trailer${NL}<< /Size 6 /Root 1 0 R >>${NL}startxref${NL}${xref}${NL}%%EOF${NL}`);
+  return new Blob(partes as BlobPart[], { type: 'application/pdf' });
 }
 
 /** Abre el menú de compartir del celular con la imagen; si no se puede (computador), la descarga. */
 export async function compartirImagen(blob: Blob, nombre: string): Promise<void> {
-  const archivo = new File([blob], `${nombre}.png`, { type: 'image/png' });
+  const archivo = new File([await pdfDeImagen(blob)], `${nombre}.pdf`, { type: 'application/pdf' });
   if (navigator.canShare?.({ files: [archivo] })) {
     try {
       await navigator.share({ files: [archivo] });
@@ -217,7 +251,7 @@ export async function compartirImagen(blob: Blob, nombre: string): Promise<void>
     }
     return;
   }
-  const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(archivo);
   const a = document.createElement('a');
   a.href = url;
   a.download = archivo.name;
