@@ -1,7 +1,8 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import { readFileSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
+import { createHash } from "crypto";
 import { VitePWA, type ManifestOptions } from "vite-plugin-pwa";
 import { COLORES_TEMA, FONDOS, archivoManifiesto } from "./src/lib/colores";
 
@@ -45,6 +46,20 @@ const manifiestoOscuro = (): Plugin => ({
   },
 });
 
+// (1.31.4) Huella de cada imagen NÍTIDA (zoom): va en la dirección (?v=) para que el celular baje la nueva cuando cambia.
+// Sin esto quedaba la vieja guardada para siempre (CacheFirst) y al ampliar se veía doble (Josué, 163 Él es).
+function huellasNitidas() {
+  const m: Record<string, string> = {};
+  for (const c of ["himnos-hd", "himnos-compa-hd"]) for (const t of ["claro", "oscuro"]) {
+    const dir = path.resolve(__dirname, "public", c, t);
+    let archivos: string[] = [];
+    try { archivos = readdirSync(dir); } catch { continue; }
+    for (const f of archivos) if (f.endsWith(".webp"))
+      m[`${c}/${t}/${f}`] = createHash("md5").update(readFileSync(path.join(dir, f))).digest("hex").slice(0, 8);
+  }
+  return m;
+}
+
 export default defineConfig({
   server: {
     host: "0.0.0.0",
@@ -57,6 +72,7 @@ export default defineConfig({
   define: {
     // Número de versión de package.json ("version"): subirlo en cada publicación
     // (1.0.1, 1.0.2… arreglos; 1.1.0, 1.2.0… funciones nuevas). Se muestra al final de Ajustes.
+    __HUELLAS_NITIDAS__: JSON.stringify(huellasNitidas()),
     __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")).version),
   },
   plugins: [

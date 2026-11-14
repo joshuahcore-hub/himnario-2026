@@ -61,7 +61,10 @@ export function getThemedHymnImageUrl(hymnNumber: number, theme: 'light' | 'dark
 
 /** (1.17.2) Versión nítida (el doble de resolución) para cuando se amplía el himno. */
 export function getHymnHdUrl(hymnNumber: number, theme: 'light' | 'dark'): string {
-  return `/${usaCompa(hymnNumber) ? 'himnos-compa-hd' : 'himnos-hd'}/${theme === 'dark' ? 'oscuro' : 'claro'}/${hymnNumber}.webp`;
+  const ruta = `${usaCompa(hymnNumber) ? 'himnos-compa-hd' : 'himnos-hd'}/${theme === 'dark' ? 'oscuro' : 'claro'}/${hymnNumber}.webp`;
+  // (1.31.4) ?v=huella: si la imagen cambió, es otra dirección y se baja la nueva (antes quedaba la vieja y se veía doble).
+  const v = __HUELLAS_NITIDAS__[ruta];
+  return v ? `/${ruta}?v=${v}` : `/${ruta}`;
 }
 
 /** Usa la versión nítida cuando la imagen se amplía más de esto. */
