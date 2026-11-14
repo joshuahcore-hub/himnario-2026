@@ -13,3 +13,6 @@ export function intentarSalir(continuar: () => void) {
   if (guardia && guardia(continuar)) return;
   continuar();
 }
+
+/** true si la pantalla actual tiene cambios sin guardar (la actualización automática espera, ver main.tsx). */
+export const hayGuardiaSalida = () => guardia !== null;

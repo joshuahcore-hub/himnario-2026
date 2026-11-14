@@ -7,6 +7,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { fijarVertical } from "@/hooks/useHorizontal";
 import { iniciarCompaGlobal } from "@/lib/compaGlobal";
+import { hayGuardiaSalida } from "@/lib/guardiaSalida";
 
 // La app va en vertical; solo el himno abierto y el lector de minutas permiten girar (useHorizontal).
 fijarVertical();
@@ -15,27 +16,81 @@ fijarVertical();
 iniciarCompaGlobal();
 
 // Service worker: guarda la app y los himnos para usarlos sin internet.
-// Actualizaciones sin interrumpir: la versión nueva se descarga en silencio y queda en espera;
-// se activa cuando la app pasa a segundo plano, SIN recargar la pantalla. La próxima vez que se abra
-// la app desde cero ya usa la versión nueva. Nunca se corta lo que la persona está haciendo.
+// (1.32.6, Josué: "que la actualización llegue al tiro, sin tener que recargar") Busca versión nueva SEGUIDO: al abrir,
+// al volver a la app, al recuperar internet y cada 5 min con la app a la vista. La versión nueva se baja en silencio y se
+// aplica SOLA (cambia y recarga) solo cuando nadie la está usando: al pasar a segundo plano, o recién abierta antes del
+// primer toque (parece la misma apertura). NUNCA con un panel abierto, cambios sin guardar o escribiendo: entonces
+// espera a la próxima vez que se oculte (o a la próxima apertura). Al recargar se vuelve a la misma pantalla.
 if (import.meta.env.PROD) {
+  const inicio = Date.now();
   let hayVersionNueva = false;
+  let aplicando = false;
+  let recargarAlOcultar = false;
+  let tocó = false;
+  let ultimaBusqueda = 0;
+  let registroSW: ServiceWorkerRegistration | undefined;
+  const marcarToque = () => { tocó = true; };
+  window.addEventListener("pointerdown", marcarToque, { capture: true, once: true });
+  window.addEventListener("keydown", marcarToque, { capture: true, once: true });
+
+  /** Recién abierta y sin tocar todavía: recargar ahí se ve como parte de la apertura. */
+  const recienAbierta = () => !tocó && Date.now() - inicio < 8000;
+  /** Nadie está a mitad de algo: sin paneles abiertos, sin cambios sin guardar y sin escribir. */
+  const esSeguro = () => {
+    if (hayGuardiaSalida()) return false;
+    if (document.querySelector('[role="dialog"],[role="alertdialog"]')) return false;
+    const a = document.activeElement as HTMLElement | null;
+    if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable)) return false;
+    return true;
+  };
+  /** Evita un bucle si algo falla: como mucho una recarga por actualización cada 2 min. */
+  const recargoHacePoco = () => {
+    try { return Date.now() - Number(sessionStorage.getItem("act-recarga") || 0) < 120000; } catch { return true; }
+  };
+  const momentoBueno = () => (document.visibilityState === "hidden" || recienAbierta()) && esSeguro();
+
+  const buscar = (minimo: number) => {
+    if (!registroSW || !navigator.onLine || Date.now() - ultimaBusqueda < minimo) return;
+    ultimaBusqueda = Date.now();
+    registroSW.update().catch(() => {});
+  };
+
+  const intentarAplicar = () => {
+    if (!hayVersionNueva || aplicando || !momentoBueno() || recargoHacePoco()) return;
+    aplicando = true;
+    try { sessionStorage.setItem("act-recarga", String(Date.now())); } catch { /* nada */ }
+    activarVersionNueva(); // la nueva toma el control → onNeedReload recarga
+    setTimeout(() => { if (momentoBueno()) location.reload(); }, 4000); // por si el cambio no avisa
+  };
+
   const activarVersionNueva = registerSW({
     immediate: true,
     onNeedRefresh() {
       hayVersionNueva = true;
-      if (document.visibilityState === "hidden") activarVersionNueva();
+      intentarAplicar();
     },
     onNeedReload() {
-      // No recargar nunca por una actualización.
+      // La versión nueva ya manda. Recargar solo si sigue siendo buen momento; si la persona volvió justo, al ocultar.
+      if (momentoBueno()) location.reload();
+      else recargarAlOcultar = true;
     },
     onRegisteredSW(_url, registro) {
-      if (registro) setInterval(() => registro.update().catch(() => {}), 60 * 60 * 1000);
+      registroSW = registro;
+      ultimaBusqueda = Date.now(); // el registro recién hecho ya buscó
+      setInterval(() => { if (document.visibilityState === "visible") buscar(4 * 60 * 1000); }, 5 * 60 * 1000);
     },
   });
+
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden" && hayVersionNueva) activarVersionNueva();
+    if (document.visibilityState === "hidden") {
+      if (recargarAlOcultar && esSeguro()) { location.reload(); return; }
+      intentarAplicar();
+      buscar(60 * 1000); // si hay nueva, se baja ahora y se aplica en cuanto quede lista (sigue oculta)
+    } else {
+      buscar(30 * 1000); // volvió a la app
+    }
   });
+  window.addEventListener("online", () => buscar(0));
 
   // Red de seguridad: si la app abrió SIN estilos (CSS guardado roto o de una versión que ya no existe),
   // se repara sola: 1.º recarga; 2.º si sigue igual, borra lo guardado y recarga desde internet. Solo 2 intentos.
