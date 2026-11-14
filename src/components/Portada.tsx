@@ -6,7 +6,7 @@ import { getHymn } from '@/lib/hymnCache';
 import { FAST_HYMNS } from '@/lib/hymnConstants';
 
 /** Tempo de una alabanza: himnos por la lista de rápidos; fuera del himnario, por lo que se eligió al crearla. */
-function tempoDe(s: ParsedSong): 'lenta' | 'rapida' | null {
+export function tempoDe(s: ParsedSong): 'lenta' | 'rapida' | null {
   if (s.fuera) return s.tempo ?? null;
   if (s.hymnNumber && s.found !== false) return FAST_HYMNS.has(s.hymnNumber) ? 'rapida' : 'lenta';
   return null;

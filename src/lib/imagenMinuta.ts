@@ -2,7 +2,10 @@
 // canvas con los colores del tema en uso, y enviada con el menú de compartir del celular (WhatsApp, etc.).
 // Se dibuja a mano (no captura de pantalla): funciona sin internet y sale igual en todos los celulares.
 import type { ParsedSong } from '@/lib/types';
-import { cadena, formatearFecha, renumerar } from '@/lib/minutaUtils';
+import { cadena, comienzoLetra, esCita, formatearFecha, renumerar } from '@/lib/minutaUtils';
+import { getHymn } from '@/lib/hymnCache';
+import { tempoDe } from '@/components/Portada';
+import { colorTempoActivo } from '@/lib/colorTempo';
 
 export interface TextosPortada {
   titulo: string;
@@ -16,10 +19,11 @@ export interface TextosPortada {
   ofrenda?: string;
 }
 
-const ANCHO = 1080;
+// (1.31.11, Josué: para imprimir) Más grande: 1920 px de ancho (antes 1080). Todo se escala igual.
+const ANCHO = 1920;
 const S = ANCHO / 400;          // la portada del lector mide ~400 px de ancho: todo se escala igual
 const MARGEN = 34 * S;
-const ALTO_MIN = 1350;          // 4:5, como una foto vertical
+const ALTO_MIN = 2400;          // 4:5, como una foto vertical
 
 /** Color de una variable del tema (p. ej. --foreground) ya convertido a rgb (el canvas no lee variables CSS). */
 function colorDe(variable: string): string {
@@ -44,6 +48,10 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
     oracion: colorDe('--oracion'), raya: colorDe('--hymn-number'), especial: colorDe('--especial'),
     ofrenda: colorDe('--ofrenda'), nota: colorDe('--nota'),
   };
+  // (1.31.11, Josué) Igual que el lector: franja celeste (lentas) o morada (rápidas), si está encendido en Ajustes.
+  const conFranjas = colorTempoActivo();
+  const oscuro = document.documentElement.classList.contains('dark');
+  const colorFranja = (tp: 'lenta' | 'rapida') => `hsla(${tp === 'lenta' ? '199, 85%, 60%' : '265, 60%, 62%'}, ${oscuro ? 0.2 : 0.16})`;
   const fs = 14 * S;             // text-sm
   const alto = fs * 1.45;
   const lienzo = document.createElement('canvas');
@@ -52,7 +60,7 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
 
   // Arma las líneas (con salto de línea si un título es largo) y anota qué dibujar; primero mide, después dibuja.
   type Linea = { trozos: { t: Trozo; x: number }[]; y: number };
-  const ops: (Linea | { raya: [number, number] })[] = [];
+  const ops: (Linea | { raya: [number, number] } | { caja: [number, number, string] })[] = [];
   const anchoUtil = ANCHO - 2 * MARGEN;
   let y = MARGEN + 20 * S * 1.2 + 16 * S; // título (text-xl) + mb-4
 
@@ -83,11 +91,22 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
       { texto: `${pos} - `, color: col.suave, peso: 500, tam: fs },
       { texto: s.title, color: col.texto, peso: 500, tam: fs },
     ];
+    // (1.31.11) Títulos que son una cita: entre paréntesis cómo empieza la letra (como en el lector).
+    const comienzo = s.hymnNumber && esCita(s.title) ? comienzoLetra(s.firstLine ?? getHymn(s.hymnNumber)?.first_line) : null;
+    if (comienzo) trozos.push({ texto: ` (${comienzo.join(' ').replace(/[,;:.!?¡¿]+$/, '')}…)`, color: col.suave, peso: 400, tam: fs, italica: true });
     if (s.key) trozos.push({ texto: `  ${s.key}`, color: col.tono, peso: 600, tam: fs });
     if (s.hymnNumber) trozos.push({ texto: ` (${s.hymnNumber})`, color: col.numero, peso: 500, tam: fs });
     if (s.found === false) trozos.push({ texto: `  ${txt.noEncontrado}`, color: col.suave, peso: 400, tam: 10 * S, italica: true });
     if (s.fuera && txt.fuera) trozos.push({ texto: `  · ${txt.fuera}`, color: col.suave, peso: 400, tam: 10 * S, italica: true });
+    const tp = conFranjas ? tempoDe(s) : null;
+    if (!tp) { escribir(trozos, sangria); return; }
+    // Franja: 5 px arriba y abajo, 8 px más ancha a cada lado (como .franja-tempo).
+    const donde = ops.length;
+    y += 5 * S;
+    const y0 = y - 5 * S;
     escribir(trozos, sangria);
+    ops.splice(donde, 0, { caja: [y0, y + 5 * S, colorFranja(tp)] });
+    y += 5 * S;
   };
 
   renumerar(cantos).forEach((s, i) => {
@@ -152,11 +171,19 @@ export async function imagenDeMinuta(fecha: string, cantos: ParsedSong[], txt: T
   ctx.textAlign = 'left';
 
   for (const op of ops) {
+    if ('caja' in op) {
+      const [a, b, c] = op.caja;
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.roundRect(MARGEN - 8 * S, a + dy, ANCHO - 2 * MARGEN + 16 * S, b - a, 8 * S);
+      ctx.fill();
+      continue;
+    }
     if ('raya' in op) {
       // Corchete de los cantos agrupados, a la izquierda (como en la portada).
       // (1.18.2) Línea fina en el color de los números, con las puntas hacia el centro de cada número.
       const [a, b] = op.raya;
-      const g = 1.5 * S, x = MARGEN - 9 * S, w = 6 * S, r = 3 * S;
+      const g = 1.5 * S, x = MARGEN - (conFranjas ? 17 : 9) * S, w = 6 * S, r = 3 * S;
       ctx.strokeStyle = col.raya;
       ctx.globalAlpha = 0.7;
       ctx.lineWidth = g;
