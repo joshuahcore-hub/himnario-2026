@@ -234,7 +234,7 @@ export default function Minutas() {
   // (1.20.1, Josué) Con muchos círculos abajo (minuta propia: hasta 6) los de los extremos topaban el borde: la
   // separación baja de 24 a 8 px y, si aún no caben, los círculos se achican un poco (máx. 56 px). Con pocos, igual que antes.
   const cantidadBotones = (puedeEditar1 ? 1 : 0) + 1 + (puedeEditar ? 1 : 0) + (puedeCambiarVisibilidad ? 1 : 0)
-    + (todasPropias && espacios.length > 1 ? 1 : 0) + (todasPropias ? 1 : 0);
+    + (todasPropias && espacios.length > 1 ? 1 : 0) + (todasPropias ? 1 : 0) + (puedeProyectar ? 1 : 0);
 
   // Duplicar: crea una copia privada de quien duplica (la puede editar y dejar solo para sí).
   const [duplicando, setDuplicando] = useState(false);
@@ -488,6 +488,17 @@ export default function Minutas() {
               aria-label={t.minuta_duplicate}
             >
               {duplicando ? <Loader2 size={22} className="animate-spin" /> : <Copy size={22} />}
+            </BotonSeguro>
+          )}
+          {/* (1.33.0, Josué) Generar proyección también en el celular (antes solo en el menú ⋮ del computador). */}
+          {puedeProyectar && (
+            <BotonSeguro
+              onClick={() => { const m = unaSeleccionada; if (!m) return; salirSeleccion(); setProyectar(m); setProyAbierta(true); }}
+              disabled={selected.size !== 1}
+              className="tap-btn w-[var(--tam)] h-[var(--tam)] rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground disabled:opacity-30 transition-opacity"
+              aria-label={t.proy_titulo}
+            >
+              <Presentation size={22} />
             </BotonSeguro>
           )}
           {puedeCambiarVisibilidad && (
