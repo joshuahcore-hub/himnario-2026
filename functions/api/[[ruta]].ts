@@ -596,9 +596,10 @@ Si hay una raya o línea horizontal dibujada entre cantos (un separador), escrib
 No agregues explicaciones, títulos ni comentarios: solo el texto.`;
 
 const INSTRUCCION_LETRA = `Esta imagen tiene la letra de una canción (puede traer acordes encima del texto).
-Transcribe SOLO la letra que se canta, en el mismo orden, para proyectarla como subtítulos: una frase por renglón.
+Si la imagen trae el título de la canción (normalmente arriba), escríbelo en el PRIMER renglón así: TÍTULO: <título tal como está>. Si no trae título, no pongas ese renglón.
+Después transcribe SOLO la letra que se canta, en el mismo orden, para proyectarla como subtítulos: una frase por renglón.
 Cada renglón de la letra es una frase; si un renglón es muy largo (más de unas 10 palabras), córtalo en dos donde haya una pausa natural.
-NO incluyas acordes (como C, G7, Am, F#m, D/F#), título, autor, números, ni nombres de partes (Coro, Estrofa, Intro, Puente, Final), ni indicaciones como x2, bis o (2 veces).
+Aparte del título, NO incluyas acordes (como C, G7, Am, F#m, D/F#), autor, tono, números, ni nombres de partes (Coro, Estrofa, Intro, Puente, Final), ni indicaciones como x2, bis o (2 veces).
 Si algo está encerrado o marcado a mano, transcríbelo igual, en su lugar. Si una palabra queda cortada en el borde, complétala si es obvia.
 Respeta tildes, mayúsculas y signos tal como están. No agregues explicaciones ni comentarios: solo la letra.
 Si la imagen no tiene letra de canción, responde solo: SIN LETRA`;
@@ -1342,15 +1343,17 @@ async function rutasProyeccion(request: Request, env: Env, partes: string[]): Pr
     return json({ ok: true });
   }
   // (1.32.0, Josué) Letra de un ESPECIAL: la foto subida (imagen con la letra) la transcribe Gemini UNA vez por imagen
-  // (los ids no cambian nunca: queda guardada en KV "letra-<id>"); la app hace una diapositiva por frase.
+  // (los ids no cambian nunca: queda guardada en KV "letra2-<id>", con el título); la app hace una diapositiva por frase.
   if (accion === 'letra' && request.method === 'POST') {
     const body = await leerJson(request);
     const ids = Array.isArray(body.ids) ? body.ids.filter((x: unknown) => typeof x === 'string' && /^[\w-]{10,60}$/.test(x)).slice(0, 10) : [];
     if (!ids.length) throw new ErrorApi(400, 'Faltan las imágenes.');
     const lineas: string[] = [];
+    let titulo = '';
     let fallos = 0;
     for (const id of ids as string[]) {
-      let texto = await env.PROYECCION.get(`letra-${id}`);
+      // (1.32.1) "letra2-": la lectura trae también el título (las guardadas en 1.32.0 se vuelven a leer una vez).
+      let texto = await env.PROYECCION.get(`letra2-${id}`);
       if (texto === null) {
         const v = await env.PROYECCION.getWithMetadata<{ tipo: string }>(`img-${id}`, 'arrayBuffer');
         if (!v.value) continue;
@@ -1366,12 +1369,17 @@ async function rutasProyeccion(request: Request, env: Env, partes: string[]): Pr
             ? 'Se acabó por ahora el cupo gratis de la IA para leer la letra del especial.'
             : 'La IA no pudo leer la letra del especial. Intenta de nuevo en un par de minutos.');
         }
-        await env.PROYECCION.put(`letra-${id}`, texto);
+        await env.PROYECCION.put(`letra2-${id}`, texto);
       }
-      lineas.push(...texto.split('\n').filter(Boolean));
+      for (const l of texto.split('\n').filter(Boolean)) {
+        const t = l.match(/^\s*T[IÍ]TULO\s*:\s*(.+)$/i);
+        // Solo el título de la 1.ª foto (las siguientes suelen ser la continuación de la misma canción).
+        if (t) { if (!titulo && !lineas.length) titulo = t[1].replace(/^["“«]+|["”»]+$/g, '').trim(); }
+        else lineas.push(l);
+      }
     }
     if (!lineas.length && fallos) throw new ErrorApi(503, 'La IA no pudo leer la letra del especial. Intenta de nuevo en un par de minutos.');
-    return json({ lineas });
+    return json({ titulo, lineas });
   }
   if (request.method !== 'GET') throw new ErrorApi(405, 'Operación no permitida.');
   if (accion === 'meta') {

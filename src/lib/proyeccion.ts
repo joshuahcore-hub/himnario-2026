@@ -119,7 +119,10 @@ export function letraEspecial(imagen: string): Promise<string[]> {
         });
       } catch { throw new ErrorDeRed('Sin conexión a internet.'); }
       if (!r.ok) throw new Error((await r.json().catch(() => null))?.error || `Error ${r.status}`);
-      return ((await r.json()).lineas ?? []) as string[];
+      // (1.32.1, Josué) El título de la canción (si la foto lo trae) va primero, en MAYÚSCULAS, en su propia diapositiva.
+      const d = await r.json() as { titulo?: string; lineas?: string[] };
+      const lineas = d.lineas ?? [];
+      return d.titulo && lineas.length ? [d.titulo.toLocaleUpperCase('es'), ...lineas] : lineas;
     })().catch(e => { letrasPedidas.delete(k); throw e; }));
   }
   return letrasPedidas.get(k)!;
