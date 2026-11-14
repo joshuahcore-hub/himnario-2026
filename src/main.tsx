@@ -6,9 +6,13 @@ import "@/lib/atras";
 import App from "./App.tsx";
 import "./index.css";
 import { fijarVertical } from "@/hooks/useHorizontal";
+import { iniciarCompaGlobal } from "@/lib/compaGlobal";
 
 // La app va en vertical; solo el himno abierto y el lector de minutas permiten girar (useHorizontal).
 fijarVertical();
+
+// (1.30.0) Modo Compañerismo: lo pone el administrador para todos; cada equipo lo pregunta al servidor.
+iniciarCompaGlobal();
 
 // Service worker: guarda la app y los himnos para usarlos sin internet.
 // Actualizaciones sin interrumpir: la versión nueva se descarga en silencio y queda en espera;

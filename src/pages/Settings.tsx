@@ -1,6 +1,6 @@
 import { Moon, Sun, Languages, WifiOff, CheckCircle2, Palette, Users } from 'lucide-react';
 import { compaActivo } from '@/lib/compa';
-import { fijarCompa } from '@/lib/hymnCache';
+import { alCambiarCompa, cambiarCompaGlobal } from '@/lib/compaGlobal';
 import { ConBarra } from '@/components/BarraDesplazamiento';
 import { useI18n } from '@/lib/i18n/index';
 import type { Locale } from '@/lib/i18n/translations';
@@ -8,7 +8,7 @@ import { useTheme, applyTheme, applyColor } from '@/hooks/useTheme';
 import { COLORES_TEMA, MUESTRAS, type ColorTema } from '@/lib/colores';
 import Desplegable from '@/components/Desplegable';
 import { useOffline } from '@/lib/offline';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAcceso } from '@/hooks/useAcceso';
 import { colorTempoActivo, fijarColorTempo } from '@/lib/colorTempo';
 import MenuAcceso, { EVENTO_ACTIVAR_ADMIN } from '@/components/SeccionAcceso';
@@ -39,11 +39,18 @@ export default function SettingsPage() {
   );
   const dark = theme === 'dark';
   const offline = useOffline();
-  const { puedeVerMinutas } = useAcceso();
+  const { puedeVerMinutas, esAdmin } = useAcceso();
   const [coloresMinuta, setColoresMinuta] = useState(colorTempoActivo);
   const cambiarColores = () => { const v = !coloresMinuta; fijarColorTempo(v); setColoresMinuta(v); };
   const [compa, setCompa] = useState(compaActivo);
-  const cambiarCompa = () => { const v = !compa; fijarCompa(v); setCompa(v); };
+  // (1.30.0, Josué) Solo el administrador lo ve y lo cambia PARA TODOS (se guarda en el servidor). Se mueve al tiro y,
+  // si no hay internet o falla, vuelve a como estaba.
+  useEffect(() => alCambiarCompa(setCompa), []);
+  const cambiarCompa = () => {
+    const v = !compa;
+    setCompa(v);
+    cambiarCompaGlobal(v).then(setCompa, () => setCompa(compaActivo()));
+  };
   const { toques: toquesRecargar, rueda } = useRuedaRecargar(recargarApp);
   const toquesVersion = useRef<number[]>([]);
   const tocarVersion = () => {
@@ -161,8 +168,8 @@ export default function SettingsPage() {
         </button>
       )}
 
-      {/* Provisorio (Josué 09-11-2026): imágenes alternativas del culto de compañerismo, en este equipo. */}
-      {puedeVerMinutas && (
+      {/* Imágenes alternativas del culto de compañerismo (09-11-2026). Desde 1.30.0 solo el admin y para todos. */}
+      {esAdmin && (
         <button type="button" role="switch" aria-checked={compa} onClick={cambiarCompa}
                 className="w-full text-left bg-card rounded-xl border border-border p-4 flex items-center gap-3 [touch-action:manipulation] select-none">
           <div className="flex-1 min-w-0">

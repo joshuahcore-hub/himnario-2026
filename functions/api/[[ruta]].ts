@@ -194,6 +194,24 @@ const registrar = (env: Env, minutaId: string, dispositivoId: string, accion: st
   env.DB.prepare('INSERT INTO historial (minuta_id, dispositivo_id, accion, titulo, fecha) VALUES (?, ?, ?, ?, ?)')
     .bind(minutaId, dispositivoId, accion, titulo, ahora());
 
+// ---------- Ajustes globales (1.30.0, Josué 14-11-2026): los pone SOLO el admin y valen para todos. ----------
+// Hoy: el modo Compañerismo («yo lo pongo y a todos les sale lo que yo pongo»). Leerlo es libre (lo usa cualquier equipo).
+async function leerAjustes(env: Env) {
+  const f = await env.DB.prepare("SELECT valor FROM ajustes WHERE clave = 'compa'").first<{ valor: string }>();
+  return { compa: f?.valor === '1' };
+}
+async function rutasAjustes(request: Request, env: Env): Promise<Response> {
+  if (request.method === 'GET') return json(await leerAjustes(env));
+  if (request.method !== 'PUT') throw new ErrorApi(405, 'Método no permitido.');
+  const yo = await dispositivoActual(request, env);
+  if (!esAdmin(yo)) throw new ErrorApi(403, 'Solo el administrador cambia este ajuste.');
+  const body = await leerJson(request);
+  if (typeof body.compa !== 'boolean') throw new ErrorApi(400, 'Falta el valor.');
+  await env.DB.prepare('INSERT INTO ajustes (clave, valor, cambiado) VALUES (?, ?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, cambiado = excluded.cambiado')
+    .bind('compa', body.compa ? '1' : '0', ahora()).run();
+  return json(await leerAjustes(env));
+}
+
 // ---------- Espacios (1.16.0, Josué): Batuco, Talca… Cada minuta es de uno. El admin agrega más. ----------
 interface Espacio { id: string; nombre: string }
 async function listaEspacios(env: Env): Promise<Espacio[]> {
@@ -1409,6 +1427,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env: envBase, par
     switch (partes[0]) {
       case 'minutas': return await rutasMinutas(request, env, partes);
       case 'espacios': return await rutasEspacios(request, env, partes);
+      case 'ajustes': return await rutasAjustes(request, env);
       case 'acceso': return await rutasAcceso(request, env, partes, ip);
       case 'admin': return await rutasAdmin(request, env, partes, ip);
       case 'ia': return await rutasIa(request, env, partes);
