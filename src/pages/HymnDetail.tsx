@@ -191,6 +191,9 @@ export default function HymnDetail() {
   // (1.23.0, Josué) Buscador dentro del himno abierto: lleva directo al himno elegido.
   const [buscando, setBuscando] = useState(false);
   const toqueBuscar = useToque(() => setBuscando(true));
+  // (1.33.2, Josué) Flechas a los lados también en el celular: fijas aunque haya zoom; un toque = anterior/siguiente.
+  const toqueAnterior = useToque(() => paso(-1));
+  const toqueSiguiente = useToque(() => paso(1));
   const tituloDe = useMemo(() => new Map(initial.hymns.map(h => [h.hymn_number, h.title])), [initial]);
 
   // Girado (touch-action pan-y): en cuanto el gesto es lateral se bloquea el desplazamiento nativo hacia abajo; si no,
@@ -356,13 +359,8 @@ export default function HymnDetail() {
   const prevNum = currentIndex > 0 ? navNumbers[currentIndex - 1] : null;
   const nextNum = currentIndex < navNumbers.length - 1 ? navNumbers[currentIndex + 1] : null;
 
-  const handleEdgeSwipe = useCallback((direction: 'left' | 'right') => {
-    if (direction === 'left' && currentIndex > 0) {
-      goTo(currentIndex - 1);
-    } else if (direction === 'right' && currentIndex < navNumbers.length - 1) {
-      goTo(currentIndex + 1);
-    }
-  }, [currentIndex, navNumbers.length, goTo]);
+  // Con zoom, al seguir deslizando desde el borde pasa a la de al lado con el mismo paso suave de las flechas.
+  const handleEdgeSwipe = (direction: 'left' | 'right') => paso(direction === 'left' ? -1 : 1);
 
   const renderSlide = (num: number | null, offset: number) => {
     if (num === null) return null;
@@ -494,13 +492,14 @@ export default function HymnDetail() {
           {renderSlide(nextNum, 1)}
         </div>
       </div>
-      {enComputador && ([-1, 1] as const).map(d => {
+      {([-1, 1] as const).map(d => {
         const i = indiceDestino ?? currentIndex;
         const puede = d < 0 ? i > 0 : i < navNumbers.length - 1;
+        const toque = enComputador ? { onClick: () => paso(d) } : (d < 0 ? toqueAnterior : toqueSiguiente);
         return (
-          <button key={d} onClick={() => paso(d)} aria-label={d < 0 ? '‹' : '›'}
-                  className={`absolute top-1/2 -translate-y-1/2 z-20 ${d < 0 ? 'left-4' : 'right-4'} w-10 h-10 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
-                  style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none' }}>
+          <button key={d} {...toque} aria-label={d < 0 ? '‹' : '›'}
+                  className={`absolute top-1/2 -translate-y-1/2 z-20 ${d < 0 ? (enComputador ? 'left-4' : 'left-1.5') : (enComputador ? 'right-4' : 'right-1.5')} ${enComputador ? 'w-10 h-10 bg-card/90' : 'w-9 h-9 bg-card/80'} rounded-full border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
+                  style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none' }}>
             {d < 0 ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
           </button>
         );

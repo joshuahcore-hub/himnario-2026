@@ -31,6 +31,9 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
   const isPinching = useRef(false);
   const isPanning = useRef(false);
   const edgeOverflow = useRef(0);
+  // (1.33.2, Josué) Con zoom, el primer deslizamiento lleva hasta el borde y ahí se detiene; si el siguiente gesto
+  // EMPIEZA ya en ese borde y sigue hacia afuera, pasa a la canción de al lado.
+  const bordeInicio = useRef<'izq' | 'der' | null>(null);
 
   // (1.17.2/1.17.6, Josué) Zoom NÍTIDO: al ampliar, la versión del doble de resolución se pone ENCIMA (CapaNitida).
   const srcVisible = src;
@@ -81,9 +84,11 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
       e.stopPropagation();
       isPanning.current = true;
       edgeOverflow.current = 0;
+      const tope = clampTranslate(1e6, 0, scale).x;
+      bordeInicio.current = tope <= 0 ? null : translate.x >= tope - 2 ? 'izq' : translate.x <= -tope + 2 ? 'der' : null;
       panStart.current = { x: e.touches[0].clientX - translate.x, y: e.touches[0].clientY - translate.y };
     }
-  }, [scale, translate]);
+  }, [scale, translate, clampTranslate]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (isPinching.current && e.touches.length === 2) {
@@ -120,9 +125,11 @@ export default function ZoomableImage({ src, alt, className, onError, onEdgeSwip
     if (e.touches.length < 1) {
       isPanning.current = false;
       // Check edge swipe threshold
-      const threshold = 60;
-      if (Math.abs(edgeOverflow.current) > threshold && onEdgeSwipe) {
-        onEdgeSwipe(edgeOverflow.current > 0 ? 'left' : 'right');
+      const threshold = 40;
+      const o = edgeOverflow.current;
+      const pasa = (o > threshold && bordeInicio.current === 'izq') || (o < -threshold && bordeInicio.current === 'der');
+      if (pasa && onEdgeSwipe) {
+        onEdgeSwipe(o > 0 ? 'left' : 'right');
         // Reset zoom after navigation
         setScale(1);
         setTranslate({ x: 0, y: 0 });
