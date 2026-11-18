@@ -12,7 +12,7 @@ import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
 import { AcotacionesPostit, BotonEnviados, BotonRecordatorio, NotasRecordatorio, PanelRecordatorio, sobresaleArriba, vaSobreLetra } from '@/components/Recordatorios';
 import ZoomableImage from '@/components/ZoomableImage';
-import Zoomable from '@/components/Zoomable';
+import Zoomable, { BordeZoom } from '@/components/Zoomable';
 import HimnoRecortado, { proporcionLetra, vistaRecortada } from '@/components/HimnoRecortado';
 import { esComputador } from '@/lib/proyeccion';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
@@ -487,9 +487,11 @@ export default function HymnDetail() {
                          enviados={notasDe(currentNum, 'enviados')} />
       <div ref={areaRef} className="absolute inset-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onWheel={alRueda} style={{ touchAction: horizontal ? 'pan-y' : 'none' }}>
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
+          <BordeZoom.Provider value={paso}>
           {renderSlide(prevNum, -1)}
           {renderSlide(currentNum, 0)}
           {renderSlide(nextNum, 1)}
+          </BordeZoom.Provider>
         </div>
       </div>
       {([-1, 1] as const).map(d => {

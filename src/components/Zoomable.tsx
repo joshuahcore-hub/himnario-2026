@@ -1,6 +1,10 @@
 // Contenedor con zoom: pellizcar con dos dedos o doble toque amplía TODO su contenido como una sola imagen;
 // ampliado, se puede mover con un dedo. Sin zoom, deja pasar el deslizamiento horizontal (cambiar de canto).
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
+
+/** (1.33.3, Josué) Con zoom: si un deslizamiento EMPIEZA en el borde y sigue hacia afuera, pasa de canción.
+ *  La pantalla que pasa de canción lo da con <BordeZoom.Provider value={d => ...}> (d: -1 anterior, 1 siguiente). */
+export const BordeZoom = createContext<((d: 1 | -1) => void) | null>(null);
 
 export type EstadoZoom = { escala: number; x: number; y: number };
 
@@ -24,6 +28,8 @@ export default function Zoomable({ children, className = '', reiniciarCon, onAmp
   const pellizco = useRef<{ distancia: number; escala: number } | null>(null);
   const arrastre = useRef<{ x: number; y: number } | null>(null);
   const [gesto, setGesto] = useState(false);
+  const pasarCancion = useContext(BordeZoom);
+  const borde = useRef<{ lado: 'izq' | 'der' | null; sobra: number }>({ lado: null, sobra: 0 });
 
   // Al aparecer conserva `inicial`; vuelve a 1 solo cuando CAMBIA reiniciarCon o activo.
   const primera = useRef(true);
@@ -53,6 +59,8 @@ export default function Zoomable({ children, className = '', reiniciarCon, onAmp
     } else if (e.touches.length === 1 && escala > 1) {
       e.stopPropagation();
       arrastre.current = { x: e.touches[0].clientX - mover.x, y: e.touches[0].clientY - mover.y };
+      const tope = limitar(1e6, 0, escala).x;
+      borde.current = { lado: tope <= 0 ? null : mover.x >= tope - 2 ? 'izq' : mover.x <= -tope + 2 ? 'der' : null, sobra: 0 };
       setGesto(true);
     }
   };
@@ -65,15 +73,21 @@ export default function Zoomable({ children, className = '', reiniciarCon, onAmp
       setMover(m => limitar(m.x, m.y, s));
     } else if (arrastre.current && e.touches.length === 1 && escala > 1) {
       e.stopPropagation();
-      setMover(limitar(e.touches[0].clientX - arrastre.current.x, e.touches[0].clientY - arrastre.current.y, escala));
+      const x = e.touches[0].clientX - arrastre.current.x;
+      const m = limitar(x, e.touches[0].clientY - arrastre.current.y, escala);
+      borde.current.sobra = x - m.x;
+      setMover(m);
     }
   };
 
   const alSoltar = (e: React.TouchEvent) => {
     if (e.touches.length < 2) pellizco.current = null;
     if (e.touches.length === 0) {
+      const pasar = arrastre.current !== null && pasarCancion
+        && ((borde.current.sobra > 40 && borde.current.lado === 'izq') || (borde.current.sobra < -40 && borde.current.lado === 'der'));
       arrastre.current = null;
       setGesto(false);
+      if (pasar) { pasarCancion!(borde.current.sobra > 0 ? -1 : 1); borde.current = { lado: null, sobra: 0 }; return; }
       if (escala <= 1.05) { setEscala(1); setMover({ x: 0, y: 0 }); }
     }
   };

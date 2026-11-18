@@ -4,7 +4,7 @@ import { flushSync } from 'react-dom';
 import type { MinutaData, ParsedSong } from '@/lib/types';
 import Portada from '@/components/Portada';
 import { colorTempoActivo } from '@/lib/colorTempo';
-import Zoomable from '@/components/Zoomable';
+import Zoomable, { BordeZoom } from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, getHymnHdUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
@@ -200,6 +200,9 @@ export default function MinutaReader() {
   // (1.17.0, Josué) Pantalla completa sin girar (oculta las barras del sistema).
   const { completa, alternar: alternarCompleta } = usePantallaCompleta();
   const toqueCompleta = useToque(alternarCompleta);
+  // (1.33.3, Josué) Flechas a los lados también en el celular, fijas aunque haya zoom: un toque = anterior/siguiente.
+  const toqueAnterior = useToque(() => paso(-1));
+  const toqueSiguiente = useToque(() => paso(1));
   /** Salta a una página (completa antes el paso que se esté animando). */
   function irA(destino: number) {
     if (terminarPaso.current) terminarPaso.current();
@@ -573,9 +576,11 @@ export default function MinutaReader() {
         style={{ touchAction: horizontal || paginaVisible === 0 ? 'pan-y' : 'none' }}
       >
         <div ref={carruselRef} className="absolute inset-0" style={{ transform: 'translateX(0px)', willChange: 'transform' }}>
+          <BordeZoom.Provider value={paso}>
           {renderPage(salto?.lado === -1 ? salto.pagina : currentPage - 1, -1)}
           {renderPage(currentPage, 0)}
           {renderPage(salto?.lado === 1 ? salto.pagina : currentPage + 1, 1)}
+          </BordeZoom.Provider>
         </div>
         {/* Arriba a la derecha: añadir recordatorio a esta alabanza (1.7.0; solo en páginas de canto) y girar
             (1.6.1). Discretos, para no tapar la letra. */}
@@ -595,12 +600,13 @@ export default function MinutaReader() {
           </div>
         </div>
         {/* Computador: flechas a los lados para pasar de canción (atenuadas y sin efecto en los extremos). */}
-        {enComputador && ([-1, 1] as const).map(d => {
+        {([-1, 1] as const).map(d => {
           const puede = d < 0 ? paginaVisible > 0 : paginaVisible < totalPages - 1;
+          const toque = enComputador ? { onClick: () => paso(d) } : (d < 0 ? toqueAnterior : toqueSiguiente);
           return (
-            <button key={d} onClick={() => paso(d)} aria-label={d < 0 ? '‹' : '›'}
-                    className={`absolute top-1/2 -translate-y-1/2 z-20 ${d < 0 ? 'left-3' : 'right-3'} w-10 h-10 rounded-full bg-card/90 border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
-                    style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none' }}>
+            <button key={d} {...toque} aria-label={d < 0 ? '‹' : '›'}
+                    className={`absolute top-1/2 -translate-y-1/2 z-20 ${d < 0 ? (enComputador ? 'left-3' : 'left-1.5') : (enComputador ? 'right-3' : 'right-1.5')} ${enComputador ? 'w-10 h-10 bg-card/90' : 'w-9 h-9 bg-card/80'} rounded-full border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
+                    style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none' }}>
               {d < 0 ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
             </button>
           );
