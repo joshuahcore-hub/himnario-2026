@@ -11,7 +11,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useHorizontal, puedeGirar, girarPantalla, usePantallaCompleta } from '@/hooks/useHorizontal';
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize, Minimize, Music2, RotateCwSquare } from 'lucide-react';
 import { CabeceraFuera, MarcoImagenes } from '@/components/ImagenesSubidas';
-import { esComputador } from '@/lib/proyeccion';
+import { esComputador, esTableta } from '@/lib/proyeccion';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { claveVirtual, useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
@@ -100,7 +100,7 @@ function SongPage({ song, horizontal, notas, onTocarNota, enviados = false }: {
         ) : (
           // Solo la franja con letra, CENTRADA en el espacio libre (1.9.0, Josué: con la hoja completa cada himno
           // quedaba a otra altura según dónde venía la letra en la imagen). Se achica si no cabe de alto.
-          <div className="flex-1 min-h-0 w-full max-w-lg flex items-center justify-center py-2" style={{ containerType: 'size' }}>
+          <div className={`flex-1 min-h-0 w-full ${esTableta() ? '' : 'max-w-lg'} flex items-center justify-center py-2`} style={{ containerType: 'size' }}>
             <HimnoRecortado num={hymnNumber} src={imgUrl} alt={`${song.title} - #${hymnNumber}`} onError={() => setImgError(true)} ajustarAlto
                             srcHd={getHymnHdUrl(hymnNumber, theme)} ampliado={ampliado}>
               {/* Sin mover: en fila justo ARRIBA de la letra, flotando (1.9.2: antes estaban en el flujo y al agregar

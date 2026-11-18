@@ -263,5 +263,8 @@ export async function generarProyeccion(minuta: Pick<MinutaData, 'cantos' | 'fec
 }
 
 /** Computador: mouse y pantalla ancha (en el celular la opción no aparece). */
+/** (1.33.5, Josué) Tablet: pantalla táctil grande (lado corto de 600 px o más). Derecha aprovecha todo el ancho. */
+export const esTableta = () => typeof window !== 'undefined' && !esComputador()
+  && Math.min(window.innerWidth, window.innerHeight) >= 600;
 export const esComputador = () => typeof window !== 'undefined'
   && window.matchMedia('(hover: hover) and (pointer: fine)').matches && window.innerWidth >= 900;

@@ -14,7 +14,7 @@ import { AcotacionesPostit, BotonEnviados, BotonRecordatorio, NotasRecordatorio,
 import ZoomableImage from '@/components/ZoomableImage';
 import Zoomable, { BordeZoom } from '@/components/Zoomable';
 import HimnoRecortado, { proporcionLetra, vistaRecortada } from '@/components/HimnoRecortado';
-import { esComputador } from '@/lib/proyeccion';
+import { esComputador, esTableta } from '@/lib/proyeccion';
 import { CURVA_DESLIZAR, DURACION_DESLIZAR, direccionFirme, rueda, UMBRAL_LADO } from '@/lib/deslizar';
 import { ConBarra } from '@/components/BarraDesplazamiento';
 import BuscadorHimno from '@/components/BuscadorHimno';
@@ -118,16 +118,22 @@ export default function HymnDetail() {
   // Computador (1.13.4, Josué): flechas a los lados, rueda del mouse (un himno por muesca) y la letra más grande
   // aprovechando el ancho: todos al MISMO ancho (misma letra); los muy altos, al alto que cabe (algo más grandes que antes).
   const [enComputador] = useState(esComputador);
+  const [tableta] = useState(esTableta);
   const [pantalla, setPantalla] = useState(() => ({ ancho: window.innerWidth, alto: window.innerHeight }));
   useEffect(() => {
-    if (!enComputador) return;
+    if (!enComputador && !tableta) return;
     const medir = () => setPantalla({ ancho: window.innerWidth, alto: window.innerHeight });
     window.addEventListener('resize', medir);
     return () => window.removeEventListener('resize', medir);
-  }, [enComputador]);
+  }, [enComputador, tableta]);
   const anchoLetraPc = (n: number) => {
     const disponible = pantalla.alto - 60 - (completa ? 16 : 64 + 60); // botones de arriba, barra de pestañas y contador
     return Math.round(Math.min(780, pantalla.ancho * 0.62, disponible / proporcionLetra(n)));
+  };
+  // (1.33.5, Josué) Tablet derecha: la letra a todo el ancho (bordes chicos), hasta el alto que cabe, sin zoom.
+  const anchoLetraTableta = (n: number) => {
+    const disponible = pantalla.alto - 60 - (completa ? 16 : 64 + 60);
+    return Math.round(Math.min(pantalla.ancho - 16, disponible / proporcionLetra(n)));
   };
   const ruedaRef = useRef({ acum: 0, ultimo: 0, paso: 0 });
   // (1.17.2) Himno girado que está ampliado (usa la imagen nítida).
@@ -402,13 +408,13 @@ export default function HymnDetail() {
            style={{ transform: `translateX(${offset * 100}%)`, paddingTop: '3.75rem', paddingBottom: completa ? '1rem' : 'calc(var(--barra) + 3.75rem)' }}>
         {/* Post-it: los que no se han movido van en fila justo arriba de la letra (fuera del flujo: la letra no se corre
             al agregarlos ni al moverlos); los movidos, pegados en su lugar de la letra, encima de la imagen (1.9.0). */}
-        <div className="relative w-full min-h-0 flex justify-center" style={enComputador ? { width: anchoLetraPc(num), maxWidth: '100%' } : undefined}>
+        <div className="relative w-full min-h-0 flex justify-center" style={enComputador ? { width: anchoLetraPc(num), maxWidth: '100%' } : tableta ? { width: anchoLetraTableta(num), maxWidth: '100%' } : undefined}>
           <NotasRecordatorio notas={notasVista(num)} enviados={verEnviados} onTocar={abrirPanel} className="absolute bottom-full left-0 right-0 mx-auto max-w-lg px-4 pb-3 pointer-events-none" />
           <ZoomableImage
             src={src}
             alt={`${t.hymn_alt}${num}`}
             className="block w-full h-auto"
-            claseMarco={enComputador ? 'w-full' : 'w-full max-w-lg'}
+            claseMarco={enComputador || tableta ? 'w-full' : 'w-full max-w-lg'}
             estilo={vistaRecortada(num)}
             srcHd={getHymnHdUrl(num, theme)}
             onEdgeSwipe={handleEdgeSwipe}
