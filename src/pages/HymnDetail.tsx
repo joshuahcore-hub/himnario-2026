@@ -497,11 +497,13 @@ export default function HymnDetail() {
       {([-1, 1] as const).map(d => {
         const i = indiceDestino ?? currentIndex;
         const puede = d < 0 ? i > 0 : i < navNumbers.length - 1;
+        // (1.33.4, Josué) Celular derecho: las flechas van ABAJO, a los lados; girado y computador, al medio.
+        const abajoCel = !enComputador && !horizontal;
         const toque = enComputador ? { onClick: () => paso(d) } : (d < 0 ? toqueAnterior : toqueSiguiente);
         return (
           <button key={d} {...toque} aria-label={d < 0 ? '‹' : '›'}
-                  className={`absolute top-1/2 -translate-y-1/2 z-20 ${d < 0 ? (enComputador ? 'left-4' : 'left-1.5') : (enComputador ? 'right-4' : 'right-1.5')} ${enComputador ? 'w-10 h-10 bg-card/90' : 'w-9 h-9 bg-card/80'} rounded-full border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
-                  style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none' }}>
+                  className={`absolute z-20 ${abajoCel ? '' : 'top-1/2 -translate-y-1/2'} ${d < 0 ? (enComputador ? 'left-4' : abajoCel ? 'left-4' : 'left-1.5') : (enComputador ? 'right-4' : abajoCel ? 'right-4' : 'right-1.5')} ${enComputador ? 'w-10 h-10 bg-card/90' : 'w-9 h-9 bg-card/80'} rounded-full border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
+                  style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none', bottom: abajoCel ? completa ? 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' : 'calc(var(--barra) + 2.25rem)' : undefined }}>
             {d < 0 ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
           </button>
         );
