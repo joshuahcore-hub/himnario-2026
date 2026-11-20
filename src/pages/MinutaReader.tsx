@@ -8,7 +8,7 @@ import Zoomable, { BordeZoom } from '@/components/Zoomable';
 import HimnoRecortado from '@/components/HimnoRecortado';
 import { getThemedHymnImageUrl, getHymnHdUrl, precargarHimno, imageCache, imageCacheDark } from '@/lib/hymnCache';
 import { useTheme } from '@/hooks/useTheme';
-import { useHorizontal, puedeGirar, girarPantalla, usePantallaCompleta } from '@/hooks/useHorizontal';
+import { useHorizontal, useRetrato, puedeGirar, girarPantalla, usePantallaCompleta } from '@/hooks/useHorizontal';
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize, Minimize, Music2, RotateCwSquare } from 'lucide-react';
 import { CabeceraFuera, MarcoImagenes } from '@/components/ImagenesSubidas';
 import { esComputador, esTableta } from '@/lib/proyeccion';
@@ -178,6 +178,7 @@ export default function MinutaReader() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const horizontal = useHorizontal();
+  const retrato = useRetrato();
   const { theme: temaLector } = useTheme();
   // Recordatorios (1.7.0): los "siempre en esta alabanza" y los "solo en esta minuta".
   const { registrado, puedeDejarAOtros } = useAcceso();
@@ -602,14 +603,15 @@ export default function MinutaReader() {
         {/* Computador: flechas a los lados para pasar de canción (atenuadas y sin efecto en los extremos). */}
         {([-1, 1] as const).map(d => {
           const puede = d < 0 ? paginaVisible > 0 : paginaVisible < totalPages - 1;
-          // (1.33.4, Josué) Celular derecho: las flechas van ABAJO, a los lados; girado y computador, al medio.
-        const abajoCel = !enComputador && !horizontal;
+          // (1.33.6, Josué) De pie (celular o tablet vertical): ABAJO a los lados, sin tapar la letra; apaisado (celular
+        // girado, tablet con teclado), pantalla completa apaisada y computador: CENTRADAS en lo vertical. Rectángulo vertical.
+        const abajoCel = !enComputador && retrato;
         const toque = enComputador ? { onClick: () => paso(d) } : (d < 0 ? toqueAnterior : toqueSiguiente);
           return (
             <button key={d} {...toque} aria-label={d < 0 ? '‹' : '›'}
-                    className={`absolute z-20 ${abajoCel ? '' : 'top-1/2 -translate-y-1/2'} ${d < 0 ? (enComputador ? 'left-3' : abajoCel ? 'left-4' : 'left-1.5') : (enComputador ? 'right-3' : abajoCel ? 'right-4' : 'right-1.5')} ${enComputador ? 'w-10 h-10 bg-card/90' : 'w-9 h-9 bg-card/80'} rounded-full border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
-                    style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none', bottom: abajoCel ? 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' : undefined }}>
-              {d < 0 ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+                    className={`absolute z-20 ${abajoCel ? '' : 'top-1/2 -translate-y-1/2'} ${d < 0 ? (enComputador ? 'left-3' : abajoCel ? 'left-4' : 'left-1.5') : (enComputador ? 'right-3' : abajoCel ? 'right-4' : 'right-1.5')} ${enComputador ? 'w-12 h-24 bg-card/90' : 'w-10 h-20 bg-card/80'} rounded-xl border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
+                    style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none', bottom: abajoCel ? 'calc(env(safe-area-inset-bottom, 0px) + 3rem)' : undefined }}>
+              {d < 0 ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
             </button>
           );
         })}

@@ -6,7 +6,7 @@ import { getHymns, precargarHimno, getThemedHymnImageUrl, getHymnHdUrl, imageCac
 import { getFilteredNumbers, marcarUltimoHimno } from '@/lib/hymnalState';
 import { useI18n } from '@/lib/i18n/index';
 import { useTheme } from '@/hooks/useTheme';
-import { useHorizontal, puedeGirar, girarPantalla, usePantallaCompleta } from '@/hooks/useHorizontal';
+import { useHorizontal, useRetrato, puedeGirar, girarPantalla, usePantallaCompleta } from '@/hooks/useHorizontal';
 import { useAcceso } from '@/hooks/useAcceso';
 import { useToque } from '@/hooks/useToque';
 import { useRecordatorios, type Recordatorio } from '@/lib/recordatorios';
@@ -97,6 +97,7 @@ export default function HymnDetail() {
   const { theme } = useTheme();
   // Celular girado: la letra a todo el ancho y se recorre hacia abajo (deslizar arriba/abajo ya no cierra).
   const horizontal = useHorizontal();
+  const retrato = useRetrato();
   // Recordatorios (1.7.0): notas amarillas arriba de la letra. En el himnario solo los "siempre en esta alabanza".
   const { registrado, puedeDejarAOtros } = useAcceso();
   const notasDe = useRecordatorios(registrado);
@@ -503,14 +504,15 @@ export default function HymnDetail() {
       {([-1, 1] as const).map(d => {
         const i = indiceDestino ?? currentIndex;
         const puede = d < 0 ? i > 0 : i < navNumbers.length - 1;
-        // (1.33.4, Josué) Celular derecho: las flechas van ABAJO, a los lados; girado y computador, al medio.
-        const abajoCel = !enComputador && !horizontal;
+        // (1.33.6, Josué) De pie (celular o tablet vertical): ABAJO a los lados, sin tapar la letra; apaisado (celular
+        // girado, tablet con teclado), pantalla completa apaisada y computador: CENTRADAS en lo vertical. Rectángulo vertical.
+        const abajoCel = !enComputador && retrato;
         const toque = enComputador ? { onClick: () => paso(d) } : (d < 0 ? toqueAnterior : toqueSiguiente);
         return (
           <button key={d} {...toque} aria-label={d < 0 ? '‹' : '›'}
-                  className={`absolute z-20 ${abajoCel ? '' : 'top-1/2 -translate-y-1/2'} ${d < 0 ? (enComputador ? 'left-4' : abajoCel ? 'left-4' : 'left-1.5') : (enComputador ? 'right-4' : abajoCel ? 'right-4' : 'right-1.5')} ${enComputador ? 'w-10 h-10 bg-card/90' : 'w-9 h-9 bg-card/80'} rounded-full border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
-                  style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none', bottom: abajoCel ? completa ? 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' : 'calc(var(--barra) + 2.25rem)' : undefined }}>
-            {d < 0 ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+                  className={`absolute z-20 ${abajoCel ? '' : 'top-1/2 -translate-y-1/2'} ${d < 0 ? (enComputador ? 'left-4' : abajoCel ? 'left-4' : 'left-1.5') : (enComputador ? 'right-4' : abajoCel ? 'right-4' : 'right-1.5')} ${enComputador ? 'w-12 h-24 bg-card/90' : 'w-10 h-20 bg-card/80'} rounded-xl border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
+                  style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none', bottom: abajoCel ? completa ? 'calc(env(safe-area-inset-bottom, 0px) + 3rem)' : 'calc(var(--barra) + 4.5rem)' : undefined }}>
+            {d < 0 ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
           </button>
         );
       })}

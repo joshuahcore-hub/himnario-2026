@@ -93,3 +93,18 @@ export function useHorizontal(): boolean {
   }, []);
   return horizontal;
 }
+
+/**
+ * (1.33.6, Josué) true si la pantalla está DE PIE (más alta que ancha). A diferencia de useHorizontal (solo celulares),
+ * sirve para cualquier equipo: la tablet apaisada da false aunque su alto pase de 560 px; la tablet usada de pie, true.
+ */
+export function useRetrato(): boolean {
+  const [retrato, setRetrato] = useState(() => window.matchMedia('(orientation: portrait)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait)');
+    const cambio = () => setRetrato(mq.matches);
+    mq.addEventListener('change', cambio);
+    return () => mq.removeEventListener('change', cambio);
+  }, []);
+  return retrato;
+}
