@@ -57,3 +57,9 @@ self.addEventListener('notificationclick', evento => {
     await self.clients.openWindow(destino);
   })());
 });
+
+// (1.33.8) Buscar versión nueva en segundo plano, aunque nadie abra la app (Chrome/Android con la app instalada;
+// lo registra src/main.tsx). Si hay una nueva, se baja y se activa sola: la próxima apertura ya es la nueva.
+self.addEventListener('periodicsync', evento => {
+  if (evento.tag === 'buscar-version') evento.waitUntil(self.registration.update().catch(() => {}));
+});

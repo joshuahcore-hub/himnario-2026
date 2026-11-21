@@ -85,9 +85,10 @@ export default defineConfig({
       transformIndexHtml: (html: string) => html.replace(/<script type="module"( crossorigin)? src=/g, '<script type="module" blocking="render"$1 src='),
     },
     VitePWA({
-      // Cuando se publica una versión nueva, el celular la descarga en silencio y la deja en espera:
-      // nunca recarga ni cambia la pantalla mientras se usa (ver src/main.tsx).
-      registerType: "prompt",
+      // (1.33.8) Cuando se publica una versión nueva, el celular la descarga en silencio y la ACTIVA SOLA (aunque la app
+      // esté cerrada o congelada): la próxima apertura ya es la nueva. Si la app está abierta, la pantalla se refresca
+      // solo en un momento sin uso; nunca mientras se usa (ver src/main.tsx). Antes quedaba "en espera" y no llegaba.
+      registerType: "autoUpdate",
       injectRegister: false,
       // Íconos con versión en el nombre (scripts/iconos/generar.mjs): así nadie ve uno viejo guardado.
       includeAssets: ["icono-v5-64.png", "icono-v5-apple-180.png"],
@@ -101,7 +102,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: false,
+        skipWaiting: true,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
         // Notificaciones (1.11.0): el service worker carga public/sw-push.js (push, tocar, "Marcar como vista").

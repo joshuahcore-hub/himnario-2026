@@ -16,25 +16,28 @@ fijarVertical();
 iniciarCompaGlobal();
 
 // Service worker: guarda la app y los himnos para usarlos sin internet.
-// (1.32.6, Josué: "que la actualización llegue al tiro, sin tener que recargar") Busca versión nueva SEGUIDO: al abrir,
-// al volver a la app, al recuperar internet y cada 5 min con la app a la vista. La versión nueva se baja en silencio y se
-// aplica SOLA (cambia y recarga) solo cuando nadie la está usando: al pasar a segundo plano, o recién abierta antes del
-// primer toque (parece la misma apertura). NUNCA con un panel abierto, cambios sin guardar o escribiendo: entonces
-// espera a la próxima vez que se oculte (o a la próxima apertura). Al recargar se vuelve a la misma pantalla.
-if (import.meta.env.PROD) {
-  const inicio = Date.now();
-  let hayVersionNueva = false;
-  let aplicando = false;
-  let recargarAlOcultar = false;
+// (1.33.8, Josué 20-11-2026: "que se actualice sola para todas las personas, sin tener que recargar") ANTES la versión
+// nueva quedaba EN ESPERA y solo se activaba si esta página alcanzaba a correr al ocultarse; Android congela la app
+// oculta en segundos, así que muchas veces nunca pasaba y la gente seguía con la vieja hasta recargar a mano.
+// AHORA la versión nueva se activa SOLA dentro del service worker apenas termina de bajarse (vite.config.ts,
+// registerType "autoUpdate"), aunque la app esté cerrada, oculta o congelada: la próxima apertura YA es la nueva.
+// Además el celular la busca en segundo plano (sincronización periódica, public/sw-push.js) aunque nadie abra la app.
+// Si la app estaba abierta cuando llegó la nueva, la pantalla se refresca SOLO en un momento sin uso: al ocultarse,
+// recién abierta o recién vuelta a la app antes del primer toque (parece parte de la apertura). NUNCA con un panel
+// abierto, cambios sin guardar o escribiendo. Al recargar se vuelve a la misma pantalla.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  let visibleDesde = Date.now();
   let tocó = false;
+  let recargaPendiente = false;
   let ultimaBusqueda = 0;
   let registroSW: ServiceWorkerRegistration | undefined;
+  let habiaControlador = !!navigator.serviceWorker.controller;
   const marcarToque = () => { tocó = true; };
-  window.addEventListener("pointerdown", marcarToque, { capture: true, once: true });
-  window.addEventListener("keydown", marcarToque, { capture: true, once: true });
+  window.addEventListener("pointerdown", marcarToque, { capture: true });
+  window.addEventListener("keydown", marcarToque, { capture: true });
 
-  /** Recién abierta y sin tocar todavía: recargar ahí se ve como parte de la apertura. */
-  const recienAbierta = () => !tocó && Date.now() - inicio < 8000;
+  /** Recién abierta (o recién vuelta a la app) y sin tocar todavía: recargar ahí se ve como parte de la apertura. */
+  const recienAbierta = () => !tocó && Date.now() - visibleDesde < 6000;
   /** Nadie está a mitad de algo: sin paneles abiertos, sin cambios sin guardar y sin escribir. */
   const esSeguro = () => {
     if (hayGuardiaSalida()) return false;
@@ -49,48 +52,67 @@ if (import.meta.env.PROD) {
   };
   const momentoBueno = () => (document.visibilityState === "hidden" || recienAbierta()) && esSeguro();
 
+  const intentarRecargar = () => {
+    if (!recargaPendiente || !momentoBueno() || recargoHacePoco()) return;
+    try { sessionStorage.setItem("act-recarga", String(Date.now())); } catch { /* nada */ }
+    recargaPendiente = false;
+    location.reload();
+  };
+  /** La versión nueva ya manda en el celular: esta pantalla abierta es la vieja → refrescarla en cuanto se pueda. */
+  const llegoVersionNueva = () => {
+    recargaPendiente = true;
+    intentarRecargar();
+  };
+
   const buscar = (minimo: number) => {
     if (!registroSW || !navigator.onLine || Date.now() - ultimaBusqueda < minimo) return;
     ultimaBusqueda = Date.now();
     registroSW.update().catch(() => {});
   };
 
-  const intentarAplicar = () => {
-    if (!hayVersionNueva || aplicando || !momentoBueno() || recargoHacePoco()) return;
-    aplicando = true;
-    try { sessionStorage.setItem("act-recarga", String(Date.now())); } catch { /* nada */ }
-    activarVersionNueva(); // la nueva toma el control → onNeedReload recarga
-    setTimeout(() => { if (momentoBueno()) location.reload(); }, 4000); // por si el cambio no avisa
-  };
-
-  const activarVersionNueva = registerSW({
+  registerSW({
     immediate: true,
-    onNeedRefresh() {
-      hayVersionNueva = true;
-      intentarAplicar();
-    },
-    onNeedReload() {
-      // La versión nueva ya manda. Recargar solo si sigue siendo buen momento; si la persona volvió justo, al ocultar.
-      if (momentoBueno()) location.reload();
-      else recargarAlOcultar = true;
-    },
+    onNeedReload: llegoVersionNueva,
     onRegisteredSW(_url, registro) {
       registroSW = registro;
       ultimaBusqueda = Date.now(); // el registro recién hecho ya buscó
       setInterval(() => { if (document.visibilityState === "visible") buscar(4 * 60 * 1000); }, 5 * 60 * 1000);
+      // Búsqueda en segundo plano aunque la app esté cerrada (Chrome/Android con la app instalada; sin aviso al usuario).
+      // Si el celular no lo permite, no pasa nada: igual se actualiza al abrir.
+      (async () => {
+        try {
+          const ps = (registro as ServiceWorkerRegistration & { periodicSync?: { register(tag: string, o: { minInterval: number }): Promise<void> } }).periodicSync;
+          if (!ps) return;
+          const permiso = await navigator.permissions.query({ name: "periodic-background-sync" as PermissionName });
+          if (permiso.state === "granted") await ps.register("buscar-version", { minInterval: 6 * 60 * 60 * 1000 });
+        } catch { /* sin soporte */ }
+      })();
     },
+  });
+  // Respaldo: si el cambio de versión llega sin el aviso de arriba (p. ej. mientras la app estaba congelada).
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!habiaControlador) { habiaControlador = true; return; } // primera instalación: no es una versión nueva
+    llegoVersionNueva();
+  });
+  // Si la pantalla vieja intenta abrir una parte que ya no existe en el servidor (la versión cambió), recargar.
+  window.addEventListener("vite:preloadError", (e) => {
+    e.preventDefault();
+    if (!recargoHacePoco()) { try { sessionStorage.setItem("act-recarga", String(Date.now())); } catch { /* nada */ } location.reload(); }
   });
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
-      if (recargarAlOcultar && esSeguro()) { location.reload(); return; }
-      intentarAplicar();
-      buscar(60 * 1000); // si hay nueva, se baja ahora y se aplica en cuanto quede lista (sigue oculta)
+      intentarRecargar();
+      buscar(60 * 1000); // si hay nueva, el service worker la baja y la activa aunque la app quede congelada
     } else {
-      buscar(30 * 1000); // volvió a la app
+      visibleDesde = Date.now(); // volver a la app cuenta como apertura hasta el primer toque
+      tocó = false;
+      intentarRecargar();
+      buscar(30 * 1000);
     }
   });
   window.addEventListener("online", () => buscar(0));
+  window.addEventListener("focus", () => intentarRecargar());
 
   // Red de seguridad: si la app abrió SIN estilos (CSS guardado roto o de una versión que ya no existe),
   // se repara sola: 1.º recarga; 2.º si sigue igual, borra lo guardado y recarga desde internet. Solo 2 intentos.
