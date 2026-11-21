@@ -510,7 +510,7 @@ export default function HymnDetail() {
         const toque = enComputador ? { onClick: () => paso(d) } : (d < 0 ? toqueAnterior : toqueSiguiente);
         return (
           <button key={d} {...toque} aria-label={d < 0 ? '‹' : '›'}
-                  className={`absolute z-20 ${abajoCel ? '' : 'top-1/2 -translate-y-1/2'} ${d < 0 ? (enComputador ? 'left-4' : abajoCel ? 'left-4' : 'left-1.5') : (enComputador ? 'right-4' : abajoCel ? 'right-4' : 'right-1.5')} ${enComputador ? 'w-12 h-24 bg-card/90' : 'w-10 h-20 bg-card/80'} rounded-xl border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
+                  className={`absolute z-20 ${abajoCel ? '' : 'top-1/2 -translate-y-1/2'} ${d < 0 ? (enComputador ? 'left-4' : abajoCel ? 'left-4' : 'left-[calc(max(env(safe-area-inset-left,0px),2rem)_+_0.75rem)]') : (enComputador ? 'right-4' : abajoCel ? 'right-4' : 'right-[calc(max(env(safe-area-inset-right,0px),2rem)_+_0.75rem)]')} ${enComputador ? 'w-12 h-24 bg-card/90' : 'w-10 h-20 bg-card/80'} rounded-xl border border-border shadow-sm flex items-center justify-center text-foreground transition-opacity duration-200`}
                   style={{ opacity: puede ? 1 : 0, pointerEvents: puede ? 'auto' : 'none', touchAction: 'none', bottom: abajoCel ? completa ? 'calc(env(safe-area-inset-bottom, 0px) + 3rem)' : 'calc(var(--barra) + 4.5rem)' : undefined }}>
             {d < 0 ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
           </button>
